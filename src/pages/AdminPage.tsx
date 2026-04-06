@@ -11,39 +11,35 @@ export default function AdminPage() {
   const totalSuppliers = getAllSuppliers().length
 
   return (
-    <div className="min-h-screen bg-primary p-4 sm:p-6 pb-safe">
-      <div className="max-w-2xl mx-auto">
-        <header className="bg-secondary rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 mb-4 sm:mb-6 shadow-xl">
-          <div className="flex items-center gap-3 sm:gap-4">
+    <div className="min-h-screen bg-primary pb-20">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <header className="bg-secondary rounded-3xl p-5 mb-6 shadow-xl">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
               className="text-primary hover:text-primary/70 active:text-primary/50 transition-colors p-1 touch-manipulation"
             >
-              <ChevronRight size={24} className="sm:hidden" />
-              <ChevronRight size={28} className="hidden sm:block" />
+              <ChevronRight size={24} />
             </button>
-                 • {totalSuppliers} ספקים
-             
             <div className="flex-1 text-center">
-              <h2 className="font-black text-primary text-xl sm:text-2xl">פאנל אדמין</h2>
-              <p className="text-primary/60 text-xs font-bold mt-1">{totalOrders} הזמנות במערכת</p>
+              <h2 className="font-black text-primary text-xl mb-1">פאנל אדמין</h2>
+              <p className="text-primary/60 text-xs font-bold">{totalOrders} הזמנות • {totalSuppliers} ספקים</p>
             </div>
-            <div className="w-6 sm:w-7" />
+            <div className="w-8" />
           </div>
         </header>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3">
           <button 
             onClick={() => navigate('/admin/dashboard')}
-            className="w-full bg-gradient-to-br from-accent to-[#7a6348] p-5 sm:p-6 rounded-[1.75rem] sm:rounded-[2rem] shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-between group touch-manipulation"
+            className="w-full bg-gradient-to-br from-accent to-[#7a6348] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
           >
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-white/20 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-white/30 group-active:bg-white/40 transition-colors">
-                <BarChart3 className="text-white" size={22} />
-                <BarChart3 className="text-white hidden sm:block" size={24} />
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <BarChart3 className="text-white" size={24} />
               </div>
-              <div className="text-right">
-                <h3 className="font-black text-white text-base sm:text-lg">דשבורד אנליטי מתקדם</h3>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">דשבורד אנליטי מתקדם</h3>
                 <p className="text-white/80 text-xs font-bold">גרפים אינטראקטיביים וסטטיסטיקות</p>
               </div>
             </div>
@@ -51,15 +47,14 @@ export default function AdminPage() {
 
           <button 
             onClick={() => navigate('/admin/add-supplier')}
-            className="w-full bg-gradient-to-br from-bot to-[#96a556] p-5 sm:p-6 rounded-[1.75rem] sm:rounded-[2rem] shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-between group touch-manipulation"
+            className="w-full bg-gradient-to-br from-bot to-[#96a556] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
           >
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-white/20 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-white/30 group-active:bg-white/40 transition-colors">
-                <Plus className="text-white" size={22} />
-                <Plus className="text-white hidden sm:block" size={24} />
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <Plus className="text-white" size={24} />
               </div>
-              <div className="text-right">
-                <h3 className="font-black text-white text-base sm:text-lg">הוספת ספק חדש</h3>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">הוספת ספק חדש</h3>
                 <p className="text-white/80 text-xs font-bold">ספק + מוצרים + ימי הזמנה</p>
               </div>
             </div>
@@ -67,15 +62,14 @@ export default function AdminPage() {
 
           <button 
             onClick={() => navigate('/admin/prices')}
-            className="w-full bg-secondary p-5 sm:p-6 rounded-[1.75rem] sm:rounded-[2rem] shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-between group touch-manipulation"
+            className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
           >
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-primary/10 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-primary/20 group-active:bg-primary/25 transition-colors">
-                <DollarSign className="text-primary" size={22} />
-                <DollarSign className="text-primary hidden sm:block" size={24} />
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
+                <DollarSign className="text-primary" size={24} />
               </div>
-              <div className="text-right">
-                <h3 className="font-black text-primary text-base sm:text-lg">ניהול מחירים</h3>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-primary text-lg mb-1">ניהול מחירים</h3>
                 <p className="text-primary/60 text-xs font-bold">עדכון מחירי מוצרים</p>
               </div>
             </div>
@@ -83,15 +77,14 @@ export default function AdminPage() {
 
           <button 
             onClick={() => navigate('/admin/reports')}
-            className="w-full bg-secondary p-5 sm:p-6 rounded-[1.75rem] sm:rounded-[2rem] shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-between group touch-manipulation"
+            className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
           >
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-primary/10 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-primary/20 group-active:bg-primary/25 transition-colors">
-                <FileText className="text-primary" size={22} />
-                <FileText className="text-primary hidden sm:block" size={24} />
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
+                <FileText className="text-primary" size={24} />
               </div>
-              <div className="text-right">
-                <h3 className="font-black text-primary text-base sm:text-lg">דוחות כלכליים</h3>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-primary text-lg mb-1">דוחות כלכליים</h3>
                 <p className="text-primary/60 text-xs font-bold">דוחות לפי סניף וספק</p>
               </div>
             </div>
