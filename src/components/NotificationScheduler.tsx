@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Bell, Clock, Calendar } from 'lucide-react'
+import { Bell, Clock } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { 
   scheduleAllNotifications, 
-  getTodaySuppliers,
   getUpcomingNotifications,
   formatNotificationTime
 } from '../lib/scheduledNotifications'
@@ -13,7 +12,6 @@ export default function NotificationScheduler() {
   const { user, isAuthenticated } = useAuthStore()
   const [isScheduled, setIsScheduled] = useState(false)
   const [showUpcoming, setShowUpcoming] = useState(false)
-  const todaySuppliers = user ? getTodaySuppliers(user.branchCode) : []
   const upcomingNotifications = user ? getUpcomingNotifications(user.branchCode) : []
 
   useEffect(() => {
@@ -41,33 +39,6 @@ export default function NotificationScheduler() {
 
   return (
     <>
-      {/* הודעה על ספקים להזמנה היום */}
-      {todaySuppliers.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-40 max-w-md w-[calc(100%-2rem)]"
-        >
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-4 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <div className="bg-white/20 p-2 rounded-full flex-shrink-0">
-                <Calendar className="text-white" size={20} />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-black text-sm mb-1">📋 הזמנות להיום</h3>
-                <div className="space-y-1">
-                  {todaySuppliers.map(supplier => (
-                    <p key={supplier.name} className="text-white/90 text-xs">
-                      • {supplier.name}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
       {/* כפתור להצגת התראות קרובות */}
       <button
         onClick={() => setShowUpcoming(!showUpcoming)}
