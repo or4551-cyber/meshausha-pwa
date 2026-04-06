@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
 import SummaryPage from './pages/SummaryPage'
 import HistoryPage from './pages/HistoryPage'
+import RemindersPage from './pages/RemindersPage'
 import AdminPage from './pages/AdminPage'
 import PriceManagementPage from './pages/admin/PriceManagementPage'
 import ReportsPage from './pages/admin/ReportsPage'
@@ -48,6 +49,10 @@ function App() {
           <Route 
             path="/history" 
             element={isAuthenticated ? <HistoryPage /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/reminders" 
+            element={isAuthenticated ? <RemindersPage /> : <Navigate to="/login" />} 
           />
           <Route 
             path="/admin" 

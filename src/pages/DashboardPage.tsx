@@ -63,6 +63,7 @@ export default function DashboardPage() {
           </button>
 
           <button
+            onClick={() => navigate('/reminders')}
             className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
           >
             <div className="flex items-center gap-4 p-5">
