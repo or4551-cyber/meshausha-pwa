@@ -137,6 +137,19 @@ export default function AdminPage() {
             
             <div className="space-y-2">
               <button 
+                onClick={() => navigate('/admin/gmail-settings')}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation shadow-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <Mail className="text-white" size={20} />
+                  <div className="flex-1 text-right">
+                    <h4 className="font-bold text-white text-sm">🔥 Gmail - משיכה אוטומטית</h4>
+                    <p className="text-white/90 text-xs">חיבור ל-Gmail למשיכת חשבוניות</p>
+                  </div>
+                </div>
+              </button>
+
+              <button 
                 onClick={() => navigate('/admin/suppliers-contact')}
                 className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
               >
