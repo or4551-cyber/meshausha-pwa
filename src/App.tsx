@@ -12,6 +12,9 @@ import ReportsPage from './pages/admin/ReportsPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
 import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
 import AddSupplierPage from './pages/admin/AddSupplierPage'
+import SuppliersContactPage from './pages/admin/SuppliersContactPage'
+import InvoicesPage from './pages/admin/InvoicesPage'
+import InvoiceAnalysisPage from './pages/admin/InvoiceAnalysisPage'
 import ChatBot from './components/ChatBot'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
@@ -77,6 +80,18 @@ function App() {
           <Route 
             path="/admin/add-supplier" 
             element={isAuthenticated && user?.isAdmin ? <AddSupplierPage /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/admin/suppliers-contact" 
+            element={isAuthenticated && user?.isAdmin ? <SuppliersContactPage /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/admin/invoices" 
+            element={isAuthenticated && user?.isAdmin ? <InvoicesPage /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/admin/invoice-analysis" 
+            element={isAuthenticated && user?.isAdmin ? <InvoiceAnalysisPage /> : <Navigate to="/" />} 
           />
         </Routes>
       </div>

@@ -21,6 +21,9 @@ export interface Supplier {
   schedules: DaySchedule[] // לוח זמנים לפי יום עם סניפים ספציפיים
   description: string
   logo?: string
+  email?: string
+  contactPerson?: string
+  phone?: string
   createdAt: string
 }
 

@@ -5,6 +5,7 @@ interface User {
   branchCode: string
   branch: string
   isAdmin: boolean
+  username?: string
 }
 
 interface AuthState {
