@@ -39,7 +39,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="bg-primary/10 p-3 sm:p-4 rounded-xl sm:rounded-2xl group-hover:bg-primary/20 group-active:bg-primary/25 transition-colors">
-                <ShoppingCart className="text-primary" size={28} />
+                <ShoppingCart className="text-primary sm:hidden" size={28} />
                 <ShoppingCart className="text-primary hidden sm:block" size={32} />
               </div>
               <div className="text-right">
@@ -55,7 +55,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="bg-primary/10 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-primary/20 group-active:bg-primary/25 transition-colors">
-                <History className="text-primary" size={22} />
+                <History className="text-primary sm:hidden" size={22} />
                 <History className="text-primary hidden sm:block" size={24} />
               </div>
               <div className="text-right">
@@ -70,7 +70,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="bg-primary/10 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-primary/20 group-active:bg-primary/25 transition-colors">
-                <Bell className="text-primary" size={22} />
+                <Bell className="text-primary sm:hidden" size={22} />
                 <Bell className="text-primary hidden sm:block" size={24} />
               </div>
               <div className="text-right">
@@ -87,7 +87,7 @@ export default function DashboardPage() {
             >
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="bg-white/20 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:bg-white/30 group-active:bg-white/40 transition-colors">
-                  <BarChart3 className="text-white" size={22} />
+                  <BarChart3 className="text-white sm:hidden" size={22} />
                   <BarChart3 className="text-white hidden sm:block" size={24} />
                 </div>
                 <div className="text-right">

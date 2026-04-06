@@ -25,7 +25,7 @@ export default function ChatBot() {
   const { getOrdersByBranch } = useOrdersStore()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
-  const [showWelcome, setShowWelcome] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(false)
   const [userInput, setUserInput] = useState('')
 
   useEffect(() => {
