@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Search, Edit2, Save, X } from 'lucide-react'
 import { PRODUCTS as staticProducts } from '../../data/products'
@@ -8,18 +8,18 @@ import { motion } from 'framer-motion'
 
 export default function PriceManagementPage() {
   const navigate = useNavigate()
-  const { getAllProducts, updateProduct } = useSuppliersStore()
+  const { getAllProducts, updateProduct, seedStaticProducts } = useSuppliersStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editPrice, setEditPrice] = useState('')
-  
-  // שילוב מוצרים סטטיים ודינמיים
-  const allProducts = useMemo(() => {
-    const dynamicProducts = getAllProducts()
-    return [...staticProducts, ...dynamicProducts]
-  }, [getAllProducts])
-  
-  const [products, setProducts] = useState(allProducts)
+
+  // זריעת מוצרים סטטיים לstore בטעינה ראשונה (חד-פעמי)
+  useEffect(() => {
+    seedStaticProducts(staticProducts)
+  }, [seedStaticProducts])
+
+  // כל המוצרים מגיעים מהstore (כולל הסטטיים שנזרעו)
+  const products = useMemo(() => getAllProducts(), [getAllProducts])
 
   const filteredProducts = useMemo(() => {
     return products.filter(p =>
@@ -31,17 +31,7 @@ export default function PriceManagementPage() {
   const handleSave = (id: string) => {
     const price = parseFloat(editPrice)
     if (!isNaN(price) && price > 0) {
-      // עדכן ב-state המקומי
-      setProducts(products.map(p => 
-        p.id === id ? { ...p, price } : p
-      ))
-      
-      // עדכן גם ב-store אם זה מוצר דינמי
-      const product = products.find(p => p.id === id)
-      if (product && id.startsWith('product_')) {
-        updateProduct(id, { price })
-      }
-      
+      updateProduct(id, { price })
       setEditingId(null)
       setEditPrice('')
     }

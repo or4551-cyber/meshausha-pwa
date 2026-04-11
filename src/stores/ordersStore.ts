@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { CartItem } from './cartStore'
+import { savePendingOrder, getPendingOrders, markOrderSynced } from '../lib/db'
 
 export interface Order {
   id: string
@@ -26,8 +27,10 @@ interface OrdersState {
   getOrdersByBranch: (branchCode: string) => Order[]
   getAllOrders: () => Order[]
   saveTemplate: (name: string, items: CartItem[]) => void
+  updateTemplate: (templateId: string, items: CartItem[]) => void
   loadTemplate: (templateId: string) => CartItem[] | null
   deleteTemplate: (templateId: string) => void
+  syncOfflineOrders: () => Promise<number>
 }
 
 export const useOrdersStore = create<OrdersState>()(
@@ -42,10 +45,47 @@ export const useOrdersStore = create<OrdersState>()(
           id: `order_${Date.now()}`,
           createdAt: new Date().toISOString()
         }
-        
+
+        if (!navigator.onLine) {
+          // שמור ב-Dexie כהזמנה ממתינה
+          savePendingOrder({
+            branch: order.branch,
+            branchCode: order.branchCode,
+            items: order.items,
+            notes: order.notes,
+            totalPrice: order.totalPrice,
+            createdAt: newOrder.createdAt,
+          })
+        }
+
         set((state) => ({
           orders: [newOrder, ...state.orders]
         }))
+      },
+
+      syncOfflineOrders: async () => {
+        const pending = await getPendingOrders()
+        let synced = 0
+        for (const p of pending) {
+          const exists = get().orders.some(
+            o => o.branchCode === p.branchCode && o.createdAt === p.createdAt
+          )
+          if (!exists) {
+            const newOrder: Order = {
+              id: `order_offline_${p.id ?? Date.now()}`,
+              branch: p.branch,
+              branchCode: p.branchCode,
+              items: p.items,
+              notes: p.notes,
+              totalPrice: p.totalPrice,
+              createdAt: p.createdAt,
+            }
+            set((state) => ({ orders: [newOrder, ...state.orders] }))
+          }
+          if (p.id !== undefined) await markOrderSynced(p.id)
+          synced++
+        }
+        return synced
       },
       
       getOrdersByBranch: (branchCode) => {
@@ -69,6 +109,14 @@ export const useOrdersStore = create<OrdersState>()(
         }))
       },
       
+      updateTemplate: (templateId, items) => {
+        set((state) => ({
+          templates: state.templates.map(t =>
+            t.id === templateId ? { ...t, items } : t
+          )
+        }))
+      },
+
       loadTemplate: (templateId) => {
         const template = get().templates.find(t => t.id === templateId)
         return template ? template.items : null

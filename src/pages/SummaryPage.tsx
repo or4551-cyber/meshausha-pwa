@@ -1,19 +1,22 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Trash2, Send, Save } from 'lucide-react'
+import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { useOrdersStore } from '../stores/ordersStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { notifyNewOrder } from '../lib/notifications'
-import { motion } from 'framer-motion'
+import { printOrderAsPDF } from '../lib/pdfExport'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function SummaryPage() {
   const navigate = useNavigate()
   const { items, updateQuantity, removeItem, clearCart, getTotalPrice } = useCartStore()
   const { user } = useAuthStore()
-  const { addOrder, saveTemplate } = useOrdersStore()
+  const { addOrder, saveTemplate, updateTemplate, templates } = useOrdersStore()
   const [notes, setNotes] = useState('')
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
 
   const groupedItems = items.reduce((acc, item) => {
     if (!acc[item.supplier]) {
@@ -57,12 +60,16 @@ export default function SummaryPage() {
     }, 500)
   }
 
-  const handleSaveTemplate = () => {
-    const templateName = prompt('שם התבנית:')
-    if (templateName) {
-      saveTemplate(templateName, items)
-      alert('התבנית נשמרה בהצלחה!')
-    }
+  const handleSaveAsNewTemplate = () => {
+    if (!newTemplateName.trim()) return
+    saveTemplate(newTemplateName.trim(), items)
+    setNewTemplateName('')
+    setShowTemplateModal(false)
+  }
+
+  const handleUpdateTemplate = (templateId: string) => {
+    updateTemplate(templateId, items)
+    setShowTemplateModal(false)
   }
 
   const generateOrderText = () => {
@@ -214,11 +221,21 @@ export default function SummaryPage() {
         <div className="max-w-2xl mx-auto space-y-2">
           <div className="flex gap-2">
             <button
-              onClick={handleSaveTemplate}
+              onClick={() => setShowTemplateModal(true)}
               className="flex-1 bg-secondary/20 text-secondary font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform touch-manipulation"
             >
               <Save size={20} />
-              <span>שמור תבנית</span>
+              <span>תבנית</span>
+            </button>
+            <button
+              onClick={() => printOrderAsPDF(
+                { branch: user?.branch || '', branchCode: user?.branchCode || '', items, notes },
+                user?.isAdmin ?? false
+              )}
+              className="flex-1 bg-secondary/20 text-secondary font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform touch-manipulation"
+            >
+              <FileDown size={20} />
+              <span>PDF</span>
             </button>
             <button
               onClick={() => {
@@ -227,10 +244,9 @@ export default function SummaryPage() {
                   navigate('/orders')
                 }
               }}
-              className="flex-1 bg-red-500/20 text-red-300 font-bold py-3 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform touch-manipulation"
+              className="bg-red-500/20 text-red-300 font-bold py-3 px-4 rounded-xl flex items-center justify-center active:scale-[0.98] transition-transform touch-manipulation"
             >
               <Trash2 size={20} />
-              <span>מחק הכל</span>
             </button>
           </div>
           <button
@@ -242,6 +258,82 @@ export default function SummaryPage() {
           </button>
         </div>
       </div>
+
+      {/* Modal שמירת תבנית */}
+      <AnimatePresence>
+        {showTemplateModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowTemplateModal(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-secondary rounded-t-3xl p-5 shadow-2xl"
+              style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-black text-primary text-xl">שמור תבנית</h3>
+                <button
+                  onClick={() => setShowTemplateModal(false)}
+                  className="p-2 text-primary/40 active:text-primary transition-colors touch-manipulation"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+
+              {/* שמירה כתבנית חדשה */}
+              <div className="mb-5">
+                <label className="block text-primary font-bold text-sm mb-2">תבנית חדשה</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewTemplate()}
+                    placeholder="שם התבנית..."
+                    className="flex-1 bg-primary/5 text-primary placeholder:text-primary/30 rounded-xl py-3 px-4 font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveAsNewTemplate}
+                    disabled={!newTemplateName.trim()}
+                    className="bg-primary text-secondary font-bold px-4 rounded-xl disabled:opacity-40 active:scale-95 transition-transform touch-manipulation flex items-center gap-1"
+                  >
+                    <Plus size={18} />
+                    <span>צור</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* עדכון תבנית קיימת */}
+              {templates.length > 0 && (
+                <div>
+                  <p className="text-primary/50 font-bold text-sm mb-2">או עדכן תבנית קיימת</p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {templates.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleUpdateTemplate(t.id)}
+                        className="w-full bg-primary/5 text-right rounded-xl px-4 py-3 flex items-center justify-between active:bg-primary/10 transition-colors touch-manipulation"
+                      >
+                        <span className="font-bold text-primary text-sm">{t.name}</span>
+                        <span className="text-primary/40 text-xs">{t.items.length} פריטים</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

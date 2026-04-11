@@ -1,5 +1,19 @@
 import emailjs from '@emailjs/browser'
 
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID as string | undefined
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID as string | undefined
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY as string | undefined
+
+function assertEmailConfigured(): void {
+  if (
+    !EMAILJS_SERVICE_ID || EMAILJS_SERVICE_ID === 'YOUR_SERVICE_ID' ||
+    !EMAILJS_TEMPLATE_ID || EMAILJS_TEMPLATE_ID === 'YOUR_TEMPLATE_ID' ||
+    !EMAILJS_PUBLIC_KEY || EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY'
+  ) {
+    throw new Error('שליחת מייל לא מוגדרת - נא להגדיר VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID ו-VITE_EMAILJS_PUBLIC_KEY במשתני הסביבה')
+  }
+}
+
 interface InvoiceRequestEmailParams {
   supplierName: string
   supplierEmail: string
@@ -11,6 +25,7 @@ interface InvoiceRequestEmailParams {
 
 export const sendInvoiceRequest = async (params: InvoiceRequestEmailParams): Promise<boolean> => {
   try {
+    assertEmailConfigured()
     const monthNames = [
       'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
       'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
@@ -31,10 +46,10 @@ export const sendInvoiceRequest = async (params: InvoiceRequestEmailParams): Pro
     }
 
     const response = await emailjs.send(
-      'YOUR_SERVICE_ID', // צריך להחליף
-      'YOUR_TEMPLATE_ID', // צריך להחליף
+      EMAILJS_SERVICE_ID!,
+      EMAILJS_TEMPLATE_ID!,
       templateParams,
-      'YOUR_PUBLIC_KEY' // צריך להחליף
+      EMAILJS_PUBLIC_KEY!
     )
 
     return response.status === 200

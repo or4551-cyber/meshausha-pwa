@@ -76,9 +76,18 @@ export const notifyBudgetExceeded = async (branch: string, budget: number, spent
   })
 }
 
-// שמירת מנוי Push (לעתיד - דורש שרת)
+const FAKE_VAPID_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37J8xQmrpcPBblQV4qwFSf01S-4kkRzKftsHqOjfH5VqJB5VJBDWr2RGk'
+
+// שמירת מנוי Push (דורש VAPID key אמיתי ב-Netlify env vars)
 export const subscribeToPushNotifications = async (): Promise<PushSubscription | null> => {
   if (!isNotificationSupported()) {
+    return null
+  }
+
+  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+
+  if (!vapidKey || vapidKey === FAKE_VAPID_KEY) {
+    console.warn('[Push] VAPID public key לא מוגדר - Push notifications מושבתות. הגדר VITE_VAPID_PUBLIC_KEY ב-.env')
     return null
   }
 
@@ -86,12 +95,9 @@ export const subscribeToPushNotifications = async (): Promise<PushSubscription |
     const registration = await navigator.serviceWorker.ready
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(
-        // TODO: החלף במפתח VAPID אמיתי
-        'BEl62iUYgUivxIkv69yViEuiBIa-Ib37J8xQmrpcPBblQV4qwFSf01S-4kkRzKftsHqOjfH5VqJB5VJBDWr2RGk'
-      ) as any
+      applicationServerKey: urlBase64ToUint8Array(vapidKey) as any
     })
-    
+
     return subscription
   } catch (error) {
     console.error('Failed to subscribe to push notifications:', error)

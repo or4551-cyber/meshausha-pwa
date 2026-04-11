@@ -2,19 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Plus, Trash2, Calendar, Clock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-
-interface Reminder {
-  id: string
-  title: string
-  description: string
-  date: string
-  time: string
-  createdAt: Date
-}
+import { useRemindersStore } from '../stores/remindersStore'
 
 export default function RemindersPage() {
   const navigate = useNavigate()
-  const [reminders, setReminders] = useState<Reminder[]>([])
+  const { reminders, addReminder, deleteReminder } = useRemindersStore()
   const [showAddForm, setShowAddForm] = useState(false)
   const [newReminder, setNewReminder] = useState({
     title: '',
@@ -29,22 +21,18 @@ export default function RemindersPage() {
       return
     }
 
-    const reminder: Reminder = {
-      id: Date.now().toString(),
+    addReminder({
       title: newReminder.title,
       description: newReminder.description,
       date: newReminder.date,
       time: newReminder.time,
-      createdAt: new Date()
-    }
-
-    setReminders([reminder, ...reminders])
+    })
     setNewReminder({ title: '', description: '', date: '', time: '' })
     setShowAddForm(false)
   }
 
   const handleDeleteReminder = (id: string) => {
-    setReminders(reminders.filter(r => r.id !== id))
+    deleteReminder(id)
   }
 
   const formatDate = (dateStr: string) => {

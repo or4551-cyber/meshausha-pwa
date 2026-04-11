@@ -34,6 +34,7 @@ interface SuppliersState {
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void
   deleteSupplier: (id: string) => void
   addProducts: (products: Omit<Product, 'id'>[]) => void
+  seedStaticProducts: (products: Product[]) => void
   updateProduct: (id: string, updates: Partial<Product>) => void
   deleteProduct: (id: string) => void
   getSupplierById: (id: string) => Supplier | undefined
@@ -84,10 +85,20 @@ export const useSuppliersStore = create<SuppliersState>()(
           ...p,
           id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         }))
-        
+
         set((state) => ({
           products: [...state.products, ...newProducts]
         }))
+      },
+
+      // זורע מוצרים סטטיים עם ID קבוע - לא מוסיף אם כבר קיים
+      seedStaticProducts: (products) => {
+        set((state) => {
+          const existingIds = new Set(state.products.map(p => p.id))
+          const toAdd = products.filter(p => !existingIds.has(p.id))
+          if (toAdd.length === 0) return state
+          return { products: [...state.products, ...toAdd] }
+        })
       },
 
       updateProduct: (id, updates) => {

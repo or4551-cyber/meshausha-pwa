@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useSuppliersStore } from './suppliersStore'
+import { PRODUCTS as staticProducts } from '../data/products'
 
 export interface InvoiceItem {
   productName: string
@@ -96,11 +98,43 @@ export const useInvoicesStore = create<InvoicesState>()(
         const invoice = get().invoices.find(inv => inv.id === invoiceId)
         if (!invoice) return []
 
+        // מוצרים מהstore (כולל סטטיים שנזרעו) + fallback לסטטיים
+        const storeProducts = useSuppliersStore.getState().getAllProducts()
+        const allKnownProducts = storeProducts.length > 0 ? storeProducts : staticProducts
+
         const discrepancies: PriceDiscrepancy[] = []
-        
-        // כאן תהיה הלוגיקה להשוואת מחירים
-        // נממש בשלב הבא עם חיבור ל-suppliersStore
-        
+
+        for (const item of invoice.items) {
+          // חיפוש לפי שם מוצר + ספק (השוואה לא תלוית רישיות)
+          const match = allKnownProducts.find(p =>
+            p.name.trim().toLowerCase() === item.productName.trim().toLowerCase() &&
+            p.supplier.trim().toLowerCase() === invoice.supplierName.trim().toLowerCase()
+          )
+          // אם לא נמצא לפי ספק, נחפש רק לפי שם
+          const product = match ?? allKnownProducts.find(p =>
+            p.name.trim().toLowerCase() === item.productName.trim().toLowerCase()
+          )
+
+          if (product) {
+            const difference = item.unitPrice - product.price
+            if (Math.abs(difference) > 0.001) {
+              const percentageDiff = product.price > 0
+                ? ((difference / product.price) * 100)
+                : 0
+              discrepancies.push({
+                productName: item.productName,
+                supplierName: invoice.supplierName,
+                branchName: invoice.branchName,
+                month: invoice.month,
+                priceInApp: product.price,
+                priceInInvoice: item.unitPrice,
+                difference,
+                percentageDiff,
+              })
+            }
+          }
+        }
+
         return discrepancies
       },
 

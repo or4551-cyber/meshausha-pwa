@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Search, Star, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
@@ -8,11 +8,14 @@ import ProductCard from '../components/ProductCard'
 
 export default function OrdersPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { favorites, getTotalItems } = useCartStore()
   const { getAllProducts, getAllSuppliers } = useSuppliersStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
-  const [selectedSupplier, setSelectedSupplier] = useState<string>('')
+  const [selectedSupplier, setSelectedSupplier] = useState<string>(
+    searchParams.get('supplier') ?? ''
+  )
 
   // שילוב מוצרים סטטיים ודינמיים
   const allProducts = useMemo(() => {
