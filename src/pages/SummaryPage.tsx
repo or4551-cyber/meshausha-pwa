@@ -4,6 +4,7 @@ import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown } from 'lucide-reac
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { useOrdersStore } from '../stores/ordersStore'
+import { useSuppliersStore } from '../stores/suppliersStore'
 import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { notifyNewOrder } from '../lib/notifications'
@@ -15,7 +16,39 @@ export default function SummaryPage() {
   const { items, updateQuantity, removeItem, clearCart, getTotalPrice } = useCartStore()
   const { user } = useAuthStore()
   const { addOrder, saveTemplate, updateTemplate, templates } = useOrdersStore()
+  const { getAllSuppliers } = useSuppliersStore()
   const { recordOrderPrices } = usePriceHistoryStore()
+
+  // מחזיר מספר WhatsApp בפורמט בינלאומי ישראלי
+  const getWhatsAppNumber = (supplierName: string) => {
+    const supplier = getAllSuppliers().find(s => s.name === supplierName)
+    if (!supplier?.phone) return ''
+    const digits = supplier.phone.replace(/\D/g, '')
+    if (digits.startsWith('972')) return digits
+    if (digits.startsWith('0')) return '972' + digits.slice(1)
+    return '972' + digits
+  }
+
+  const buildSupplierText = (supplierName: string, supplierItems: typeof items) => {
+    let text = `🛒 הזמנה - ${user?.branch}\n`
+    text += `📅 ${new Date().toLocaleDateString('he-IL')}\n\n`
+    text += `📦 ${supplierName}\n${'─'.repeat(28)}\n`
+    supplierItems.forEach(item => {
+      text += `• ${item.name}\n  כמות: ${item.quantity}\n`
+      if (user?.isAdmin) text += `  מחיר: ${formatPrice(item.price * item.quantity)}\n`
+    })
+    if (notes) text += `\n📝 הערות: ${notes}`
+    return text
+  }
+
+  const openWhatsApp = (supplierName: string, supplierItems: typeof items) => {
+    const phone = getWhatsAppNumber(supplierName)
+    const text = buildSupplierText(supplierName, supplierItems)
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank')
+  }
   const [notes, setNotes] = useState('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
@@ -43,7 +76,6 @@ export default function SummaryPage() {
     })
     recordOrderPrices(items, user?.branchCode || '', orderedAt)
 
-    // שליחת התראה לאדמין
     try {
       await notifyNewOrder({
         branch: user?.branch || '',
@@ -54,14 +86,19 @@ export default function SummaryPage() {
       console.log('Notification not sent:', error)
     }
 
-    const orderText = generateOrderText()
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(orderText)}`
-    window.open(whatsappUrl, '_blank')
-    
+    const supplierEntries = Object.entries(groupedItems)
+    if (supplierEntries.length === 1) {
+      // ספק יחיד — פתח WhatsApp עם מספרו אם קיים
+      const [supplierName, supplierItems] = supplierEntries[0]
+      openWhatsApp(supplierName, supplierItems)
+    } else {
+      // מספר ספקים — הודעה משולבת
+      const orderText = generateOrderText()
+      window.open(`https://wa.me/?text=${encodeURIComponent(orderText)}`, '_blank')
+    }
+
     clearCart()
-    setTimeout(() => {
-      navigate('/')
-    }, 500)
+    setTimeout(() => navigate('/'), 500)
   }
 
   const handleSaveAsNewTemplate = () => {
@@ -153,9 +190,18 @@ export default function SummaryPage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-secondary rounded-2xl p-4 shadow-md"
           >
-            <h3 className="font-black text-primary text-lg mb-3 pb-2 border-b-2 border-primary/10">
-              {supplier}
-            </h3>
+            <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-primary/10">
+              <h3 className="font-black text-primary text-lg">{supplier}</h3>
+              {Object.keys(groupedItems).length > 1 && (
+                <button
+                  onClick={() => openWhatsApp(supplier, supplierItems)}
+                  className="flex items-center gap-1.5 bg-green-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl active:scale-95 touch-manipulation"
+                >
+                  <Send size={13} />
+                  שלח
+                </button>
+              )}
+            </div>
             <div className="space-y-2">
               {supplierItems.map(item => (
                 <div key={item.productId} className="flex items-center gap-3 py-2">
