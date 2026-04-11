@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, CheckCircle, XCircle, AlertTriangle, TrendingUp, Package, CreditCard } from 'lucide-react'
+import { ChevronRight, CheckCircle, XCircle, AlertTriangle, TrendingUp, CreditCard } from 'lucide-react'
 import { useOrdersStore } from '../../stores/ordersStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { useDeliveriesStore } from '../../stores/deliveriesStore'
@@ -25,10 +25,9 @@ export default function BranchOverviewPage() {
   const navigate = useNavigate()
   const { getAllOrders } = useOrdersStore()
   const { suppliers } = useSuppliersStore()
-  const { getAllDeliveries, getPendingCredits } = useDeliveriesStore()
+  const { getPendingCredits } = useDeliveriesStore()
 
   const allOrders = getAllOrders()
-  const allDeliveries = getAllDeliveries()
   const pendingCredits = getPendingCredits()
   const todayDay = today.getDay()
 

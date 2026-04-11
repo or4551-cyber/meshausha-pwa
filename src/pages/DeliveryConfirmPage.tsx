@@ -142,7 +142,6 @@ export default function DeliveryConfirmPage() {
               <h3 className="font-black text-primary text-base mb-3 pb-2 border-b border-primary/10">{supplier}</h3>
               <div className="space-y-3">
                 {supplierItems.map(({ item, idx }) => {
-                  const cfg = STATUS_CONFIG[item.status]
                   return (
                     <div key={item.productId} className="bg-primary/5 rounded-2xl p-3">
                       <div className="flex items-center justify-between mb-2">
