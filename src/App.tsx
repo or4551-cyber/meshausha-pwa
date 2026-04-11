@@ -19,6 +19,11 @@ import GmailSettingsPage from './pages/admin/GmailSettingsPage'
 import GmailCallbackPage from './pages/admin/GmailCallbackPage'
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage'
 import AutomationPage from './pages/admin/AutomationPage'
+import DeliveryConfirmPage from './pages/DeliveryConfirmPage'
+import CreditClaimsPage from './pages/admin/CreditClaimsPage'
+import WeeklySchedulePage from './pages/admin/WeeklySchedulePage'
+import BranchOverviewPage from './pages/admin/BranchOverviewPage'
+import PriceHistoryPage from './pages/admin/PriceHistoryPage'
 import ChatBot from './components/ChatBot'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
@@ -112,6 +117,26 @@ function App() {
           <Route
             path="/admin/automation"
             element={isAuthenticated && user?.isAdmin ? <AutomationPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/delivery/:orderId"
+            element={isAuthenticated ? <DeliveryConfirmPage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/admin/credits"
+            element={isAuthenticated && user?.isAdmin ? <CreditClaimsPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/weekly-schedule"
+            element={isAuthenticated && user?.isAdmin ? <WeeklySchedulePage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/branch-overview"
+            element={isAuthenticated && user?.isAdmin ? <BranchOverviewPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/price-history"
+            element={isAuthenticated && user?.isAdmin ? <PriceHistoryPage /> : <Navigate to="/" />}
           />
         </Routes>
       </div>

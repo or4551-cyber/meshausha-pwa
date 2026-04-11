@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronLeft, Search, Calendar, Package, RefreshCw, Edit, X, FileDown } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Search, Calendar, Package, RefreshCw, Edit, X, FileDown, CheckCircle, AlertCircle, Clock } from 'lucide-react'
 import { useOrdersStore } from '../stores/ordersStore'
 import type { Order } from '../stores/ordersStore'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
+import { useDeliveriesStore } from '../stores/deliveriesStore'
 import { formatPrice } from '../lib/utils'
 import { printSavedOrderAsPDF } from '../lib/pdfExport'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -21,6 +22,8 @@ export default function HistoryPage() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [calendarDate, setCalendarDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
+  const { getDeliveryForOrder } = useDeliveriesStore()
 
   const displayOrders = user?.isAdmin ? getAllOrders() : getOrdersByBranch(user?.branchCode || '')
 
@@ -92,70 +95,98 @@ export default function HistoryPage() {
   const nextMonth = () => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))
 
   // --- כרטיס הזמנה (משותף לרשימה ולוח שנה) ---
-  const OrderCard = ({ order, onClose }: { order: Order; onClose?: () => void }) => (
-    <div className="bg-secondary rounded-3xl p-4 shadow-md">
-      <div className="flex items-start justify-between mb-3 pb-3 border-b border-primary/10">
-        <div className="flex-1">
-          <h3 className="font-black text-primary text-base mb-1">{order.branch}</h3>
-          <div className="flex items-center gap-1.5 text-primary/60 text-xs">
-            <Calendar size={12} />
-            <span>{new Date(order.createdAt).toLocaleDateString('he-IL')}</span>
-          </div>
-        </div>
-        {user?.isAdmin && (
-          <div className="text-left">
-            <p className="font-black text-primary text-base">{formatPrice(order.totalPrice)}</p>
-            <p className="text-primary/60 text-xs">כולל מע"מ</p>
-          </div>
-        )}
-      </div>
+  const OrderCard = ({ order, onClose }: { order: Order; onClose?: () => void }) => {
+    const delivery = getDeliveryForOrder(order.id)
 
-      <div className="bg-primary/5 rounded-xl p-3 mb-3">
-        <p className="text-primary/70 font-bold text-xs mb-2">פריטים:</p>
-        <div className="space-y-1">
-          {order.items.slice(0, 3).map((item, idx) => (
-            <div key={idx} className="flex justify-between text-xs">
-              <span className="text-primary font-bold truncate ml-2">{item.name}</span>
-              <span className="text-primary/60 flex-shrink-0">×{item.quantity}</span>
+    const deliveryBadge = !delivery
+      ? { label: 'ממתין לאישור', color: 'bg-primary/10 text-primary/50', Icon: Clock }
+      : delivery.status === 'confirmed'
+        ? { label: 'אספקה אושרה', color: 'bg-green-100 text-green-700', Icon: CheckCircle }
+        : delivery.status === 'partial'
+          ? { label: 'אספקה חלקית', color: 'bg-amber-100 text-amber-700', Icon: AlertCircle }
+          : { label: 'בתהליך אישור', color: 'bg-blue-100 text-blue-700', Icon: Clock }
+
+    return (
+      <div className="bg-secondary rounded-3xl p-4 shadow-md">
+        <div className="flex items-start justify-between mb-3 pb-3 border-b border-primary/10">
+          <div className="flex-1">
+            <h3 className="font-black text-primary text-base mb-1">{order.branch}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-primary/60 text-xs">
+                <Calendar size={12} />
+                <span>{new Date(order.createdAt).toLocaleDateString('he-IL')}</span>
+              </div>
+              <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${deliveryBadge.color}`}>
+                <deliveryBadge.Icon size={10} />
+                {deliveryBadge.label}
+              </span>
             </div>
-          ))}
-          {order.items.length > 3 && (
-            <p className="text-primary/50 text-xs mt-1">ועוד {order.items.length - 3} פריטים...</p>
+          </div>
+          {user?.isAdmin && (
+            <div className="text-left">
+              <p className="font-black text-primary text-base">{formatPrice(order.totalPrice)}</p>
+              <p className="text-primary/60 text-xs">כולל מע"מ</p>
+            </div>
           )}
         </div>
-      </div>
 
-      {order.notes && (
-        <div className="bg-amber-50 rounded-xl p-2.5 mb-3">
-          <p className="text-amber-900 text-xs font-bold">📝 {order.notes}</p>
+        <div className="bg-primary/5 rounded-xl p-3 mb-3">
+          <p className="text-primary/70 font-bold text-xs mb-2">פריטים:</p>
+          <div className="space-y-1">
+            {order.items.slice(0, 3).map((item, idx) => (
+              <div key={idx} className="flex justify-between text-xs">
+                <span className="text-primary font-bold truncate ml-2">{item.name}</span>
+                <span className="text-primary/60 flex-shrink-0">×{item.quantity}</span>
+              </div>
+            ))}
+            {order.items.length > 3 && (
+              <p className="text-primary/50 text-xs mt-1">ועוד {order.items.length - 3} פריטים...</p>
+            )}
+          </div>
         </div>
-      )}
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => { onClose?.(); handleReorder(order.id) }}
-          className="flex-1 bg-primary text-secondary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm"
-        >
-          <RefreshCw size={14} />
-          <span>הזמן שוב</span>
-        </button>
-        <button
-          onClick={() => { onClose?.(); handleEditAndOrder(order.id) }}
-          className="flex-1 bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm"
-        >
-          <Edit size={14} />
-          <span>ערוך</span>
-        </button>
-        <button
-          onClick={() => printSavedOrderAsPDF(order, user?.isAdmin ?? false)}
-          className="bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center active:scale-95 transition-transform touch-manipulation"
-          aria-label="ייצא PDF"
-        >
-          <FileDown size={14} />
-        </button>
+        {order.notes && (
+          <div className="bg-amber-50 rounded-xl p-2.5 mb-3">
+            <p className="text-amber-900 text-xs font-bold">📝 {order.notes}</p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => { onClose?.(); handleReorder(order.id) }}
+            className="flex-1 bg-primary text-secondary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm"
+          >
+            <RefreshCw size={14} />
+            <span>הזמן שוב</span>
+          </button>
+          <button
+            onClick={() => { onClose?.(); handleEditAndOrder(order.id) }}
+            className="flex-1 bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm"
+          >
+            <Edit size={14} />
+            <span>ערוך</span>
+          </button>
+          <button
+            onClick={() => { onClose?.(); navigate(`/delivery/${order.id}`) }}
+            className={`bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center active:scale-95 transition-transform touch-manipulation ${
+              delivery?.status === 'confirmed' ? 'opacity-50' : ''
+            }`}
+            aria-label="אשר קבלה"
+            title="אשר קבלת סחורה"
+          >
+            <CheckCircle size={14} />
+          </button>
+          <button
+            onClick={() => printSavedOrderAsPDF(order, user?.isAdmin ?? false)}
+            className="bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center active:scale-95 transition-transform touch-manipulation"
+            aria-label="ייצא PDF"
+          >
+            <FileDown size={14} />
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="min-h-screen bg-primary pb-20">

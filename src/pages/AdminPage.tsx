@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap } from 'lucide-react'
+import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard } from 'lucide-react'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { useState } from 'react'
@@ -72,7 +72,55 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-3">
-          <button 
+          {/* מבט-על סניפים */}
+          <button
+            onClick={() => navigate('/admin/branch-overview')}
+            className="w-full bg-gradient-to-br from-primary to-[#7a2f2f] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <Eye className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">מבט-על סניפים</h3>
+                <p className="text-white/80 text-xs font-bold">מי הזמין היום • הוצאות • זיכויים</p>
+              </div>
+            </div>
+          </button>
+
+          {/* לוח שבועי */}
+          <button
+            onClick={() => navigate('/admin/weekly-schedule')}
+            className="w-full bg-gradient-to-br from-violet-600 to-violet-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <Calendar className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">לוח שבועי</h3>
+                <p className="text-white/80 text-xs font-bold">מי מזמין מי בכל יום בשבוע</p>
+              </div>
+            </div>
+          </button>
+
+          {/* מעקב זיכויים */}
+          <button
+            onClick={() => navigate('/admin/credits')}
+            className="w-full bg-gradient-to-br from-amber-500 to-amber-700 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <CreditCard className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">מעקב זיכויים</h3>
+                <p className="text-white/80 text-xs font-bold">פריטים שלא סופקו • זיכויים פתוחים</p>
+              </div>
+            </div>
+          </button>
+
+          <button
             onClick={() => navigate('/admin/dashboard')}
             className="w-full bg-gradient-to-br from-accent to-[#7a6348] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
           >
@@ -223,7 +271,7 @@ export default function AdminPage() {
                 </div>
               </button>
 
-              <button 
+              <button
                 onClick={() => navigate('/admin/invoice-analysis')}
                 className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
               >
@@ -232,6 +280,19 @@ export default function AdminPage() {
                   <div className="flex-1 text-right">
                     <h4 className="font-bold text-white text-sm">ניתוח חשבוניות</h4>
                     <p className="text-white/70 text-xs">השוואת מחירים והפרשים</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate('/admin/price-history')}
+                className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
+              >
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="text-white" size={20} />
+                  <div className="flex-1 text-right">
+                    <h4 className="font-bold text-white text-sm">מעקב מחירים לאורך זמן</h4>
+                    <p className="text-white/70 text-xs">מגמות מחיר לפי מוצר</p>
                   </div>
                 </div>
               </button>

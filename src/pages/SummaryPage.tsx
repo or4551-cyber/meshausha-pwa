@@ -4,6 +4,7 @@ import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown } from 'lucide-reac
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { useOrdersStore } from '../stores/ordersStore'
+import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { notifyNewOrder } from '../lib/notifications'
 import { printOrderAsPDF } from '../lib/pdfExport'
@@ -14,6 +15,7 @@ export default function SummaryPage() {
   const { items, updateQuantity, removeItem, clearCart, getTotalPrice } = useCartStore()
   const { user } = useAuthStore()
   const { addOrder, saveTemplate, updateTemplate, templates } = useOrdersStore()
+  const { recordOrderPrices } = usePriceHistoryStore()
   const [notes, setNotes] = useState('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
@@ -31,6 +33,7 @@ export default function SummaryPage() {
   const totalWithVAT = calculateTotal(totalBeforeVAT)
 
   const handleSendOrder = async () => {
+    const orderedAt = new Date().toISOString()
     addOrder({
       branch: user?.branch || '',
       branchCode: user?.branchCode || '',
@@ -38,6 +41,7 @@ export default function SummaryPage() {
       notes,
       totalPrice: totalWithVAT
     })
+    recordOrderPrices(items, user?.branchCode || '', orderedAt)
 
     // שליחת התראה לאדמין
     try {
