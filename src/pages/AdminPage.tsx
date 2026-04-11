@@ -72,6 +72,22 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-3">
+          {/* תזכורות ביומן גוגל */}
+          <button
+            onClick={() => navigate('/admin/calendar-reminders')}
+            className="w-full bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <Bell className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">תזכורות Push לסניפים</h3>
+                <p className="text-white/80 text-xs font-bold">Google Calendar • Push אמיתי לטלפון</p>
+              </div>
+            </div>
+          </button>
+
           {/* מבט-על סניפים */}
           <button
             onClick={() => navigate('/admin/branch-overview')}

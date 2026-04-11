@@ -24,6 +24,7 @@ import CreditClaimsPage from './pages/admin/CreditClaimsPage'
 import WeeklySchedulePage from './pages/admin/WeeklySchedulePage'
 import BranchOverviewPage from './pages/admin/BranchOverviewPage'
 import PriceHistoryPage from './pages/admin/PriceHistoryPage'
+import CalendarRemindersPage from './pages/admin/CalendarRemindersPage'
 import ChatBot from './components/ChatBot'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
@@ -137,6 +138,10 @@ function App() {
           <Route
             path="/admin/price-history"
             element={isAuthenticated && user?.isAdmin ? <PriceHistoryPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/calendar-reminders"
+            element={isAuthenticated && user?.isAdmin ? <CalendarRemindersPage /> : <Navigate to="/" />}
           />
         </Routes>
       </div>
