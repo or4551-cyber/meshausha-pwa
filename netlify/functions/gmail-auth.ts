@@ -1,10 +1,11 @@
 import { Handler } from '@netlify/functions'
 import { google } from 'googleapis'
+import { getStore } from '@netlify/blobs'
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.NETLIFY_URL 
+  process.env.NETLIFY_URL
     ? `${process.env.NETLIFY_URL}/admin/gmail-callback`
     : 'http://localhost:5173/admin/gmail-callback'
 )
@@ -29,7 +30,8 @@ export const handler: Handler = async (event) => {
         access_type: 'offline',
         scope: [
           'https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/gmail.modify'
+          'https://www.googleapis.com/auth/gmail.modify',
+          'https://www.googleapis.com/auth/gmail.send',
         ],
         prompt: 'consent'
       })
@@ -43,6 +45,19 @@ export const handler: Handler = async (event) => {
 
     // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code)
+
+    // שמור את ה-refresh_token ב-Netlify Blobs לשימוש פונקציות מתוזמנות
+    if (tokens.refresh_token) {
+      try {
+        const store = getStore('gmail-tokens')
+        await store.setJSON('admin-refresh-token', {
+          refreshToken: tokens.refresh_token,
+          savedAt: new Date().toISOString()
+        })
+      } catch (blobError) {
+        console.warn('Could not save refresh token to Blobs (running locally?):', blobError)
+      }
+    }
 
     return {
       statusCode: 200,

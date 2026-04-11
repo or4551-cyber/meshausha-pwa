@@ -18,6 +18,7 @@ import InvoiceAnalysisPage from './pages/admin/InvoiceAnalysisPage'
 import GmailSettingsPage from './pages/admin/GmailSettingsPage'
 import GmailCallbackPage from './pages/admin/GmailCallbackPage'
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage'
+import AutomationPage from './pages/admin/AutomationPage'
 import ChatBot from './components/ChatBot'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
@@ -107,6 +108,10 @@ function App() {
           <Route
             path="/admin/notifications"
             element={isAuthenticated && user?.isAdmin ? <AdminNotificationsPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/automation"
+            element={isAuthenticated && user?.isAdmin ? <AutomationPage /> : <Navigate to="/" />}
           />
         </Routes>
       </div>

@@ -31,3 +31,11 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# פונקציה מתוזמנת — שליחת בקשות חשבוניות (רצה כל יום ב-07:00 UTC, בודקת בפנים אם היום הוא יום השליחה)
+[functions."scheduled-invoice-send"]
+  schedule = "0 7 * * *"
+
+# פונקציה מתוזמנת — תזכורות לספקים שלא ענו (רצה כל יום ב-09:00 UTC)
+[functions."scheduled-followup"]
+  schedule = "0 9 * * *"
