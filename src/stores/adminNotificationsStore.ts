@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type NotificationPriority = 'info' | 'warning' | 'urgent'
+export type NotificationRecurrence = 'none' | 'daily' | 'weekly' | 'monthly'
 
 export interface AdminNotification {
   id: string
@@ -10,7 +11,36 @@ export interface AdminNotification {
   targetBranchCodes: string[] // ['all'] לכל הסניפים, או קודים ספציפיים
   priority: NotificationPriority
   createdAt: string
-  expiresAt?: string // ISO date, אופציונלי
+  expiresAt?: string          // ISO date, אופציונלי
+  scheduledAt?: string        // ISO datetime – מתי להציג לראשונה
+  recurrence?: NotificationRecurrence
+}
+
+// האם ההתראה אמורה להופיע עכשיו לפי לוח הזמנים
+const shouldShowNow = (n: AdminNotification): boolean => {
+  if (!n.scheduledAt) return true   // ללא תזמון – מוצג מיד
+
+  const scheduled = new Date(n.scheduledAt)
+  const now = new Date()
+
+  if (!n.recurrence || n.recurrence === 'none') {
+    return scheduled <= now
+  }
+
+  // לא הגיע עדיין תאריך ההתחלה
+  if (scheduled > now) return false
+
+  const sh = scheduled.getHours()
+  const sm = scheduled.getMinutes()
+  const nh = now.getHours()
+  const nm = now.getMinutes()
+  const isTimeOk = nh > sh || (nh === sh && nm >= sm)
+
+  if (n.recurrence === 'daily')   return isTimeOk
+  if (n.recurrence === 'weekly')  return now.getDay()  === scheduled.getDay()  && isTimeOk
+  if (n.recurrence === 'monthly') return now.getDate() === scheduled.getDate() && isTimeOk
+
+  return true
 }
 
 interface AdminNotificationsState {
@@ -44,7 +74,7 @@ export const useAdminNotificationsStore = create<AdminNotificationsState>()(
           const isTarget =
             n.targetBranchCodes.includes('all') || n.targetBranchCodes.includes(branchCode)
           const notExpired = !n.expiresAt || new Date(n.expiresAt) > now
-          return isTarget && notExpired
+          return isTarget && notExpired && shouldShowNow(n)
         })
       },
     }),

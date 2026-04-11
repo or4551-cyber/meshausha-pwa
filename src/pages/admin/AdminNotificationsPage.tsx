@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Plus, Trash2, Bell, AlertTriangle, Info, X } from 'lucide-react'
+import { ChevronRight, Plus, Trash2, Bell, AlertTriangle, Info, X, Clock, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAdminNotificationsStore } from '../../stores/adminNotificationsStore'
-import type { NotificationPriority } from '../../stores/adminNotificationsStore'
+import type { NotificationPriority, NotificationRecurrence } from '../../stores/adminNotificationsStore'
 
 const BRANCHES = [
   { code: '1001', name: 'עין המפרץ' },
@@ -23,9 +23,33 @@ const PRIORITY_CONFIG: Record<NotificationPriority, { label: string; color: stri
   urgent:  { label: 'דחוף',  color: 'bg-red-500',    icon: Bell },
 }
 
+const RECURRENCE_OPTIONS: { value: NotificationRecurrence; label: string }[] = [
+  { value: 'none',    label: 'חד פעמי' },
+  { value: 'daily',   label: 'יומי' },
+  { value: 'weekly',  label: 'שבועי' },
+  { value: 'monthly', label: 'חודשי' },
+]
+
+const RECURRENCE_LABELS: Record<NotificationRecurrence, string> = {
+  none:    'חד פעמי',
+  daily:   'יומי',
+  weekly:  'שבועי',
+  monthly: 'חודשי',
+}
+
+// פורמט תאריך + שעה לעברית
+const formatScheduled = (iso: string, recurrence: NotificationRecurrence = 'none'): string => {
+  const d = new Date(iso)
+  const date = d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
+  const time = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+  if (recurrence !== 'none') return `${RECURRENCE_LABELS[recurrence]} בשעה ${time}`
+  return `${date} ב-${time}`
+}
+
 export default function AdminNotificationsPage() {
   const navigate = useNavigate()
   const { notifications, addNotification, deleteNotification } = useAdminNotificationsStore()
+
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -33,19 +57,35 @@ export default function AdminNotificationsPage() {
     priority: 'info' as NotificationPriority,
     targetAll: true,
     selectedBranches: [] as string[],
-    expiresAt: '',
+    scheduledDate: '',
+    scheduledTime: '08:00',
+    recurrence: 'none' as NotificationRecurrence,
+    useSchedule: false,
   })
 
   const handleSubmit = () => {
     if (!form.title.trim() || !form.message.trim()) return
+
+    let scheduledAt: string | undefined
+    if (form.useSchedule && form.scheduledDate) {
+      scheduledAt = new Date(`${form.scheduledDate}T${form.scheduledTime}`).toISOString()
+    }
+
     addNotification({
       title: form.title.trim(),
       message: form.message.trim(),
       priority: form.priority,
       targetBranchCodes: form.targetAll ? ['all'] : form.selectedBranches,
-      expiresAt: form.expiresAt || undefined,
+      scheduledAt,
+      recurrence: form.useSchedule ? form.recurrence : undefined,
     })
-    setForm({ title: '', message: '', priority: 'info', targetAll: true, selectedBranches: [], expiresAt: '' })
+
+    setForm({
+      title: '', message: '', priority: 'info',
+      targetAll: true, selectedBranches: [],
+      scheduledDate: '', scheduledTime: '08:00',
+      recurrence: 'none', useSchedule: false,
+    })
     setShowForm(false)
   }
 
@@ -57,6 +97,12 @@ export default function AdminNotificationsPage() {
         : [...f.selectedBranches, code],
     }))
   }
+
+  const canSubmit =
+    form.title.trim() &&
+    form.message.trim() &&
+    (form.targetAll || form.selectedBranches.length > 0) &&
+    (!form.useSchedule || form.scheduledDate)
 
   return (
     <div className="min-h-screen bg-primary pb-20">
@@ -102,6 +148,7 @@ export default function AdminNotificationsPage() {
           const cfg = PRIORITY_CONFIG[n.priority]
           const Icon = cfg.icon
           const isExpired = n.expiresAt ? new Date(n.expiresAt) < new Date() : false
+          const isPending = n.scheduledAt && new Date(n.scheduledAt) > new Date()
           return (
             <motion.div
               key={n.id}
@@ -131,6 +178,16 @@ export default function AdminNotificationsPage() {
                     <span className="text-xs text-primary/50 font-bold">
                       {n.targetBranchCodes.includes('all') ? 'כל הסניפים' : `${n.targetBranchCodes.length} סניפים`}
                     </span>
+                    {n.scheduledAt && (
+                      <span className={`text-xs font-bold flex items-center gap-1 ${isPending ? 'text-amber-500' : 'text-green-500'}`}>
+                        {n.recurrence && n.recurrence !== 'none'
+                          ? <RefreshCw size={10} />
+                          : <Clock size={10} />
+                        }
+                        {formatScheduled(n.scheduledAt, n.recurrence)}
+                        {isPending && ' (ממתין)'}
+                      </span>
+                    )}
                     {n.expiresAt && (
                       <span className={`text-xs font-bold ${isExpired ? 'text-red-400' : 'text-primary/50'}`}>
                         {isExpired ? 'פג תוקף' : `עד ${new Date(n.expiresAt).toLocaleDateString('he-IL')}`}
@@ -144,7 +201,7 @@ export default function AdminNotificationsPage() {
         })}
       </div>
 
-      {/* Bottom sheet - טופס יצירת התראה */}
+      {/* Bottom sheet */}
       <AnimatePresence>
         {showForm && (
           <>
@@ -160,7 +217,7 @@ export default function AdminNotificationsPage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-secondary rounded-t-3xl max-h-[90vh] flex flex-col"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-secondary rounded-t-3xl max-h-[92vh] flex flex-col"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
               <div className="flex items-center justify-between p-5 border-b border-primary/10 flex-shrink-0">
@@ -249,25 +306,90 @@ export default function AdminNotificationsPage() {
                   )}
                 </div>
 
-                {/* תאריך תפוגה */}
+                {/* תזמון */}
                 <div>
-                  <label className="block text-primary font-bold text-sm mb-2">
-                    תאריך תפוגה <span className="text-primary/40 font-normal">(אופציונלי)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={form.expiresAt}
-                    onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
-                    className="w-full bg-primary/5 text-primary rounded-xl py-3 px-4 font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
+                  <button
+                    onClick={() => setForm(f => ({ ...f, useSchedule: !f.useSchedule }))}
+                    className={`w-full flex items-center justify-between py-3 px-4 rounded-xl font-bold text-sm transition-all touch-manipulation ${
+                      form.useSchedule ? 'bg-primary text-secondary' : 'bg-primary/10 text-primary'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Clock size={16} />
+                      תזמן שליחה
+                    </span>
+                    <span className="text-xs opacity-70">
+                      {form.useSchedule ? 'פעיל' : 'שלח מיד'}
+                    </span>
+                  </button>
+
+                  {form.useSchedule && (
+                    <div className="mt-3 space-y-3">
+                      {/* תאריך ושעה */}
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="block text-primary/60 font-bold text-xs mb-1.5">תאריך *</label>
+                          <input
+                            type="date"
+                            value={form.scheduledDate}
+                            min={new Date().toISOString().split('T')[0]}
+                            onChange={e => setForm(f => ({ ...f, scheduledDate: e.target.value }))}
+                            className="w-full bg-primary/5 text-primary rounded-xl py-2.5 px-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-primary/60 font-bold text-xs mb-1.5">שעה</label>
+                          <input
+                            type="time"
+                            value={form.scheduledTime}
+                            onChange={e => setForm(f => ({ ...f, scheduledTime: e.target.value }))}
+                            className="w-full bg-primary/5 text-primary rounded-xl py-2.5 px-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
+
+                      {/* חזרה */}
+                      <div>
+                        <label className="block text-primary/60 font-bold text-xs mb-1.5">
+                          <RefreshCw size={11} className="inline ml-1" />
+                          חזרה
+                        </label>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {RECURRENCE_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => setForm(f => ({ ...f, recurrence: opt.value }))}
+                              className={`py-2 rounded-xl font-bold text-xs transition-all touch-manipulation ${
+                                form.recurrence === opt.value
+                                  ? 'bg-primary text-secondary'
+                                  : 'bg-primary/10 text-primary'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                        {form.recurrence !== 'none' && form.scheduledDate && (
+                          <p className="text-primary/50 text-xs mt-2 text-center">
+                            {form.recurrence === 'weekly'  && `כל ${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][new Date(`${form.scheduledDate}T${form.scheduledTime}`).getDay()]} בשעה ${form.scheduledTime}`}
+                            {form.recurrence === 'daily'   && `כל יום בשעה ${form.scheduledTime}`}
+                            {form.recurrence === 'monthly' && `כל חודש בתאריך ${new Date(`${form.scheduledDate}T${form.scheduledTime}`).getDate()} בשעה ${form.scheduledTime}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!form.title.trim() || !form.message.trim() || (!form.targetAll && form.selectedBranches.length === 0)}
+                  disabled={!canSubmit}
                   className="w-full bg-primary text-secondary font-black py-4 rounded-2xl active:scale-[0.98] transition-transform touch-manipulation disabled:opacity-40"
                 >
-                  שלח התראה
+                  {form.useSchedule && form.scheduledDate
+                    ? `תזמן ל-${new Date(`${form.scheduledDate}T${form.scheduledTime}`).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                    : 'שלח התראה עכשיו'
+                  }
                 </button>
               </div>
             </motion.div>
