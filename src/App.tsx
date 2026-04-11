@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from './stores/authStore'
+import { useSuppliersStore } from './stores/suppliersStore'
+import { PRODUCTS, INITIAL_SUPPLIERS } from './data/products'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
@@ -31,6 +34,13 @@ import NotificationScheduler from './components/NotificationScheduler'
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
+  const { seedStaticSuppliers, seedStaticProducts } = useSuppliersStore()
+
+  // זריעת ספקים ומוצרים ראשוניים — פעם אחת בהפעלה
+  useEffect(() => {
+    seedStaticSuppliers(INITIAL_SUPPLIERS)
+    seedStaticProducts(PRODUCTS)
+  }, [])
 
   return (
     <Router>

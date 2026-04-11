@@ -35,6 +35,7 @@ interface SuppliersState {
   deleteSupplier: (id: string) => void
   addProducts: (products: Omit<Product, 'id'>[]) => void
   seedStaticProducts: (products: Product[]) => void
+  seedStaticSuppliers: (suppliers: Supplier[]) => void
   updateProduct: (id: string, updates: Partial<Product>) => void
   deleteProduct: (id: string) => void
   getSupplierById: (id: string) => Supplier | undefined
@@ -91,13 +92,29 @@ export const useSuppliersStore = create<SuppliersState>()(
         }))
       },
 
-      // זורע מוצרים סטטיים עם ID קבוע - לא מוסיף אם כבר קיים
+      // זורע ספקים סטטיים — מוסיף רק אם עדיין לא קיימים (לפי ID)
+      seedStaticSuppliers: (suppliers) => {
+        set((state) => {
+          const existingIds = new Set(state.suppliers.map(s => s.id))
+          const toAdd = suppliers.filter(s => !existingIds.has(s.id))
+          if (toAdd.length === 0) return state
+          return { suppliers: [...state.suppliers, ...toAdd] }
+        })
+      },
+
+      // זורע מוצרים סטטיים עם ID קבוע - מוסיף חדשים ומעדכן קיימים (שם + מחיר)
       seedStaticProducts: (products) => {
         set((state) => {
+          const staticMap = new Map(products.map(p => [p.id, p]))
+          const updated = state.products.map(p => {
+            const fresh = staticMap.get(p.id)
+            if (!fresh) return p
+            // עדכן שם ומחיר מהמחירון, שמור שדות אחרים (category וכו')
+            return { ...p, name: fresh.name, price: fresh.price, supplier: fresh.supplier }
+          })
           const existingIds = new Set(state.products.map(p => p.id))
           const toAdd = products.filter(p => !existingIds.has(p.id))
-          if (toAdd.length === 0) return state
-          return { products: [...state.products, ...toAdd] }
+          return { products: [...updated, ...toAdd] }
         })
       },
 
