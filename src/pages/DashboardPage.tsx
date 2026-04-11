@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   ShoppingCart, History, Bell, LogOut, BarChart3, Zap, Trash2,
   ChevronLeft, Package, Truck, Calendar, WifiOff, RefreshCw,
-  AlertTriangle, Info, X
+  AlertTriangle, Info, X, PlayCircle
 } from 'lucide-react'
+import { VideoModal, BRANCH_VIDEO_URL, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [syncing, setSyncing] = useState(false)
   const [syncedCount, setSyncedCount] = useState(0)
+  const [showVideo, setShowVideo] = useState(false)
 
   // סנכרון הזמנות אופליין כשחוזרים לאינטרנט
   useEffect(() => {
@@ -109,6 +111,13 @@ export default function DashboardPage() {
             aria-label="התנתק"
           >
             <LogOut size={20} />
+          </button>
+          <button
+            onClick={() => setShowVideo(true)}
+            className="absolute top-4 right-4 text-primary/30 hover:text-primary/50 active:text-primary/60 transition-colors p-2 touch-manipulation"
+            aria-label="מדריך וידאו"
+          >
+            <PlayCircle size={20} />
           </button>
           <div className="text-center pt-2">
             <h2 className="font-black text-primary text-2xl mb-2">משאוושה</h2>
@@ -355,6 +364,14 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {showVideo && (
+        <VideoModal
+          url={user?.isAdmin ? ADMIN_VIDEO_URL : BRANCH_VIDEO_URL}
+          title={user?.isAdmin ? 'מדריך אדמין' : 'מדריך מנהל סניף'}
+          onClose={() => setShowVideo(false)}
+        />
+      )}
     </div>
   )
 }

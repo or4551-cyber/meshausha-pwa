@@ -1,0 +1,28 @@
+{
+  "name": "משאוושה - מערכת הזמנות",
+  "short_name": "משאוושה",
+  "description": "מערכת הזמנות רכש לסניפי משאוושה",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#9d4444",
+  "theme_color": "#9d4444",
+  "orientation": "portrait",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["business", "productivity"]
+}

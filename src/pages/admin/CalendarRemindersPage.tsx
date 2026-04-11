@@ -71,13 +71,18 @@ export default function CalendarRemindersPage() {
 
   const createCalendar = async (branchCode: string, branchName: string) => {
     setWorking(branchCode)
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create-calendar', branchCode, branchName })
-    })
-    const json = await res.json()
-    if (json.shareLink) {
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create-calendar', branchCode, branchName })
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `שגיאת שרת (${res.status})`)
+      }
+      const json = await res.json()
+      if (!json.shareLink) throw new Error('לא התקבל קישור יומן מהשרת')
       setData(prev => ({
         ...prev,
         [branchCode]: {
@@ -85,32 +90,40 @@ export default function CalendarRemindersPage() {
           reminders: []
         }
       }))
+    } catch (e: any) {
+      alert(`שגיאה ביצירת יומן: ${e.message}`)
+    } finally {
+      setWorking(null)
     }
-    setWorking(null)
   }
 
   const addReminder = async (branchCode: string) => {
     if (!form.title.trim()) return
     setWorking(branchCode)
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'add-reminder',
-        branchCode,
-        reminder: {
-          title: form.title.trim(),
-          description: form.description.trim(),
-          recurrence: form.recurrence,
-          dayOfWeek: form.dayOfWeek,
-          dayOfMonth: form.dayOfMonth,
-          time: form.time,
-          date: form.date,
-        }
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add-reminder',
+          branchCode,
+          reminder: {
+            title: form.title.trim(),
+            description: form.description.trim(),
+            recurrence: form.recurrence,
+            dayOfWeek: form.dayOfWeek,
+            dayOfMonth: form.dayOfMonth,
+            time: form.time,
+            date: form.date,
+          }
+        })
       })
-    })
-    const json = await res.json()
-    if (json.eventId) {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `שגיאת שרת (${res.status})`)
+      }
+      const json = await res.json()
+      if (!json.eventId) throw new Error('לא התקבל מזהה אירוע מהשרת')
       setData(prev => ({
         ...prev,
         [branchCode]: {
@@ -129,25 +142,37 @@ export default function CalendarRemindersPage() {
       }))
       setShowForm(false)
       setForm({ title: '', description: '', recurrence: 'weekly', dayOfWeek: 0, dayOfMonth: 1, time: '08:00', date: '' })
+    } catch (e: any) {
+      alert(`שגיאה בהוספת תזכורת: ${e.message}`)
+    } finally {
+      setWorking(null)
     }
-    setWorking(null)
   }
 
   const deleteReminder = async (branchCode: string, eventId: string) => {
     setWorking(eventId)
-    await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete-reminder', branchCode, reminder: { eventId } })
-    })
-    setData(prev => ({
-      ...prev,
-      [branchCode]: {
-        ...prev[branchCode],
-        reminders: prev[branchCode].reminders.filter(r => r.eventId !== eventId)
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-reminder', branchCode, reminder: { eventId } })
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `שגיאת שרת (${res.status})`)
       }
-    }))
-    setWorking(null)
+      setData(prev => ({
+        ...prev,
+        [branchCode]: {
+          ...prev[branchCode],
+          reminders: prev[branchCode].reminders.filter(r => r.eventId !== eventId)
+        }
+      }))
+    } catch (e: any) {
+      alert(`שגיאה במחיקת תזכורת: ${e.message}`)
+    } finally {
+      setWorking(null)
+    }
   }
 
   const shareViaWhatsApp = (branchName: string, link: string) => {

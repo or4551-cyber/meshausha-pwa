@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard } from 'lucide-react'
+import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard, PlayCircle } from 'lucide-react'
+import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { useState } from 'react'
@@ -13,6 +14,7 @@ export default function AdminPage() {
   const totalSuppliers = getAllSuppliers().length
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0, supplier: '' })
+  const [showVideo, setShowVideo] = useState(false)
 
   const handleSendInvoiceRequests = async () => {
     const suppliers = getAllSuppliers()
@@ -72,6 +74,22 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-3">
+          {/* מדריך וידאו */}
+          <button
+            onClick={() => setShowVideo(true)}
+            className="w-full bg-gradient-to-br from-teal-600 to-teal-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <PlayCircle className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">מדריך וידאו לאדמין</h3>
+                <p className="text-white/80 text-xs font-bold">סרטון הסבר על כל פיצ'רי המערכת</p>
+              </div>
+            </div>
+          </button>
+
           {/* תזכורות ביומן גוגל */}
           <button
             onClick={() => navigate('/admin/calendar-reminders')}
@@ -316,6 +334,14 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {showVideo && (
+        <VideoModal
+          url={ADMIN_VIDEO_URL}
+          title="מדריך אדמין"
+          onClose={() => setShowVideo(false)}
+        />
+      )}
     </div>
   )
 }

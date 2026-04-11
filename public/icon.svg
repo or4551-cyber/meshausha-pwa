@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c05252"/>
+      <stop offset="100%" stop-color="#7a2020"/>
+    </linearGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(245,240,232,0.25)"/>
+      <stop offset="100%" stop-color="rgba(245,240,232,0.05)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- Subtle inner glow ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="40"/>
+
+  <!-- Decorative plate / bowl shape -->
+  <ellipse cx="256" cy="390" rx="150" ry="22" fill="url(#plate)"/>
+  <path d="M 106 310 Q 106 390 256 390 Q 406 390 406 310" fill="none" stroke="rgba(245,240,232,0.18)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Hebrew מ — the brand letter -->
+  <text
+    x="256"
+    y="318"
+    text-anchor="middle"
+    font-family="'Arial Hebrew', 'David', 'Times New Roman', serif"
+    font-size="268"
+    font-weight="900"
+    fill="#f5f0e8"
+    opacity="0.97">מ</text>
+
+  <!-- Three dots — tagline decoration -->
+  <circle cx="196" cy="432" r="9" fill="rgba(245,240,232,0.35)"/>
+  <circle cx="256" cy="432" r="9" fill="rgba(245,240,232,0.55)"/>
+  <circle cx="316" cy="432" r="9" fill="rgba(245,240,232,0.35)"/>
+</svg>
