@@ -46,8 +46,10 @@ export default function DispatchOrdersPage() {
       getAdminPhoneFromCloud().then(phone => {
         if (phone) { setAdminPhone(phone); setPhoneInput(phone) }
       })
+    } else {
+      setPhoneInput(adminPhone)
     }
-  }, [])
+  }, [adminPhone])
 
   const displayOrders = showAll
     ? cloudOrders

@@ -2,6 +2,13 @@ import { Handler } from '@netlify/functions'
 import { google } from 'googleapis'
 import { getStore } from '@netlify/blobs'
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -49,7 +56,7 @@ export const handler: Handler = async (event) => {
       oauth2Client.setCredentials({ access_token: accessToken })
       authClient = oauth2Client
     } else {
-      const tokenStore = getStore('gmail-tokens')
+      const tokenStore = openStore('gmail-tokens')
       const tokenData = await tokenStore.get('admin-refresh-token', { type: 'json' }) as { refreshToken: string } | null
       if (!tokenData?.refreshToken) {
         return {
@@ -114,7 +121,7 @@ export const handler: Handler = async (event) => {
     }
 
     // עדכן את הלוג
-    const store = getStore('automation')
+    const store = openStore('automation')
     const existingLog: SendLog[] = (await store.get('send-log', { type: 'json' }).catch(() => null)) ?? []
 
     let updated = 0
@@ -130,7 +137,7 @@ export const handler: Handler = async (event) => {
     })
 
     if (updated > 0) {
-      await store.setJSON('send-log', updatedLog)
+      await store.set('send-log', JSON.stringify(updatedLog))
     }
 
     return {

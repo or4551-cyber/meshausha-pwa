@@ -2,6 +2,13 @@ import type { Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { google } from 'googleapis'
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 // מבנה הגדרות (מועתק מ-automation-config.ts לעצמאות)
 interface SupplierEmailConfig {
   supplierId: string
@@ -54,7 +61,7 @@ export default async function handler() {
   const todayDay = now.getUTCDate()
 
   try {
-    const store = getStore('automation')
+    const store = openStore('automation')
     const config = await store.get('config', { type: 'json' }) as AutomationConfig | null
 
     if (!config?.enabled) {
@@ -84,7 +91,7 @@ export default async function handler() {
     }
 
     // קבל OAuth client
-    const tokenStore = getStore('gmail-tokens')
+    const tokenStore = openStore('gmail-tokens')
     const tokenData = await tokenStore.get('admin-refresh-token', { type: 'json' }) as { refreshToken: string } | null
     if (!tokenData?.refreshToken) {
       console.error('No refresh token found, cannot send emails.')
@@ -142,7 +149,7 @@ ${branchesList}
 
     // שמור את הלוג
     const updatedLog = [...newLogEntries, ...existingLog].slice(0, 200)
-    await store.setJSON('send-log', updatedLog)
+    await store.set('send-log', JSON.stringify(updatedLog))
 
     console.log(`Done: sent ${newLogEntries.filter(e => e.status === 'sent').length} emails for ${month}`)
   } catch (error: any) {

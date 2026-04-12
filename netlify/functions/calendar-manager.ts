@@ -11,8 +11,15 @@ const CORS = {
 const TZ = 'Asia/Jerusalem'
 const DAY_MAP = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 async function getAuth() {
-  const store = getStore('gmail-tokens')
+  const store = openStore('gmail-tokens')
   const tokenData = await store.get('admin-refresh-token', { type: 'json' }) as any
   if (!tokenData?.refreshToken) throw new Error('NOT_CONNECTED')
 
@@ -53,7 +60,7 @@ export const handler: Handler = async (event) => {
 
     const auth = await getAuth()
     const cal = google.calendar({ version: 'v3', auth })
-    const db = getStore('calendar-data')
+    const db = openStore('calendar-data')
 
     // ── get-all ─────────────────────────────────────────────────────────────
     if (action === 'get-all') {
@@ -91,10 +98,10 @@ export const handler: Handler = async (event) => {
 
       const shareLink = `https://calendar.google.com/calendar/r?cid=${Buffer.from(calendarId).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')}`
 
-      await db.setJSON(`calendar-${branchCode}`, {
+      await db.set(`calendar-${branchCode}`, JSON.stringify({
         calendarId, branchCode, branchName, shareLink,
         createdAt: new Date().toISOString()
-      })
+      }))
 
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ calendarId, shareLink }) }
     }
@@ -159,7 +166,7 @@ export const handler: Handler = async (event) => {
         date: reminder.date,
         createdAt: new Date().toISOString()
       })
-      await db.setJSON(`reminders-${branchCode}`, existing)
+      await db.set(`reminders-${branchCode}`, JSON.stringify(existing))
 
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ eventId: res.data.id }) }
     }
@@ -172,7 +179,7 @@ export const handler: Handler = async (event) => {
       await cal.events.delete({ calendarId: calData.calendarId, eventId: reminder.eventId })
 
       const existing = (await db.get(`reminders-${branchCode}`, { type: 'json' }) as any[]) ?? []
-      await db.setJSON(`reminders-${branchCode}`, existing.filter((r: any) => r.eventId !== reminder.eventId))
+      await db.set(`reminders-${branchCode}`, JSON.stringify(existing.filter((r: any) => r.eventId !== reminder.eventId)))
 
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true }) }
     }

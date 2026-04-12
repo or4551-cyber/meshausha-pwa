@@ -2,6 +2,13 @@ import type { Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { google } from 'googleapis'
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 interface AutomationConfig {
   enabled: boolean
   followupAfterDays: number
@@ -49,7 +56,7 @@ export default async function handler() {
   const now = new Date()
 
   try {
-    const store = getStore('automation')
+    const store = openStore('automation')
     const [config, existingLog] = await Promise.all([
       store.get('config', { type: 'json' }) as Promise<AutomationConfig | null>,
       store.get('send-log', { type: 'json' }).catch(() => null) as Promise<SendLog[] | null>,
@@ -85,7 +92,7 @@ export default async function handler() {
     }
 
     // קבל OAuth client
-    const tokenStore = getStore('gmail-tokens')
+    const tokenStore = openStore('gmail-tokens')
     const tokenData = await tokenStore.get('admin-refresh-token', { type: 'json' }) as { refreshToken: string } | null
     if (!tokenData?.refreshToken) {
       console.error('No refresh token, cannot send follow-ups.')
@@ -155,7 +162,7 @@ ${branchesList}
     }
 
     const updatedLog = [...newLogEntries, ...log].slice(0, 200)
-    await store.setJSON('send-log', updatedLog)
+    await store.set('send-log', JSON.stringify(updatedLog))
     console.log(`Follow-up done: sent ${newLogEntries.filter(e => e.status === 'sent').length} reminders`)
   } catch (error: any) {
     console.error('scheduled-followup error:', error)

@@ -12,6 +12,13 @@ const oauth2Client = new google.auth.OAuth2(
   REDIRECT_URI
 )
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -27,7 +34,6 @@ export const handler: Handler = async (event) => {
     const { code } = JSON.parse(event.body || '{}')
 
     if (!code) {
-      // Generate auth URL
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: [
@@ -46,19 +52,17 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code)
 
-    // שמור את ה-refresh_token ב-Netlify Blobs לשימוש פונקציות מתוזמנות
     if (tokens.refresh_token) {
       try {
-        const store = getStore('gmail-tokens')
-        await store.setJSON('admin-refresh-token', {
+        const store = openStore('gmail-tokens')
+        await store.set('admin-refresh-token', JSON.stringify({
           refreshToken: tokens.refresh_token,
           savedAt: new Date().toISOString()
-        })
+        }))
       } catch (blobError) {
-        console.warn('Could not save refresh token to Blobs (running locally?):', blobError)
+        console.warn('Could not save refresh token to Blobs:', blobError)
       }
     }
 

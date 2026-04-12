@@ -13,7 +13,13 @@ const MONTH_NAMES_HE = [
   'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
 ]
 
-// בניית הודעת RFC 2822 בקידוד base64 לשליחה ב-Gmail API
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 function buildRawEmail(to: string, subject: string, bodyText: string): string {
   const subjectEncoded = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`
   const message = [
@@ -60,7 +66,7 @@ ${branchesList}
 }
 
 async function getOAuthClient() {
-  const store = getStore('gmail-tokens')
+  const store = openStore('gmail-tokens')
   const tokenData = await store.get('admin-refresh-token', { type: 'json' }) as { refreshToken: string } | null
 
   if (!tokenData?.refreshToken) {
@@ -86,11 +92,7 @@ export const handler: Handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || '{}')
-    const {
-      suppliers,      // SupplierEmailConfig[]
-      month,          // YYYY-MM
-      isFollowup = false,
-    } = body
+    const { suppliers, month, isFollowup = false } = body
 
     if (!suppliers?.length || !month) {
       return {
@@ -133,8 +135,6 @@ export const handler: Handler = async (event) => {
         })
 
         results.push({ supplier: supplier.supplierName, success: true })
-
-        // המתנה קצרה בין מיילים למניעת rate-limiting
         await new Promise(r => setTimeout(r, 800))
       } catch (err: any) {
         console.error(`Failed to send to ${supplier.supplierName}:`, err.message)

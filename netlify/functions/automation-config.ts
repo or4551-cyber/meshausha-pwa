@@ -34,13 +34,20 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 }
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) return getStore({ name, siteID, token })
+  return getStore(name)
+}
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers: CORS, body: '' }
   }
 
   try {
-    const store = getStore('automation')
+    const store = openStore('automation')
 
     // GET — החזר הגדרות + לוג שליחות
     if (event.httpMethod === 'GET') {
@@ -73,7 +80,7 @@ export const handler: Handler = async (event) => {
           ...body.config,
           updatedAt: new Date().toISOString(),
         }
-        await store.setJSON('config', config)
+        await store.set('config', JSON.stringify(config))
         return {
           statusCode: 200,
           headers: CORS,
@@ -83,8 +90,8 @@ export const handler: Handler = async (event) => {
 
       if (body.action === 'append-log') {
         const existing: SendLog[] = (await store.get('send-log', { type: 'json' }).catch(() => null)) ?? []
-        const updated = [body.entry as SendLog, ...existing].slice(0, 200) // שמור עד 200 רשומות
-        await store.setJSON('send-log', updated)
+        const updated = [body.entry as SendLog, ...existing].slice(0, 200)
+        await store.set('send-log', JSON.stringify(updated))
         return {
           statusCode: 200,
           headers: CORS,
@@ -93,12 +100,11 @@ export const handler: Handler = async (event) => {
       }
 
       if (body.action === 'update-log-status') {
-        // עדכון סטטוס רשומה קיימת (sent → responded)
         const existing: SendLog[] = (await store.get('send-log', { type: 'json' }).catch(() => null)) ?? []
         const updated = existing.map(entry =>
           entry.id === body.id ? { ...entry, status: body.status } : entry
         )
-        await store.setJSON('send-log', updated)
+        await store.set('send-log', JSON.stringify(updated))
         return {
           statusCode: 200,
           headers: CORS,
