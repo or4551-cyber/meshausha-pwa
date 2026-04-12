@@ -15,6 +15,16 @@ export const handler: Handler = async (event) => {
   const store = getStore('meshausha-settings')
 
   try {
+    // GET עם ?type=suppliers — חייב לבוא לפני הבדיקה הרגילה של GET
+    if (event.httpMethod === 'GET' && event.queryStringParameters?.type === 'suppliers') {
+      const data = await store.get('suppliers-data', { type: 'json' })
+      return {
+        statusCode: 200,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data ?? null),
+      }
+    }
+
     // GET — החזר הגדרות
     if (event.httpMethod === 'GET') {
       const settings = await store.get('admin-settings', { type: 'json' }) as any
@@ -43,16 +53,6 @@ export const handler: Handler = async (event) => {
         statusCode: 200,
         headers: { ...CORS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ok: true }),
-      }
-    }
-
-    // GET עם ?type=suppliers — החזר נתוני ספקים
-    if (event.httpMethod === 'GET' && event.queryStringParameters?.type === 'suppliers') {
-      const data = await store.get('suppliers-data', { type: 'json' })
-      return {
-        statusCode: 200,
-        headers: { ...CORS, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data ?? null),
       }
     }
 
