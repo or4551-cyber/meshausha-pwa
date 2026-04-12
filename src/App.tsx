@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSuppliersStore } from './stores/suppliersStore'
 import { PRODUCTS, INITIAL_SUPPLIERS } from './data/products'
-import { getAdminPhoneFromCloud, getSuppliersFromCloud } from './lib/cloudApi'
+import { getAdminPhoneFromCloud, getSuppliersFromCloud, saveSuppliersToCloud } from './lib/cloudApi'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
@@ -51,7 +51,15 @@ function App() {
     // טעינת ספקים ומוצרים מהענן — הענן תמיד גובר (נתוני אדמין עדכניים)
     getSuppliersFromCloud().then(data => {
       if (data !== null) {
+        // יש נתונים בענן — טען אותם
         loadCloudData(data.suppliers ?? [], data.products ?? [])
+      } else {
+        // אין נתונים בענן עדיין — אם ב-localStorage יש ספקים עם לוחות זמנים, שמור לענן
+        const { suppliers: localSuppliers, products: localProducts } = useSuppliersStore.getState()
+        const hasSchedules = localSuppliers.some(s => s.schedules && s.schedules.length > 0)
+        if (hasSchedules) {
+          saveSuppliersToCloud({ suppliers: localSuppliers, products: localProducts }).catch(console.error)
+        }
       }
     })
   }, [])
