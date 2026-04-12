@@ -7,14 +7,22 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
 }
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) {
+    return getStore({ name, siteID, token })
+  }
+  return getStore(name)
+}
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers: CORS, body: '' }
   }
 
   try {
-    // getStore חייב להיות בתוך try/catch — אחרת MissingBlobsEnvironmentError גורם ל-502
-    const store = getStore('meshausha-orders')
+    const store = openStore('meshausha-orders')
     // GET — החזר את כל ההזמנות
     if (event.httpMethod === 'GET') {
       const { blobs } = await store.list()

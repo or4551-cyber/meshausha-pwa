@@ -7,14 +7,23 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+// fallback למקרה שהקונטקסט האוטומטי לא זמין (חשבון שהופסק/הופעל מחדש)
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) {
+    return getStore({ name, siteID, token })
+  }
+  return getStore(name) // automatic context (רגיל)
+}
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers: CORS, body: '' }
   }
 
   try {
-    // getStore חייב להיות בתוך try/catch — אחרת MissingBlobsEnvironmentError גורם ל-502
-    const store = getStore('meshausha-settings')
+    const store = openStore('meshausha-settings')
 
     // GET עם ?type=suppliers — חייב לבוא לפני הבדיקה הרגילה של GET
     if (event.httpMethod === 'GET' && event.queryStringParameters?.type === 'suppliers') {

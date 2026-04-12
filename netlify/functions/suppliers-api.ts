@@ -7,12 +7,21 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+function openStore(name: string) {
+  const siteID = process.env.SITE_ID
+  const token = process.env.NETLIFY_TOKEN
+  if (siteID && token) {
+    return getStore({ name, siteID, token })
+  }
+  return getStore(name)
+}
+
 // הפונקציה הזו הוחלפה ב-settings-api — נשמרת רק כ-fallback עם תגובה ברורה
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' }
 
   try {
-    const store = getStore('meshausha-config')
+    const store = openStore('meshausha-config')
 
     if (event.httpMethod === 'GET') {
       const data = await store.get('suppliers-data', { type: 'json' })
