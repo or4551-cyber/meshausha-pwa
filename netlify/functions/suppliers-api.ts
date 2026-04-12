@@ -24,7 +24,7 @@ export const handler: Handler = async (event) => {
 
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}')
-      await store.setJSON('suppliers-data', body)
+      await store.set('suppliers-data', JSON.stringify(body))
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true }) }
     }
 
