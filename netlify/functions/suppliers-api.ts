@@ -7,19 +7,16 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+// הפונקציה הזו הוחלפה ב-settings-api — נשמרת רק כ-fallback עם תגובה ברורה
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' }
 
-  const store = getStore('meshausha-config')
-
   try {
+    const store = getStore('meshausha-config')
+
     if (event.httpMethod === 'GET') {
       const data = await store.get('suppliers-data', { type: 'json' })
-      return {
-        statusCode: 200,
-        headers: CORS,
-        body: JSON.stringify(data ?? null),
-      }
+      return { statusCode: 200, headers: CORS, body: JSON.stringify(data ?? null) }
     }
 
     if (event.httpMethod === 'POST') {
