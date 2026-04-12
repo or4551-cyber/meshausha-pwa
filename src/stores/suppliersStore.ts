@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { saveSuppliersToCloud } from '../lib/cloudApi'
 
 export interface Product {
   id: string
@@ -40,6 +41,7 @@ interface SuppliersState {
   seedStaticSuppliers: (suppliers: Supplier[]) => void
   updateProduct: (id: string, updates: Partial<Product>) => void
   deleteProduct: (id: string) => void
+  loadCloudData: (suppliers: Supplier[], products: Product[]) => void
   getSupplierById: (id: string) => Supplier | undefined
   getProductsBySupplier: (supplierName: string) => Product[]
   getAllSuppliers: () => Supplier[]
@@ -63,28 +65,28 @@ export const useSuppliersStore = create<SuppliersState>()(
           id: `supplier_${Date.now()}`,
           createdAt: new Date().toISOString()
         }
-        
-        set((state) => ({
-          suppliers: [...state.suppliers, newSupplier]
-        }))
+        set((state) => ({ suppliers: [...state.suppliers, newSupplier] }))
+        const s = get()
+        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
       },
 
       updateSupplier: (id, updates) => {
         set((state) => ({
-          suppliers: state.suppliers.map(s => 
-            s.id === id ? { ...s, ...updates } : s
-          )
+          suppliers: state.suppliers.map(s => s.id === id ? { ...s, ...updates } : s)
         }))
+        const s = get()
+        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
       },
 
       deleteSupplier: (id) => {
         const supplier = get().suppliers.find(s => s.id === id)
         if (supplier) {
-          // מחק גם את כל המוצרים של הספק
           set((state) => ({
             suppliers: state.suppliers.filter(s => s.id !== id),
             products: state.products.filter(p => p.supplier !== supplier.name)
           }))
+          const s = get()
+          saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
         }
       },
 
@@ -93,10 +95,9 @@ export const useSuppliersStore = create<SuppliersState>()(
           ...p,
           id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         }))
-
-        set((state) => ({
-          products: [...state.products, ...newProducts]
-        }))
+        set((state) => ({ products: [...state.products, ...newProducts] }))
+        const s = get()
+        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
       },
 
       // זורע ספקים סטטיים — מוסיף רק אם עדיין לא קיימים (לפי ID)
@@ -127,16 +128,20 @@ export const useSuppliersStore = create<SuppliersState>()(
 
       updateProduct: (id, updates) => {
         set((state) => ({
-          products: state.products.map(p => 
-            p.id === id ? { ...p, ...updates } : p
-          )
+          products: state.products.map(p => p.id === id ? { ...p, ...updates } : p)
         }))
+        const s = get()
+        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
       },
 
       deleteProduct: (id) => {
-        set((state) => ({
-          products: state.products.filter(p => p.id !== id)
-        }))
+        set((state) => ({ products: state.products.filter(p => p.id !== id) }))
+        const s = get()
+        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
+      },
+
+      loadCloudData: (suppliers, products) => {
+        set(state => ({ suppliers, products, adminPhone: state.adminPhone }))
       },
 
       getSupplierById: (id) => {

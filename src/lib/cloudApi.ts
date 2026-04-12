@@ -2,6 +2,28 @@ import type { Order } from '../stores/ordersStore'
 
 const BASE = '/.netlify/functions'
 
+// ─── ספקים ומוצרים ────────────────────────────────────────
+
+/** שמור ספקים ומוצרים בענן (נתוני אדמין) */
+export async function saveSuppliersToCloud(data: { suppliers: any[]; products: any[] }): Promise<void> {
+  await fetch(`${BASE}/suppliers-api`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+/** טען ספקים ומוצרים מהענן */
+export async function getSuppliersFromCloud(): Promise<{ suppliers: any[]; products: any[] } | null> {
+  try {
+    const res = await fetch(`${BASE}/suppliers-api`)
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
 // ─── הזמנות ───────────────────────────────────────────────
 
 /** שמור הזמנה בענן (fire-and-forget) */
