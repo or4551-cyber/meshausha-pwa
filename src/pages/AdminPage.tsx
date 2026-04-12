@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard, PlayCircle, Send } from 'lucide-react'
+import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard, PlayCircle, Send, Cloud } from 'lucide-react'
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { useState } from 'react'
 import { sendBulkInvoiceRequests } from '../lib/emailService'
+import { saveSuppliersToCloud } from '../lib/cloudApi'
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -17,6 +18,24 @@ export default function AdminPage() {
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0, supplier: '' })
   const [showVideo, setShowVideo] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
+
+  const handleSyncToCloud = async () => {
+    setSyncing(true)
+    setSyncMsg('')
+    try {
+      const { suppliers, products } = useSuppliersStore.getState()
+      await saveSuppliersToCloud({ suppliers, products })
+      setSyncMsg(`✓ ${suppliers.length} ספקים ו-${products.length} מוצרים נשמרו בענן`)
+      setTimeout(() => setSyncMsg(''), 4000)
+    } catch {
+      setSyncMsg('✗ שגיאה בשמירה לענן')
+      setTimeout(() => setSyncMsg(''), 4000)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const handleSendInvoiceRequests = async () => {
     const suppliers = getAllSuppliers()
@@ -76,6 +95,25 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-3">
+          {/* סנכרון ספקים לענן */}
+          <button
+            onClick={handleSyncToCloud}
+            disabled={syncing}
+            className="w-full bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden disabled:opacity-70"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <Cloud className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">סנכרן ספקים לענן</h3>
+                <p className="text-white/80 text-xs font-bold">
+                  {syncMsg || (syncing ? 'שומר...' : 'לחץ כדי שכל המכשירים יראו את הנתונים העדכניים')}
+                </p>
+              </div>
+            </div>
+          </button>
+
           {/* שליחה לספקים */}
           <button
             onClick={() => navigate('/admin/dispatch')}
