@@ -29,10 +29,13 @@ export default function WeeklySchedulePage() {
     setLoading(true)
     try {
       const data = await getSuppliersFromCloud()
-      if (data !== null) {
-        loadCloudData(data.suppliers ?? [], data.products ?? [])
-        setCloudCount(data.suppliers?.length ?? 0)
+      const hasSchedules = data?.suppliers?.some((s: any) => s.schedules?.length > 0)
+      if (hasSchedules) {
+        // יש נתוני אדמין בענן — טען אותם
+        loadCloudData(data!.suppliers, data!.products ?? [])
+        setCloudCount(data!.suppliers.length)
       } else {
+        // הענן ריק או אין לוחות זמנים — אל תמחק נתונים מקומיים
         setCloudCount(0)
       }
     } catch {

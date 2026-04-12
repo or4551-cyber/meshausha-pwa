@@ -6,11 +6,12 @@ const BASE = '/.netlify/functions'
 
 /** שמור ספקים ומוצרים בענן (נתוני אדמין) */
 export async function saveSuppliersToCloud(data: { suppliers: any[]; products: any[] }): Promise<void> {
-  await fetch(`${BASE}/suppliers-api`, {
+  const res = await fetch(`${BASE}/suppliers-api`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+  if (!res.ok) throw new Error(`שגיאת שרת ${res.status}`)
 }
 
 /** טען ספקים ומוצרים מהענן */

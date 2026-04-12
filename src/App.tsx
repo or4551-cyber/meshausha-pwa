@@ -48,16 +48,17 @@ function App() {
         if (phone) setAdminPhone(phone)
       })
     }
-    // טעינת ספקים ומוצרים מהענן — הענן תמיד גובר (נתוני אדמין עדכניים)
+    // טעינת ספקים ומוצרים מהענן — טוען רק אם יש נתוני לוח זמנים בענן
     getSuppliersFromCloud().then(data => {
-      if (data !== null) {
-        // יש נתונים בענן — טען אותם
-        loadCloudData(data.suppliers ?? [], data.products ?? [])
+      const hasSchedules = data?.suppliers?.some((s: any) => s.schedules?.length > 0)
+      if (hasSchedules) {
+        // יש נתוני אדמין בענן — טען (הענן גובר)
+        loadCloudData(data!.suppliers, data!.products ?? [])
       } else {
-        // אין נתונים בענן עדיין — אם ב-localStorage יש ספקים עם לוחות זמנים, שמור לענן
+        // אין נתונים בענן — אם ב-localStorage יש לוחות זמנים, שמור לענן
         const { suppliers: localSuppliers, products: localProducts } = useSuppliersStore.getState()
-        const hasSchedules = localSuppliers.some(s => s.schedules && s.schedules.length > 0)
-        if (hasSchedules) {
+        const localHasSchedules = localSuppliers.some(s => s.schedules && s.schedules.length > 0)
+        if (localHasSchedules) {
           saveSuppliersToCloud({ suppliers: localSuppliers, products: localProducts }).catch(console.error)
         }
       }
