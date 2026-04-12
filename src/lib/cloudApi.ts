@@ -3,21 +3,26 @@ import type { Order } from '../stores/ordersStore'
 const BASE = '/.netlify/functions'
 
 // ─── ספקים ומוצרים ────────────────────────────────────────
+// משתמשים ב-settings-api (פונקציה קיימת ועובדת) במקום פונקציה חדשה
 
 /** שמור ספקים ומוצרים בענן (נתוני אדמין) */
 export async function saveSuppliersToCloud(data: { suppliers: any[]; products: any[] }): Promise<void> {
-  const res = await fetch(`${BASE}/suppliers-api`, {
+  const res = await fetch(`${BASE}/settings-api`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ suppliersData: data }),
   })
-  if (!res.ok) throw new Error(`שגיאת שרת ${res.status}`)
+  if (!res.ok) {
+    let errMsg = `HTTP ${res.status}`
+    try { const b = await res.json(); errMsg = b.error || b.errorMessage || errMsg } catch {}
+    throw new Error(errMsg)
+  }
 }
 
 /** טען ספקים ומוצרים מהענן */
 export async function getSuppliersFromCloud(): Promise<{ suppliers: any[]; products: any[] } | null> {
   try {
-    const res = await fetch(`${BASE}/suppliers-api`)
+    const res = await fetch(`${BASE}/settings-api?type=suppliers`)
     if (!res.ok) return null
     return res.json()
   } catch {

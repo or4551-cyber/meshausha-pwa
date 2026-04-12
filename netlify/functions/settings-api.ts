@@ -25,15 +25,34 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // POST — עדכן הגדרות
+    // POST — עדכן הגדרות (כולל suppliersData אם קיים)
     if (event.httpMethod === 'POST') {
       const updates = JSON.parse(event.body || '{}')
+      // ספקים נשמרים במפתח נפרד כי הנתונים גדולים
+      if (updates.suppliersData !== undefined) {
+        await store.set('suppliers-data', JSON.stringify(updates.suppliersData))
+        return {
+          statusCode: 200,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ok: true }),
+        }
+      }
       const current = await store.get('admin-settings', { type: 'json' }) as any || {}
       await store.set('admin-settings', JSON.stringify({ ...current, ...updates }))
       return {
         statusCode: 200,
         headers: { ...CORS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ok: true }),
+      }
+    }
+
+    // GET עם ?type=suppliers — החזר נתוני ספקים
+    if (event.httpMethod === 'GET' && event.queryStringParameters?.type === 'suppliers') {
+      const data = await store.get('suppliers-data', { type: 'json' })
+      return {
+        statusCode: 200,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data ?? null),
       }
     }
 
