@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { ChevronRight, Calendar } from 'lucide-react'
 import { useSuppliersStore } from '../../stores/suppliersStore'
+import { getSuppliersFromCloud } from '../../lib/cloudApi'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 const DAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
@@ -19,7 +21,14 @@ const TODAY = new Date().getDay()
 
 export default function WeeklySchedulePage() {
   const navigate = useNavigate()
-  const { suppliers } = useSuppliersStore()
+  const { suppliers, loadCloudData } = useSuppliersStore()
+
+  // טעינה מהענן בכל כניסה לדף — מבטיח שתמיד רואים נתונים עדכניים
+  useEffect(() => {
+    getSuppliersFromCloud().then(data => {
+      if (data !== null) loadCloudData(data.suppliers ?? [], data.products ?? [])
+    })
+  }, [])
 
   // ספקים שיש להם לפחות יום הזמנה אחד
   const activeSuppliers = suppliers.filter(s => s.schedules && s.schedules.length > 0)

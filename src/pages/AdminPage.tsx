@@ -22,10 +22,17 @@ export default function AdminPage() {
   const [syncMsg, setSyncMsg] = useState('')
 
   const handleSyncToCloud = async () => {
+    const { suppliers, products } = useSuppliersStore.getState()
+    const suppliersWithSchedules = suppliers.filter(s => s.schedules && s.schedules.length > 0)
+    if (suppliersWithSchedules.length === 0) {
+      alert('במכשיר זה אין ספקים עם לוחות זמנים — לא ניתן לסנכרן. השתמש במחשב שבו הוגדרו הספקים.')
+      return
+    }
+    const ok = confirm(`מכשיר זה יעלה ${suppliers.length} ספקים לענן ויחליף את כל הנתונים הקיימים שם.\nלהמשיך?`)
+    if (!ok) return
     setSyncing(true)
     setSyncMsg('')
     try {
-      const { suppliers, products } = useSuppliersStore.getState()
       await saveSuppliersToCloud({ suppliers, products })
       setSyncMsg(`✓ ${suppliers.length} ספקים ו-${products.length} מוצרים נשמרו בענן`)
       setTimeout(() => setSyncMsg(''), 4000)
