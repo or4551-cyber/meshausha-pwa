@@ -25,7 +25,6 @@ export default function AddSupplierPage() {
   const [supplierName, setSupplierName] = useState('')
   const [description, setDescription] = useState('')
   const [daySchedules, setDaySchedules] = useState<DaySchedule[]>([])
-  const [currentDay, setCurrentDay] = useState<number | null>(null)
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -39,17 +38,6 @@ export default function AddSupplierPage() {
     { value: 5, label: 'שישי' },
     { value: 6, label: 'שבת' }
   ]
-
-  const addDaySchedule = () => {
-    if (currentDay === null) return
-    
-    setDaySchedules(prev => [...prev, {
-      day: currentDay,
-      branchCodes: [],
-      notificationTime: '09:00'
-    }])
-    setCurrentDay(null)
-  }
 
   const removeDaySchedule = (index: number) => {
     setDaySchedules(prev => prev.filter((_, i) => i !== index))
@@ -221,25 +209,25 @@ export default function AddSupplierPage() {
                 {/* הוספת יום חדש */}
                 <div className="mb-4 p-4 bg-primary/5 rounded-xl">
                   <label className="block text-primary font-bold text-sm mb-2">הוסף יום הזמנה</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={currentDay ?? ''}
-                      onChange={(e) => setCurrentDay(e.target.value ? Number(e.target.value) : null)}
-                      className="flex-1 bg-white text-primary rounded-xl py-2 px-3 font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="">בחר יום...</option>
-                      {days.filter(d => !daySchedules.some(s => s.day === d.value)).map(day => (
-                        <option key={day.value} value={day.value}>{day.label}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={addDaySchedule}
-                      disabled={currentDay === null}
-                      className="bg-bot text-white px-4 py-2 rounded-xl font-bold disabled:opacity-50 active:scale-95 transition-all"
-                    >
-                      <Plus size={20} />
-                    </button>
-                  </div>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === '') return
+                      const dayNum = Number(val)
+                      setDaySchedules(prev => [...prev, {
+                        day: dayNum,
+                        branchCodes: [],
+                        notificationTime: '09:00'
+                      }])
+                    }}
+                    className="w-full bg-white text-primary rounded-xl py-2 px-3 font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">בחר יום להוסיף...</option>
+                    {days.filter(d => !daySchedules.some(s => s.day === d.value)).map(day => (
+                      <option key={day.value} value={day.value}>{day.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* רשימת ימים שנבחרו */}

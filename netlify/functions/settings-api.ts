@@ -12,9 +12,10 @@ export const handler: Handler = async (event) => {
     return { statusCode: 200, headers: CORS, body: '' }
   }
 
-  const store = getStore('meshausha-settings')
-
   try {
+    // getStore חייב להיות בתוך try/catch — אחרת MissingBlobsEnvironmentError גורם ל-502
+    const store = getStore('meshausha-settings')
+
     // GET עם ?type=suppliers — חייב לבוא לפני הבדיקה הרגילה של GET
     if (event.httpMethod === 'GET' && event.queryStringParameters?.type === 'suppliers') {
       const data = await store.get('suppliers-data', { type: 'json' })

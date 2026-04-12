@@ -15,69 +15,17 @@ export interface LegacySupplierSchedule {
   description: string
 }
 
-// לוח זמנים סטטי לספקים (לתאימות לאחור) - כל הסניפים
-const ALL_BRANCHES = ['1001', '1002', '1003', '1004', '1005', '1006', '1007', '1008', '1009']
-
-const STATIC_SUPPLIER_SCHEDULES: SupplierSchedule[] = [
-  {
-    name: 'מעדניית השף',
-    schedules: [
-      { day: 0, branchCodes: ALL_BRANCHES, notificationTime: '09:00' },
-      { day: 3, branchCodes: ALL_BRANCHES, notificationTime: '09:00' }
-    ],
-    description: 'הזמנה למעדניית השף - ראשון ורביעי בבוקר'
-  },
-  {
-    name: 'ירקות ופירות',
-    schedules: [
-      { day: 1, branchCodes: ALL_BRANCHES, notificationTime: '08:00' },
-      { day: 4, branchCodes: ALL_BRANCHES, notificationTime: '08:00' }
-    ],
-    description: 'הזמנת ירקות ופירות - שני וחמישי בבוקר'
-  },
-  {
-    name: 'מאפים',
-    schedules: [
-      { day: 0, branchCodes: ALL_BRANCHES, notificationTime: '07:30' },
-      { day: 2, branchCodes: ALL_BRANCHES, notificationTime: '07:30' },
-      { day: 4, branchCodes: ALL_BRANCHES, notificationTime: '07:30' }
-    ],
-    description: 'הזמנת מאפים - ראשון, שלישי וחמישי'
-  },
-  {
-    name: 'בשר ועוף',
-    schedules: [
-      { day: 0, branchCodes: ALL_BRANCHES, notificationTime: '10:00' },
-      { day: 3, branchCodes: ALL_BRANCHES, notificationTime: '10:00' }
-    ],
-    description: 'הזמנת בשר ועוף - ראשון ורביעי'
-  },
-  {
-    name: 'מוצרי חלב',
-    schedules: [
-      { day: 1, branchCodes: ALL_BRANCHES, notificationTime: '08:30' },
-      { day: 3, branchCodes: ALL_BRANCHES, notificationTime: '08:30' },
-      { day: 5, branchCodes: ALL_BRANCHES, notificationTime: '08:30' }
-    ],
-    description: 'הזמנת מוצרי חלב - שני, רביעי ושישי'
-  }
-]
-
-// קבלת כל הספקים (סטטיים + דינמיים)
+// קבלת כל הספקים מהstore (רק ספקים שהוגדרו במערכת)
 export const getAllSupplierSchedules = (): SupplierSchedule[] => {
   try {
     const store = useSuppliersStore.getState()
-    const dynamicSuppliers = store.getAllSuppliers()
-    
-    const dynamicSchedules: SupplierSchedule[] = dynamicSuppliers.map(s => ({
+    return store.getAllSuppliers().map(s => ({
       name: s.name,
       schedules: s.schedules,
       description: s.description
     }))
-    
-    return [...STATIC_SUPPLIER_SCHEDULES, ...dynamicSchedules]
   } catch (e) {
-    return STATIC_SUPPLIER_SCHEDULES
+    return []
   }
 }
 

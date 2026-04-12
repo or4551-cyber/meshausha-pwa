@@ -98,9 +98,10 @@ export const useInvoicesStore = create<InvoicesState>()(
         const invoice = get().invoices.find(inv => inv.id === invoiceId)
         if (!invoice) return []
 
-        // מוצרים מהstore (כולל סטטיים שנזרעו) + fallback לסטטיים
+        // מיזוג מוצרי store + מוצרים סטטיים (store גובר על סטטי לפי ID)
         const storeProducts = useSuppliersStore.getState().getAllProducts()
-        const allKnownProducts = storeProducts.length > 0 ? storeProducts : staticProducts
+        const storeIds = new Set(storeProducts.map(p => p.id))
+        const allKnownProducts = [...storeProducts, ...staticProducts.filter(p => !storeIds.has(p.id))]
 
         const discrepancies: PriceDiscrepancy[] = []
 

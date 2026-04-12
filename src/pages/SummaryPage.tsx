@@ -18,6 +18,9 @@ export default function SummaryPage() {
   const { addOrder, saveTemplate, updateTemplate, templates } = useOrdersStore()
   const { getAllSuppliers, adminPhone } = useSuppliersStore()
   const { recordOrderPrices } = usePriceHistoryStore()
+  const [notes, setNotes] = useState('')
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
 
   // מחזיר מספר WhatsApp בפורמט בינלאומי ישראלי
   const getWhatsAppNumber = (supplierName: string) => {
@@ -49,10 +52,6 @@ export default function SummaryPage() {
       : `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
   }
-  const [notes, setNotes] = useState('')
-  const [showTemplateModal, setShowTemplateModal] = useState(false)
-  const [newTemplateName, setNewTemplateName] = useState('')
-
   const groupedItems = items.reduce((acc, item) => {
     if (!acc[item.supplier]) {
       acc[item.supplier] = []

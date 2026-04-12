@@ -36,9 +36,9 @@ export default function AdminPage() {
       await saveSuppliersToCloud({ suppliers, products })
       setSyncMsg(`✓ ${suppliers.length} ספקים ו-${products.length} מוצרים נשמרו בענן`)
       setTimeout(() => setSyncMsg(''), 4000)
-    } catch {
-      setSyncMsg('✗ שגיאה בשמירה לענן')
-      setTimeout(() => setSyncMsg(''), 4000)
+    } catch (e: any) {
+      setSyncMsg(`✗ שגיאה: ${e?.message || 'לא ידוע'}`)
+      setTimeout(() => setSyncMsg(''), 8000)
     } finally {
       setSyncing(false)
     }
