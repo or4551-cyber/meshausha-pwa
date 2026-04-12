@@ -8,6 +8,8 @@ export interface NotificationPayload {
   data?: any
 }
 
+const BASE = '/.netlify/functions'
+
 // בדיקת תמיכה בהתראות
 export const isNotificationSupported = (): boolean => {
   return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window
@@ -18,9 +20,7 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
   if (!isNotificationSupported()) {
     throw new Error('Notifications are not supported in this browser')
   }
-
-  const permission = await Notification.requestPermission()
-  return permission
+  return Notification.requestPermission()
 }
 
 // שליחת התראה מקומית
@@ -29,19 +29,15 @@ export const sendLocalNotification = async (payload: NotificationPayload): Promi
     console.warn('Notifications not supported')
     return
   }
+  if (Notification.permission !== 'granted') return
 
-  const permission = await Notification.requestPermission()
-  
-  if (permission === 'granted') {
-    const registration = await navigator.serviceWorker.ready
-    
-    await registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: payload.icon || '/icon-192x192.png',
-      badge: payload.badge || '/icon-192x192.png',
-      data: payload.data
-    })
-  }
+  const registration = await navigator.serviceWorker.ready
+  await registration.showNotification(payload.title, {
+    body: payload.body,
+    icon: payload.icon || '/icon-192x192.png',
+    badge: payload.badge || '/icon-192x192.png',
+    data: payload.data,
+  })
 }
 
 // התראה על הזמנה חדשה
@@ -53,41 +49,63 @@ export const notifyNewOrder = async (orderData: {
   await sendLocalNotification({
     title: '🛒 הזמנה חדשה!',
     body: `${orderData.branch} - ${orderData.itemCount} פריטים`,
-    data: { type: 'new_order', ...orderData }
+    data: { type: 'new_order', ...orderData },
   })
 }
 
-// התראה על שינוי מחיר
-export const notifyPriceChange = async (productName: string, oldPrice: number, newPrice: number): Promise<void> => {
-  const change = newPrice > oldPrice ? 'עלה' : 'ירד'
-  await sendLocalNotification({
-    title: '💰 שינוי מחיר',
-    body: `${productName} - המחיר ${change}`,
-    data: { type: 'price_change', productName, oldPrice, newPrice }
-  })
+// המרת מפתח VAPID
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const output = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; i++) output[i] = rawData.charCodeAt(i)
+  return output
 }
 
-// התראה על חריגת תקציב
-export const notifyBudgetExceeded = async (branch: string, budget: number, spent: number): Promise<void> => {
-  await sendLocalNotification({
-    title: '⚠️ חריגת תקציב',
-    body: `${branch} חרג מהתקציב`,
-    data: { type: 'budget_exceeded', branch, budget, spent }
-  })
-}
-
-const FAKE_VAPID_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib37J8xQmrpcPBblQV4qwFSf01S-4kkRzKftsHqOjfH5VqJB5VJBDWr2RGk'
-
-// שמירת מנוי Push (דורש VAPID key אמיתי ב-Netlify env vars)
-export const subscribeToPushNotifications = async (): Promise<PushSubscription | null> => {
-  if (!isNotificationSupported()) {
+// קבלת המפתח הציבורי מהשרת (נוצר אוטומטית בפעם הראשונה)
+export async function getVapidPublicKey(): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE}/push-manager`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.publicKey ?? null
+  } catch {
     return null
   }
+}
 
-  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+// שמירת מנוי Push בשרת
+export async function savePushSubscription(subscription: PushSubscription): Promise<void> {
+  await fetch(`${BASE}/push-manager`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription }),
+  })
+}
 
-  if (!vapidKey || vapidKey === FAKE_VAPID_KEY) {
-    console.warn('[Push] VAPID public key לא מוגדר - Push notifications מושבתות. הגדר VITE_VAPID_PUBLIC_KEY ב-.env')
+// מחיקת מנוי Push מהשרת
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  await fetch(`${BASE}/push-manager`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  })
+}
+
+/**
+ * מנוי מלא: מבקש הרשאה → מקבל מפתח VAPID מהשרת → נרשם → שומר בשרת
+ * מחזיר את ה-PushSubscription או null אם נכשל
+ */
+export const subscribeToPushNotifications = async (): Promise<PushSubscription | null> => {
+  if (!isNotificationSupported()) return null
+
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') return null
+
+  const publicKey = await getVapidPublicKey()
+  if (!publicKey) {
+    console.warn('[Push] לא ניתן לקבל VAPID key מהשרת')
     return null
   }
 
@@ -95,28 +113,30 @@ export const subscribeToPushNotifications = async (): Promise<PushSubscription |
     const registration = await navigator.serviceWorker.ready
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey) as any
+      applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as ArrayBuffer,
     })
-
+    await savePushSubscription(subscription)
     return subscription
   } catch (error) {
-    console.error('Failed to subscribe to push notifications:', error)
+    console.error('[Push] נרשם נכשל:', error)
     return null
   }
 }
 
-// המרת מפתח VAPID
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4)
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/')
-
-  const rawData = window.atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i)
+/**
+ * בודק אם יש מנוי קיים — אם לא, מנסה לרשום
+ * לשימוש בטעינת האפליקציה של האדמין
+ */
+export const ensurePushSubscription = async (): Promise<void> => {
+  if (!isNotificationSupported() || Notification.permission !== 'granted') return
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const existing = await registration.pushManager.getSubscription()
+    if (existing) {
+      // שמור מחדש בשרת (אולי השרת איבד את המנוי)
+      await savePushSubscription(existing)
+    }
+  } catch (err) {
+    console.warn('[Push] ensurePushSubscription failed:', err)
   }
-  return outputArray
 }

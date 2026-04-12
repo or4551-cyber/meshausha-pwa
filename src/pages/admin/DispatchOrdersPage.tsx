@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, Send, CheckCircle, Phone, Package,
-  Loader2, ChevronDown, ChevronUp, Edit2, Check
+  Loader2, ChevronDown, ChevronUp, Edit2, Check, RefreshCw
 } from 'lucide-react'
 import { useOrdersStore } from '../../stores/ordersStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
@@ -21,7 +21,10 @@ export default function DispatchOrdersPage() {
 
   const [cloudOrders, setCloudOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [editPhone, setEditPhone] = useState(false)
   const [phoneInput, setPhoneInput] = useState(adminPhone)
 
@@ -34,12 +37,20 @@ export default function DispatchOrdersPage() {
   // מצב עריכה פעיל: editingKey = orderId_supplier
   const [editingKey, setEditingKey] = useState<string | null>(null)
 
+  const loadOrders = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    const orders = await getOrdersFromCloud()
+    setCloudOrders(orders)
+    setLoading(false)
+    if (isRefresh) setRefreshing(false)
+  }
+
   useEffect(() => {
-    getOrdersFromCloud().then(orders => {
-      setCloudOrders(orders)
-      setLoading(false)
-    })
-  }, [])
+    loadOrders()
+    // רענון אוטומטי כל 30 שניות
+    intervalRef.current = setInterval(() => loadOrders(), 30_000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [refreshKey])
 
   useEffect(() => {
     if (!adminPhone) {
@@ -181,6 +192,14 @@ export default function DispatchOrdersPage() {
                 {loading ? 'טוען...' : `${pendingCount} הזמנות ממתינות`}
               </p>
             </div>
+            <button
+              onClick={() => { setRefreshKey(k => k + 1) }}
+              disabled={refreshing || loading}
+              className="text-primary/60 hover:text-primary active:scale-90 transition-all p-1 touch-manipulation disabled:opacity-40"
+              title="רענן"
+            >
+              <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+            </button>
           </div>
         </header>
 

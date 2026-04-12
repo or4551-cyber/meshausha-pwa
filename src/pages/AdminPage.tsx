@@ -3,18 +3,24 @@ import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, Tren
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { sendBulkInvoiceRequests } from '../lib/emailService'
-import { saveSuppliersToCloud } from '../lib/cloudApi'
+import { saveSuppliersToCloud, getOrdersFromCloud } from '../lib/cloudApi'
 
 export default function AdminPage() {
   const navigate = useNavigate()
   const { getAllOrders } = useOrdersStore()
   const { getAllSuppliers } = useSuppliersStore()
-  const { getPendingOrders } = useOrdersStore()
   const totalOrders = getAllOrders().length
   const totalSuppliers = getAllSuppliers().length
-  const pendingCount = getPendingOrders().length
+  const [pendingCount, setPendingCount] = useState(0)
+
+  // טוען ספירת הזמנות ממתינות מהענן (כולל הזמנות מכל הסניפים)
+  useEffect(() => {
+    getOrdersFromCloud().then(orders => {
+      setPendingCount(orders.filter(o => o.status === 'pending').length)
+    })
+  }, [])
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0, supplier: '' })
   const [showVideo, setShowVideo] = useState(false)

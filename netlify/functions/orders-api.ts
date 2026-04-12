@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
+import webpush from 'web-push'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,31 @@ function openStore(name: string) {
     return getStore({ name, siteID, token })
   }
   return getStore(name)
+}
+
+// שולח Push לכל האדמינים שרשומים
+async function sendPushToAdmins(title: string, body: string) {
+  try {
+    const store = openStore('push-data')
+    const [keys, subs] = await Promise.all([
+      store.get('vapid-keys', { type: 'json' }) as Promise<{ publicKey: string; privateKey: string } | null>,
+      store.get('subscriptions', { type: 'json' }) as Promise<any[] | null>,
+    ])
+    if (!keys || !subs || subs.length === 0) return
+
+    webpush.setVapidDetails(
+      'mailto:admin@meshausha.app',
+      keys.publicKey,
+      keys.privateKey,
+    )
+
+    const payload = JSON.stringify({ title, body, data: { url: '/admin/dispatch' } })
+    await Promise.allSettled(
+      subs.map(sub => webpush.sendNotification(sub, payload))
+    )
+  } catch (err) {
+    console.error('push failed:', err)
+  }
 }
 
 export const handler: Handler = async (event) => {
@@ -47,6 +73,13 @@ export const handler: Handler = async (event) => {
         return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'missing id' }) }
       }
       await store.set(order.id, JSON.stringify(order))
+
+      // שלח Push לאדמין — fire and forget
+      sendPushToAdmins(
+        '🛒 הזמנה חדשה!',
+        `${order.branch} — ${order.items?.length ?? 0} פריטים`
+      ).catch(() => {})
+
       return {
         statusCode: 201,
         headers: { ...CORS, 'Content-Type': 'application/json' },

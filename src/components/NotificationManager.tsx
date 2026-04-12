@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useOrdersStore } from '../stores/ordersStore'
-import { 
-  isNotificationSupported, 
-  requestNotificationPermission,
-  notifyNewOrder 
+import {
+  isNotificationSupported,
+  sendLocalNotification,
+  subscribeToPushNotifications,
+  ensurePushSubscription,
 } from '../lib/notifications'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -22,45 +23,51 @@ export default function NotificationManager() {
     }
   }, [])
 
+  // כשהאדמין נכנס עם הרשאה קיימת — ודא שהמנוי שמור בשרת
+  useEffect(() => {
+    if (user?.isAdmin && Notification.permission === 'granted') {
+      ensurePushSubscription()
+    }
+  }, [user?.isAdmin])
+
+  // גיבוי: התראה מקומית אם האפליקציה פתוחה ויש הזמנה חדשה (מ-local store)
   useEffect(() => {
     if (!user?.isAdmin) return
-    
-    // בדיקה אם יש הזמנה חדשה
     if (orders.length > lastOrderCount && lastOrderCount > 0 && permission === 'granted') {
       const newOrder = orders[0]
-      notifyNewOrder({
-        branch: newOrder.branch,
-        itemCount: newOrder.items.length,
-        totalPrice: newOrder.totalPrice
+      sendLocalNotification({
+        title: '🛒 הזמנה חדשה!',
+        body: `${newOrder.branch} — ${newOrder.items.length} פריטים`,
+        data: { type: 'new_order' },
       })
     }
     setLastOrderCount(orders.length)
   }, [orders, lastOrderCount, permission, user?.isAdmin])
 
+  // הצגת Prompt לאדמין שטרם אפשר התראות
   useEffect(() => {
     if (user?.isAdmin && permission === 'default' && isNotificationSupported()) {
-      // הצגת prompt אחרי 3 שניות
-      const timer = setTimeout(() => {
-        setShowPrompt(true)
-      }, 3000)
+      const timer = setTimeout(() => setShowPrompt(true), 3000)
       return () => clearTimeout(timer)
     }
   }, [user?.isAdmin, permission])
 
   const handleEnableNotifications = async () => {
+    setShowPrompt(false)
     try {
-      const newPermission = await requestNotificationPermission()
-      setPermission(newPermission)
-      setShowPrompt(false)
-      
-      if (newPermission === 'granted') {
-        // שליחת התראת בדיקה
+      const sub = await subscribeToPushNotifications()
+      if (sub) {
+        setPermission('granted')
+        // התראת בדיקה
         const registration = await navigator.serviceWorker.ready
         await registration.showNotification('התראות הופעלו! 🔔', {
-          body: 'תקבל התראות על הזמנות חדשות',
+          body: 'תקבל התראות על הזמנות חדשות גם כשהאפליקציה סגורה',
           icon: '/icon-192x192.png',
-          badge: '/icon-192x192.png'
+          badge: '/icon-192x192.png',
         })
+      } else {
+        // המשתמש סירב
+        setPermission(Notification.permission as NotificationPermission)
       }
     } catch (error) {
       console.error('Failed to enable notifications:', error)
@@ -87,9 +94,9 @@ export default function NotificationManager() {
                   <Bell className="text-white" size={20} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-white font-black text-sm mb-1">הפעל התראות</h3>
+                  <h3 className="text-white font-black text-sm mb-1">הפעל התראות Push</h3>
                   <p className="text-white/90 text-xs mb-3">
-                    קבל התראות על הזמנות חדשות בזמן אמת
+                    קבל התראה על כל הזמנה חדשה — גם כשהאפליקציה סגורה
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -117,18 +124,17 @@ export default function NotificationManager() {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className={`p-2 rounded-full ${
-            permission === 'granted' 
-              ? 'bg-bot/20 text-bot' 
+          className={`p-2 rounded-full cursor-pointer transition-colors ${
+            permission === 'granted'
+              ? 'bg-bot/20 text-bot'
               : 'bg-gray-200 text-gray-400'
           }`}
-          title={permission === 'granted' ? 'התראות פעילות' : 'התראות כבויות'}
+          title={permission === 'granted' ? 'התראות Push פעילות' : 'לחץ להפעלת התראות'}
+          onClick={() => {
+            if (permission !== 'granted') handleEnableNotifications()
+          }}
         >
-          {permission === 'granted' ? (
-            <Bell size={18} />
-          ) : (
-            <BellOff size={18} />
-          )}
+          {permission === 'granted' ? <Bell size={18} /> : <BellOff size={18} />}
         </motion.div>
       </div>
     </>
