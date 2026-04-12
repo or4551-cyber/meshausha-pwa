@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSuppliersStore } from './stores/suppliersStore'
 import { PRODUCTS, INITIAL_SUPPLIERS } from './data/products'
+import { getAdminPhoneFromCloud } from './lib/cloudApi'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
@@ -35,12 +36,18 @@ import NotificationScheduler from './components/NotificationScheduler'
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
-  const { seedStaticSuppliers, seedStaticProducts } = useSuppliersStore()
+  const { seedStaticSuppliers, seedStaticProducts, setAdminPhone, adminPhone } = useSuppliersStore()
 
-  // זריעת ספקים ומוצרים ראשוניים — פעם אחת בהפעלה
+  // זריעת ספקים ומוצרים + טעינת adminPhone מהענן
   useEffect(() => {
     seedStaticSuppliers(INITIAL_SUPPLIERS)
     seedStaticProducts(PRODUCTS)
+    // אם אין מספר מקומי — טען מהענן
+    if (!adminPhone) {
+      getAdminPhoneFromCloud().then(phone => {
+        if (phone) setAdminPhone(phone)
+      })
+    }
   }, [])
 
   return (

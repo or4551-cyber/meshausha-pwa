@@ -8,6 +8,7 @@ import { useSuppliersStore } from '../stores/suppliersStore'
 import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { printOrderAsPDF } from '../lib/pdfExport'
+import { saveOrderToCloud } from '../lib/cloudApi'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function SummaryPage() {
@@ -90,19 +91,19 @@ export default function SummaryPage() {
       window.open(url, '_blank')
     }
 
-    // שמירת ההזמנה + התרעה (אסינכרוני — אחרי פתיחת WhatsApp)
-    const orderedAt = new Date().toISOString()
-    addOrder({
+    // שמירת ההזמנה — מקומית + ענן
+    const newOrder = addOrder({
       branch: user?.branch || '',
       branchCode: user?.branchCode || '',
       items,
       notes,
       totalPrice: totalWithVAT
     })
-    recordOrderPrices(items, user?.branchCode || '', orderedAt)
+    recordOrderPrices(items, user?.branchCode || '', newOrder.createdAt)
 
-    // NotificationManager מקשיב לשינויים בorders ושולח התרעה לאדמין —
-    // לכן לא שולחים כאן כדי למנוע כפול
+    // שמירה בענן — fire and forget, לא חוסם את ה-UI
+    saveOrderToCloud(newOrder).catch(console.error)
+
     clearCart()
     setTimeout(() => navigate('/'), 500)
   }

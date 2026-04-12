@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ChevronLeft, Search, Calendar, Package, RefreshCw, Edit, X, FileDown, CheckCircle, AlertCircle, Clock } from 'lucide-react'
 import { useOrdersStore } from '../stores/ordersStore'
 import type { Order } from '../stores/ordersStore'
 import { useAuthStore } from '../stores/authStore'
+import { getOrdersFromCloud } from '../lib/cloudApi'
 import { useCartStore } from '../stores/cartStore'
 import { useDeliveriesStore } from '../stores/deliveriesStore'
 import { formatPrice } from '../lib/utils'
@@ -25,7 +26,29 @@ export default function HistoryPage() {
 
   const { getDeliveryForOrder } = useDeliveriesStore()
 
-  const displayOrders = user?.isAdmin ? getAllOrders() : getOrdersByBranch(user?.branchCode || '')
+  const [cloudOrders, setCloudOrders] = useState<Order[]>([])
+
+  // אדמין — טוען הזמנות מכל הסניפים מהענן
+  useEffect(() => {
+    if (user?.isAdmin) {
+      getOrdersFromCloud().then(orders => {
+        setCloudOrders(orders)
+      })
+    }
+  }, [user?.isAdmin])
+
+  const localOrders = user?.isAdmin ? getAllOrders() : getOrdersByBranch(user?.branchCode || '')
+
+  // מיזוג: ענן + מקומי, כפילויות לפי ID
+  const displayOrders = useMemo(() => {
+    if (!user?.isAdmin) return localOrders
+    const merged = new Map<string, Order>()
+    cloudOrders.forEach(o => merged.set(o.id, o))
+    localOrders.forEach(o => { if (!merged.has(o.id)) merged.set(o.id, o) })
+    return Array.from(merged.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }, [cloudOrders, localOrders, user?.isAdmin])
 
   const filteredOrders = useMemo(() => {
     return displayOrders.filter(order => {

@@ -1,28 +1,54 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Send, CheckCircle, Phone, Package, Clock } from 'lucide-react'
+import { ChevronRight, Send, CheckCircle, Phone, Package, Clock, Loader2 } from 'lucide-react'
 import { useOrdersStore } from '../../stores/ordersStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
+import type { Order } from '../../stores/ordersStore'
+import { getOrdersFromCloud, markOrdersDispatchedInCloud, getAdminPhoneFromCloud, saveAdminPhoneToCloud } from '../../lib/cloudApi'
 import { motion } from 'framer-motion'
 
 export default function DispatchOrdersPage() {
   const navigate = useNavigate()
-  const { getPendingOrders, getAllOrders, markOrderDispatched } = useOrdersStore()
+  const { markOrderDispatched } = useOrdersStore()
   const { getAllSuppliers, adminPhone, setAdminPhone } = useSuppliersStore()
+
+  const [cloudOrders, setCloudOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
   const [editPhone, setEditPhone] = useState(false)
   const [phoneInput, setPhoneInput] = useState(adminPhone)
   const [showAll, setShowAll] = useState(false)
 
-  const pendingOrders = getPendingOrders()
-  const allOrders = getAllOrders()
-  const displayOrders = showAll ? allOrders.slice(0, 50) : pendingOrders
+  // טעינת הזמנות מהענן
+  useEffect(() => {
+    getOrdersFromCloud().then(orders => {
+      setCloudOrders(orders)
+      setLoading(false)
+    })
+  }, [])
 
-  // קיבוץ לפי ספק: { [supplierName]: { orders: Order[], items: { name, totalQty, branchBreakdown }[] } }
+  // טעינת adminPhone מהענן (אם ריק מקומית)
+  useEffect(() => {
+    if (!adminPhone) {
+      getAdminPhoneFromCloud().then(phone => {
+        if (phone) {
+          setAdminPhone(phone)
+          setPhoneInput(phone)
+        }
+      })
+    }
+  }, [])
+
+  const displayOrders = showAll
+    ? cloudOrders
+    : cloudOrders.filter(o => o.status === 'pending')
+
+  const pendingCount = cloudOrders.filter(o => o.status === 'pending').length
+
+  // קיבוץ לפי ספק
   type SupplierGroup = {
     supplierName: string
     phone: string
     orderIds: string[]
-    // items מרוכזים: שם → כמות כוללת, פירוט לפי סניף
     items: { name: string; totalQty: number; byBranch: { branch: string; qty: number }[] }[]
     branches: string[]
     notes: string[]
@@ -34,14 +60,13 @@ export default function DispatchOrdersPage() {
     order.items.forEach(item => {
       if (!groups[item.supplier]) {
         const supplier = getAllSuppliers().find(s => s.name === item.supplier)
-        const phone = supplier?.phone || ''
         groups[item.supplier] = {
           supplierName: item.supplier,
-          phone,
+          phone: supplier?.phone || '',
           orderIds: [],
           items: [],
           branches: [],
-          notes: []
+          notes: [],
         }
       }
       const g = groups[item.supplier]
@@ -50,7 +75,6 @@ export default function DispatchOrdersPage() {
         if (!g.branches.includes(order.branch)) g.branches.push(order.branch)
         if (order.notes && !g.notes.includes(order.notes)) g.notes.push(order.notes)
       }
-      // מצא או צור item entry
       let entry = g.items.find(i => i.name === item.name)
       if (!entry) {
         entry = { name: item.name, totalQty: 0, byBranch: [] }
@@ -58,11 +82,8 @@ export default function DispatchOrdersPage() {
       }
       entry.totalQty += item.quantity
       const branchEntry = entry.byBranch.find(b => b.branch === order.branch)
-      if (branchEntry) {
-        branchEntry.qty += item.quantity
-      } else {
-        entry.byBranch.push({ branch: order.branch, qty: item.quantity })
-      }
+      if (branchEntry) branchEntry.qty += item.quantity
+      else entry.byBranch.push({ branch: order.branch, qty: item.quantity })
     })
   })
 
@@ -70,7 +91,6 @@ export default function DispatchOrdersPage() {
     let text = `🛒 הזמנה - ${group.supplierName}\n`
     text += `📅 ${new Date().toLocaleDateString('he-IL')}\n\n`
 
-    // פירוט לפי סניף
     const branchItems: Record<string, { name: string; qty: number }[]> = {}
     group.items.forEach(item => {
       item.byBranch.forEach(({ branch, qty }) => {
@@ -81,22 +101,16 @@ export default function DispatchOrdersPage() {
 
     Object.entries(branchItems).forEach(([branch, items]) => {
       text += `📍 ${branch}:\n`
-      items.forEach(({ name, qty }) => {
-        text += `• ${name} × ${qty}\n`
-      })
+      items.forEach(({ name, qty }) => { text += `• ${name} × ${qty}\n` })
       text += '\n'
     })
 
-    if (group.notes.length > 0) {
-      text += `📝 הערות: ${group.notes.join(' | ')}`
-    }
+    if (group.notes.length > 0) text += `📝 ${group.notes.join(' | ')}`
 
     const digits = group.phone.replace(/\D/g, '')
-    const wa = digits.startsWith('972')
-      ? digits
-      : digits.startsWith('0')
-        ? '972' + digits.slice(1)
-        : digits ? '972' + digits : ''
+    const wa = digits.startsWith('972') ? digits
+      : digits.startsWith('0') ? '972' + digits.slice(1)
+      : digits ? '972' + digits : ''
 
     return wa
       ? `https://wa.me/${wa}?text=${encodeURIComponent(text)}`
@@ -105,12 +119,20 @@ export default function DispatchOrdersPage() {
 
   const handleDispatch = (group: SupplierGroup) => {
     window.open(getWhatsAppUrl(group), '_blank')
+    // עדכון מקומי
     group.orderIds.forEach(id => markOrderDispatched(id))
+    // עדכון ענן + רענון
+    markOrdersDispatchedInCloud(group.orderIds).then(() => {
+      setCloudOrders(prev =>
+        prev.map(o => group.orderIds.includes(o.id) ? { ...o, status: 'dispatched' } : o)
+      )
+    })
   }
 
-  const handleSavePhone = () => {
+  const handleSavePhone = async () => {
     setAdminPhone(phoneInput)
     setEditPhone(false)
+    await saveAdminPhoneToCloud(phoneInput)
   }
 
   return (
@@ -127,7 +149,7 @@ export default function DispatchOrdersPage() {
             <div className="flex-1 text-center">
               <h2 className="font-black text-primary text-xl">שליחה לספקים</h2>
               <p className="text-primary/60 text-xs mt-1">
-                {pendingOrders.length} הזמנות ממתינות לשליחה
+                {loading ? 'טוען...' : `${pendingCount} הזמנות ממתינות לשליחה`}
               </p>
             </div>
           </div>
@@ -177,7 +199,7 @@ export default function DispatchOrdersPage() {
           )}
         </div>
 
-        {/* מיתוג: ממתינות / הכל */}
+        {/* פילטר */}
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setShowAll(false)}
@@ -185,7 +207,7 @@ export default function DispatchOrdersPage() {
               !showAll ? 'bg-secondary text-primary' : 'bg-secondary/40 text-primary/50'
             }`}
           >
-            ממתינות ({pendingOrders.length})
+            ממתינות ({pendingCount})
           </button>
           <button
             onClick={() => setShowAll(true)}
@@ -193,23 +215,27 @@ export default function DispatchOrdersPage() {
               showAll ? 'bg-secondary text-primary' : 'bg-secondary/40 text-primary/50'
             }`}
           >
-            כל ההזמנות
+            כל ההזמנות ({cloudOrders.length})
           </button>
         </div>
 
-        {Object.keys(groups).length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="text-secondary animate-spin" size={40} />
+          </div>
+        ) : Object.keys(groups).length === 0 ? (
           <div className="text-center py-16 bg-secondary rounded-3xl">
             <CheckCircle className="mx-auto text-green-500 mb-4" size={56} />
             <p className="font-black text-primary text-lg">
               {showAll ? 'אין הזמנות במערכת' : 'אין הזמנות ממתינות'}
             </p>
-            <p className="text-primary/50 text-sm mt-1">
-              {!showAll && 'כל ההזמנות כבר נשלחו לספקים'}
-            </p>
+            {!showAll && (
+              <p className="text-primary/50 text-sm mt-1">כל ההזמנות כבר נשלחו לספקים</p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {Object.values(groups).map((group) => (
+            {Object.values(groups).map(group => (
               <motion.div
                 key={group.supplierName}
                 initial={{ opacity: 0, y: 10 }}
@@ -227,7 +253,7 @@ export default function DispatchOrdersPage() {
                     </p>
                     {!group.phone && (
                       <p className="text-amber-600 text-xs font-bold mt-0.5">
-                        ⚠️ אין מספר טלפון — WhatsApp ייפתח ללא נמען
+                        ⚠️ אין מספר טלפון לספק — WhatsApp ייפתח ללא נמען
                       </p>
                     )}
                   </div>
@@ -240,7 +266,6 @@ export default function DispatchOrdersPage() {
                   </button>
                 </div>
 
-                {/* פירוט סניפים ומוצרים */}
                 <div className="space-y-2 border-t border-primary/10 pt-3">
                   {group.branches.map(branch => (
                     <div key={branch}>
@@ -261,23 +286,21 @@ export default function DispatchOrdersPage() {
                   ))}
                 </div>
 
-                {/* הערות */}
                 {group.notes.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-primary/10">
-                    <p className="text-primary/50 text-xs font-bold">
-                      📝 {group.notes.join(' | ')}
-                    </p>
+                    <p className="text-primary/50 text-xs font-bold">📝 {group.notes.join(' | ')}</p>
                   </div>
                 )}
 
-                {/* תאריך ושעה */}
                 <div className="mt-2 flex items-center gap-1 text-primary/30 text-xs">
                   <Clock size={11} />
                   <span>
-                    {displayOrders
+                    {cloudOrders
                       .filter(o => group.orderIds.includes(o.id))
-                      .map(o => new Date(o.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }))
-                      .join(', ')}
+                      .map(o => new Date(o.createdAt).toLocaleString('he-IL', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                      }))
+                      .join(' • ')}
                   </span>
                 </div>
               </motion.div>

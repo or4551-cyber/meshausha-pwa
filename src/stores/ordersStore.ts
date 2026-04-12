@@ -24,7 +24,7 @@ export interface OrderTemplate {
 interface OrdersState {
   orders: Order[]
   templates: OrderTemplate[]
-  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => void
+  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => Order
   getOrdersByBranch: (branchCode: string) => Order[]
   getAllOrders: () => Order[]
   saveTemplate: (name: string, items: CartItem[]) => void
@@ -51,7 +51,6 @@ export const useOrdersStore = create<OrdersState>()(
         }
 
         if (!navigator.onLine) {
-          // שמור ב-Dexie כהזמנה ממתינה
           savePendingOrder({
             branch: order.branch,
             branchCode: order.branchCode,
@@ -65,6 +64,8 @@ export const useOrdersStore = create<OrdersState>()(
         set((state) => ({
           orders: [newOrder, ...state.orders]
         }))
+
+        return newOrder
       },
 
       markOrderDispatched: (orderId) => {
