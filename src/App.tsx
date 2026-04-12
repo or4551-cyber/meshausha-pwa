@@ -28,6 +28,7 @@ import WeeklySchedulePage from './pages/admin/WeeklySchedulePage'
 import BranchOverviewPage from './pages/admin/BranchOverviewPage'
 import PriceHistoryPage from './pages/admin/PriceHistoryPage'
 import CalendarRemindersPage from './pages/admin/CalendarRemindersPage'
+import DispatchOrdersPage from './pages/admin/DispatchOrdersPage'
 import ChatBot from './components/ChatBot'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
@@ -152,6 +153,10 @@ function App() {
           <Route
             path="/admin/calendar-reminders"
             element={isAuthenticated && user?.isAdmin ? <CalendarRemindersPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/dispatch"
+            element={isAuthenticated && user?.isAdmin ? <DispatchOrdersPage /> : <Navigate to="/" />}
           />
         </Routes>
       </div>

@@ -11,6 +11,7 @@ export interface Order {
   notes: string
   createdAt: string
   totalPrice: number
+  status: 'pending' | 'dispatched'
 }
 
 export interface OrderTemplate {
@@ -23,13 +24,15 @@ export interface OrderTemplate {
 interface OrdersState {
   orders: Order[]
   templates: OrderTemplate[]
-  addOrder: (order: Omit<Order, 'id' | 'createdAt'>) => void
+  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => void
   getOrdersByBranch: (branchCode: string) => Order[]
   getAllOrders: () => Order[]
   saveTemplate: (name: string, items: CartItem[]) => void
   updateTemplate: (templateId: string, items: CartItem[]) => void
   loadTemplate: (templateId: string) => CartItem[] | null
   deleteTemplate: (templateId: string) => void
+  markOrderDispatched: (orderId: string) => void
+  getPendingOrders: () => Order[]
   syncOfflineOrders: () => Promise<number>
 }
 
@@ -43,7 +46,8 @@ export const useOrdersStore = create<OrdersState>()(
         const newOrder: Order = {
           ...order,
           id: `order_${Date.now()}`,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          status: 'pending'
         }
 
         if (!navigator.onLine) {
@@ -63,6 +67,18 @@ export const useOrdersStore = create<OrdersState>()(
         }))
       },
 
+      markOrderDispatched: (orderId) => {
+        set((state) => ({
+          orders: state.orders.map(o =>
+            o.id === orderId ? { ...o, status: 'dispatched' as const } : o
+          )
+        }))
+      },
+
+      getPendingOrders: () => {
+        return get().orders.filter(o => o.status === 'pending')
+      },
+
       syncOfflineOrders: async () => {
         const pending = await getPendingOrders()
         let synced = 0
@@ -79,6 +95,7 @@ export const useOrdersStore = create<OrdersState>()(
               notes: p.notes,
               totalPrice: p.totalPrice,
               createdAt: p.createdAt,
+              status: 'pending',
             }
             set((state) => ({ orders: [newOrder, ...state.orders] }))
           }

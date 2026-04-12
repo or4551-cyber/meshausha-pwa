@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard, PlayCircle } from 'lucide-react'
+import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard, PlayCircle, Send } from 'lucide-react'
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
@@ -10,8 +10,10 @@ export default function AdminPage() {
   const navigate = useNavigate()
   const { getAllOrders } = useOrdersStore()
   const { getAllSuppliers } = useSuppliersStore()
+  const { getPendingOrders } = useOrdersStore()
   const totalOrders = getAllOrders().length
   const totalSuppliers = getAllSuppliers().length
+  const pendingCount = getPendingOrders().length
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState({ current: 0, total: 0, supplier: '' })
   const [showVideo, setShowVideo] = useState(false)
@@ -74,6 +76,31 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-3">
+          {/* שליחה לספקים */}
+          <button
+            onClick={() => navigate('/admin/dispatch')}
+            className="w-full bg-gradient-to-br from-green-600 to-green-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                <Send className="text-white" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-white text-lg mb-1">שליחה לספקים</h3>
+                <p className="text-white/80 text-xs font-bold">
+                  {pendingCount > 0
+                    ? `${pendingCount} הזמנות ממתינות לשליחה`
+                    : 'אין הזמנות ממתינות כרגע'}
+                </p>
+              </div>
+              {pendingCount > 0 && (
+                <div className="bg-white text-green-700 font-black text-lg w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0">
+                  {pendingCount}
+                </div>
+              )}
+            </div>
+          </button>
+
           {/* מדריך וידאו */}
           <button
             onClick={() => setShowVideo(true)}

@@ -30,6 +30,8 @@ export interface Supplier {
 interface SuppliersState {
   suppliers: Supplier[]
   products: Product[]
+  adminPhone: string
+  setAdminPhone: (phone: string) => void
   addSupplier: (supplier: Omit<Supplier, 'id' | 'createdAt'>) => void
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void
   deleteSupplier: (id: string) => void
@@ -49,6 +51,11 @@ export const useSuppliersStore = create<SuppliersState>()(
     (set, get) => ({
       suppliers: [],
       products: [],
+      adminPhone: '',
+
+      setAdminPhone: (phone) => {
+        set({ adminPhone: phone })
+      },
 
       addSupplier: (supplier) => {
         const newSupplier: Supplier = {

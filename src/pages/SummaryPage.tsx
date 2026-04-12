@@ -16,7 +16,7 @@ export default function SummaryPage() {
   const { items, updateQuantity, removeItem, clearCart, getTotalPrice } = useCartStore()
   const { user } = useAuthStore()
   const { addOrder, saveTemplate, updateTemplate, templates } = useOrdersStore()
-  const { getAllSuppliers } = useSuppliersStore()
+  const { getAllSuppliers, adminPhone } = useSuppliersStore()
   const { recordOrderPrices } = usePriceHistoryStore()
 
   // מחזיר מספר WhatsApp בפורמט בינלאומי ישראלי
@@ -86,15 +86,29 @@ export default function SummaryPage() {
       console.log('Notification not sent:', error)
     }
 
-    const supplierEntries = Object.entries(groupedItems)
-    if (supplierEntries.length === 1) {
-      // ספק יחיד — פתח WhatsApp עם מספרו אם קיים
-      const [supplierName, supplierItems] = supplierEntries[0]
-      openWhatsApp(supplierName, supplierItems)
+    if (user?.isAdmin) {
+      // אדמין — שולח ישירות לספקים
+      const supplierEntries = Object.entries(groupedItems)
+      if (supplierEntries.length === 1) {
+        const [supplierName, supplierItems] = supplierEntries[0]
+        openWhatsApp(supplierName, supplierItems)
+      } else {
+        const orderText = generateOrderText()
+        window.open(`https://wa.me/?text=${encodeURIComponent(orderText)}`, '_blank')
+      }
     } else {
-      // מספר ספקים — הודעה משולבת
+      // מנהל סניף — שולח לאדמין
       const orderText = generateOrderText()
-      window.open(`https://wa.me/?text=${encodeURIComponent(orderText)}`, '_blank')
+      const adminDigits = adminPhone.replace(/\D/g, '')
+      const adminWA = adminDigits.startsWith('972')
+        ? adminDigits
+        : adminDigits.startsWith('0')
+          ? '972' + adminDigits.slice(1)
+          : adminDigits ? '972' + adminDigits : ''
+      const url = adminWA
+        ? `https://wa.me/${adminWA}?text=${encodeURIComponent(orderText)}`
+        : `https://wa.me/?text=${encodeURIComponent(orderText)}`
+      window.open(url, '_blank')
     }
 
     clearCart()
@@ -192,7 +206,7 @@ export default function SummaryPage() {
           >
             <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-primary/10">
               <h3 className="font-black text-primary text-lg">{supplier}</h3>
-              {Object.keys(groupedItems).length > 1 && (
+              {user?.isAdmin && Object.keys(groupedItems).length > 1 && (
                 <button
                   onClick={() => openWhatsApp(supplier, supplierItems)}
                   className="flex items-center gap-1.5 bg-green-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl active:scale-95 touch-manipulation"
