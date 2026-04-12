@@ -7,7 +7,6 @@ import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
-import { notifyNewOrder } from '../lib/notifications'
 import { printOrderAsPDF } from '../lib/pdfExport'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -66,28 +65,9 @@ export default function SummaryPage() {
   const totalWithVAT = calculateTotal(totalBeforeVAT)
 
   const handleSendOrder = async () => {
-    const orderedAt = new Date().toISOString()
-    addOrder({
-      branch: user?.branch || '',
-      branchCode: user?.branchCode || '',
-      items,
-      notes,
-      totalPrice: totalWithVAT
-    })
-    recordOrderPrices(items, user?.branchCode || '', orderedAt)
-
-    try {
-      await notifyNewOrder({
-        branch: user?.branch || '',
-        itemCount: items.length,
-        totalPrice: totalWithVAT
-      })
-    } catch (error) {
-      console.log('Notification not sent:', error)
-    }
-
+    // פתיחת WhatsApp חייבת להיות סינכרונית (לפני כל await)
+    // דפדפן חוסם window.open שנקרא אחרי await
     if (user?.isAdmin) {
-      // אדמין — שולח ישירות לספקים
       const supplierEntries = Object.entries(groupedItems)
       if (supplierEntries.length === 1) {
         const [supplierName, supplierItems] = supplierEntries[0]
@@ -97,7 +77,6 @@ export default function SummaryPage() {
         window.open(`https://wa.me/?text=${encodeURIComponent(orderText)}`, '_blank')
       }
     } else {
-      // מנהל סניף — שולח לאדמין
       const orderText = generateOrderText()
       const adminDigits = adminPhone.replace(/\D/g, '')
       const adminWA = adminDigits.startsWith('972')
@@ -111,6 +90,19 @@ export default function SummaryPage() {
       window.open(url, '_blank')
     }
 
+    // שמירת ההזמנה + התרעה (אסינכרוני — אחרי פתיחת WhatsApp)
+    const orderedAt = new Date().toISOString()
+    addOrder({
+      branch: user?.branch || '',
+      branchCode: user?.branchCode || '',
+      items,
+      notes,
+      totalPrice: totalWithVAT
+    })
+    recordOrderPrices(items, user?.branchCode || '', orderedAt)
+
+    // NotificationManager מקשיב לשינויים בorders ושולח התרעה לאדמין —
+    // לכן לא שולחים כאן כדי למנוע כפול
     clearCart()
     setTimeout(() => navigate('/'), 500)
   }
