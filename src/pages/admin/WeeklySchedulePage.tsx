@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
-import { ChevronRight, Calendar } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronRight, Calendar, RefreshCw } from 'lucide-react'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { getSuppliersFromCloud } from '../../lib/cloudApi'
 
@@ -22,13 +22,27 @@ const TODAY = new Date().getDay()
 export default function WeeklySchedulePage() {
   const navigate = useNavigate()
   const { suppliers, loadCloudData } = useSuppliersStore()
+  const [loading, setLoading] = useState(true)
+  const [cloudCount, setCloudCount] = useState<number | null>(null)
 
-  // טעינה מהענן בכל כניסה לדף — מבטיח שתמיד רואים נתונים עדכניים
-  useEffect(() => {
-    getSuppliersFromCloud().then(data => {
-      if (data !== null) loadCloudData(data.suppliers ?? [], data.products ?? [])
-    })
-  }, [])
+  const fetchFromCloud = async () => {
+    setLoading(true)
+    try {
+      const data = await getSuppliersFromCloud()
+      if (data !== null) {
+        loadCloudData(data.suppliers ?? [], data.products ?? [])
+        setCloudCount(data.suppliers?.length ?? 0)
+      } else {
+        setCloudCount(0)
+      }
+    } catch {
+      setCloudCount(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchFromCloud() }, [])
 
   // ספקים שיש להם לפחות יום הזמנה אחד
   const activeSuppliers = suppliers.filter(s => s.schedules && s.schedules.length > 0)
@@ -52,6 +66,17 @@ export default function WeeklySchedulePage() {
     dayMap[d].sort((a, b) => a.time.localeCompare(b.time))
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="animate-spin mx-auto text-secondary/50 mb-3" size={32} />
+          <p className="text-secondary/60 font-bold">טוען מהענן...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (activeSuppliers.length === 0) {
     return (
       <div className="min-h-screen bg-primary pb-20">
@@ -61,18 +86,32 @@ export default function WeeklySchedulePage() {
               <ChevronRight size={24} />
             </button>
             <h2 className="flex-1 text-center font-black text-primary text-xl">לוח שבועי</h2>
-            <div className="w-8" />
+            <button onClick={fetchFromCloud} className="text-primary/50 p-1 touch-manipulation">
+              <RefreshCw size={20} />
+            </button>
           </div>
           <div className="text-center py-16">
             <Calendar className="mx-auto text-secondary/30 mb-4" size={56} />
             <p className="text-secondary/60 font-bold text-lg">אין ספקים עם ימי הזמנה</p>
-            <p className="text-secondary/40 text-sm mt-1">הגדר ספקים עם לוח זמנים בהוספת ספק</p>
-            <button
-              onClick={() => navigate('/admin/add-supplier')}
-              className="mt-4 bg-secondary text-primary font-bold py-2.5 px-5 rounded-xl active:scale-95 touch-manipulation"
-            >
-              הוסף ספק
-            </button>
+            <p className="text-secondary/40 text-sm mt-1">
+              {cloudCount === 0 ? 'הענן ריק — בצע סנכרון מהמחשב הראשי' : 'הגדר ספקים עם לוח זמנים בהוספת ספק'}
+            </p>
+            {cloudCount === 0 ? (
+              <button
+                onClick={fetchFromCloud}
+                className="mt-4 bg-secondary text-primary font-bold py-2.5 px-5 rounded-xl active:scale-95 touch-manipulation flex items-center gap-2 mx-auto"
+              >
+                <RefreshCw size={16} />
+                נסה שוב
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/admin/add-supplier')}
+                className="mt-4 bg-secondary text-primary font-bold py-2.5 px-5 rounded-xl active:scale-95 touch-manipulation"
+              >
+                הוסף ספק
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -92,7 +131,9 @@ export default function WeeklySchedulePage() {
                 <h2 className="font-black text-primary text-xl">לוח שבועי</h2>
                 <p className="text-primary/60 text-xs mt-0.5">{activeSuppliers.length} ספקים פעילים</p>
               </div>
-              <div className="w-8" />
+              <button onClick={fetchFromCloud} className="text-primary/50 p-1 touch-manipulation">
+                <RefreshCw size={20} />
+              </button>
             </div>
           </div>
         </div>
