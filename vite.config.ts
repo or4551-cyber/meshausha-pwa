@@ -11,27 +11,29 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'robots.txt', 'icon.svg'],
       manifest: {
         name: 'משאוושה - מערכת הזמנות',
         short_name: 'משאוושה',
         description: 'מערכת הזמנות רכש מתקדמת',
         theme_color: '#802020',
-        background_color: '#fffdd0',
+        background_color: '#802020',
         display: 'standalone',
         orientation: 'portrait',
         dir: 'rtl',
         lang: 'he',
         icons: [
           {
-            src: '/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png'
+            src: '/icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
           },
           {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            src: '/icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable'
           }
         ]
       },

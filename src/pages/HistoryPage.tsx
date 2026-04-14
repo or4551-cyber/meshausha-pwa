@@ -17,7 +17,7 @@ const DAY_NAMES = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
 export default function HistoryPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { orders, getAllOrders, getOrdersByBranch } = useOrdersStore()
+  const { getAllOrders, getOrdersByBranch } = useOrdersStore()
   const { clearCart, addItem } = useCartStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
@@ -27,13 +27,15 @@ export default function HistoryPage() {
   const { getDeliveryForOrder } = useDeliveriesStore()
 
   const [cloudOrders, setCloudOrders] = useState<Order[]>([])
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false)
 
   // אדמין — טוען הזמנות מכל הסניפים מהענן
   useEffect(() => {
     if (user?.isAdmin) {
+      setIsLoadingCloud(true)
       getOrdersFromCloud().then(orders => {
         setCloudOrders(orders)
-      })
+      }).finally(() => setIsLoadingCloud(false))
     }
   }, [user?.isAdmin])
 
@@ -95,7 +97,7 @@ export default function HistoryPage() {
 
   // --- פעולות ---
   const handleReorder = (orderId: string) => {
-    const order = orders.find(o => o.id === orderId)
+    const order = displayOrders.find(o => o.id === orderId)
     if (!order) return
     clearCart()
     order.items.forEach(item => {
@@ -105,7 +107,7 @@ export default function HistoryPage() {
   }
 
   const handleEditAndOrder = (orderId: string) => {
-    const order = orders.find(o => o.id === orderId)
+    const order = displayOrders.find(o => o.id === orderId)
     if (!order) return
     clearCart()
     order.items.forEach(item => {
@@ -191,20 +193,22 @@ export default function HistoryPage() {
           </button>
           <button
             onClick={() => { onClose?.(); navigate(`/delivery/${order.id}`) }}
-            className={`bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center active:scale-95 transition-transform touch-manipulation ${
+            className={`bg-primary/10 text-primary font-bold py-2 px-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform touch-manipulation ${
               delivery?.status === 'confirmed' ? 'opacity-50' : ''
             }`}
             aria-label="אשר קבלה"
             title="אשר קבלת סחורה"
           >
             <CheckCircle size={14} />
+            <span className="text-[10px] font-bold leading-none">אשר</span>
           </button>
           <button
             onClick={() => printSavedOrderAsPDF(order, user?.isAdmin ?? false)}
-            className="bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center active:scale-95 transition-transform touch-manipulation"
+            className="bg-primary/10 text-primary font-bold py-2 px-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform touch-manipulation"
             aria-label="ייצא PDF"
           >
             <FileDown size={14} />
+            <span className="text-[10px] font-bold leading-none">PDF</span>
           </button>
         </div>
       </div>
@@ -272,8 +276,16 @@ export default function HistoryPage() {
 
       <div className="max-w-2xl mx-auto px-4">
 
+        {/* ספינר טעינת ענן */}
+        {isLoadingCloud && (
+          <div className="flex items-center justify-center gap-3 py-8 text-secondary/60">
+            <RefreshCw className="animate-spin" size={20} />
+            <span className="font-bold text-sm">טוען הזמנות מהענן...</span>
+          </div>
+        )}
+
         {/* תצוגת רשימה */}
-        {viewMode === 'list' && (
+        {viewMode === 'list' && !isLoadingCloud && (
           <div className="space-y-3">
             {filteredOrders.length === 0 && (
               <div className="text-center py-12">

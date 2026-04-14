@@ -110,19 +110,13 @@ export const useSuppliersStore = create<SuppliersState>()(
         })
       },
 
-      // זורע מוצרים סטטיים עם ID קבוע - מוסיף חדשים ומעדכן קיימים (שם + מחיר)
+      // זורע מוצרים סטטיים — מחליף את כל מוצרי הספקים הסטטיים (מבטיח התאמה מלאה למחירון)
       seedStaticProducts: (products) => {
         set((state) => {
-          const staticMap = new Map(products.map(p => [p.id, p]))
-          const updated = state.products.map(p => {
-            const fresh = staticMap.get(p.id)
-            if (!fresh) return p
-            // עדכן שם ומחיר מהמחירון, שמור שדות אחרים (category וכו')
-            return { ...p, name: fresh.name, price: fresh.price, supplier: fresh.supplier }
-          })
-          const existingIds = new Set(state.products.map(p => p.id))
-          const toAdd = products.filter(p => !existingIds.has(p.id))
-          return { products: [...updated, ...toAdd] }
+          const staticSuppliers = new Set(products.map(p => p.supplier))
+          // שמור מוצרים דינמיים (ספקים שאינם ברשימה הסטטית) + החלף את כל הסטטיים
+          const nonStatic = state.products.filter(p => !staticSuppliers.has(p.supplier))
+          return { products: [...nonStatic, ...products] }
         })
       },
 

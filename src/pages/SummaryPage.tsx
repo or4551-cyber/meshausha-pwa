@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown } from 'lucide-react'
+import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown, CheckCircle2, Loader2 } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { useOrdersStore } from '../stores/ordersStore'
@@ -21,6 +21,8 @@ export default function SummaryPage() {
   const [notes, setNotes] = useState('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
+  const [sendState, setSendState] = useState<'idle' | 'saving' | 'done'>('idle')
+  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // מחזיר מספר WhatsApp בפורמט בינלאומי ישראלי
   const getWhatsAppNumber = (supplierName: string) => {
@@ -65,6 +67,8 @@ export default function SummaryPage() {
   const totalWithVAT = calculateTotal(totalBeforeVAT)
 
   const handleSendOrder = async () => {
+    if (sendState !== 'idle') return
+    setSendState('saving')
     // פתיחת WhatsApp חייבת להיות סינכרונית (לפני כל await)
     // דפדפן חוסם window.open שנקרא אחרי await
     if (user?.isAdmin) {
@@ -103,8 +107,9 @@ export default function SummaryPage() {
     // שמירה בענן — fire and forget, לא חוסם את ה-UI
     saveOrderToCloud(newOrder).catch(console.error)
 
+    setSendState('done')
     clearCart()
-    setTimeout(() => navigate('/'), 500)
+    sendTimerRef.current = setTimeout(() => navigate('/'), 800)
   }
 
   const handleSaveAsNewTemplate = () => {
@@ -307,10 +312,31 @@ export default function SummaryPage() {
           </div>
           <button
             onClick={handleSendOrder}
-            className="w-full bg-green-500 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-xl touch-manipulation"
+            disabled={sendState !== 'idle'}
+            className={`w-full font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl touch-manipulation ${
+              sendState === 'done'
+                ? 'bg-green-600 text-white scale-[0.99]'
+                : sendState === 'saving'
+                  ? 'bg-green-400 text-white cursor-wait'
+                  : 'bg-green-500 text-white active:scale-[0.98]'
+            }`}
           >
-            <Send size={24} />
-            <span>שלח הזמנה</span>
+            {sendState === 'done' ? (
+              <>
+                <CheckCircle2 size={24} />
+                <span>נשלח!</span>
+              </>
+            ) : sendState === 'saving' ? (
+              <>
+                <Loader2 size={24} className="animate-spin" />
+                <span>שומר...</span>
+              </>
+            ) : (
+              <>
+                <Send size={24} />
+                <span>שלח הזמנה</span>
+              </>
+            )}
           </button>
         </div>
       </div>

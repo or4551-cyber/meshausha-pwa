@@ -1,35 +1,37 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Search, Star, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
-import { PRODUCTS as staticProducts } from '../data/products'
 import ProductCard from '../components/ProductCard'
 
 export default function OrdersPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { favorites, getTotalItems } = useCartStore()
-  const { getAllProducts, getAllSuppliers } = useSuppliersStore()
+  // סלקטור ריאקטיבי — מתרענן אוטומטית כשהסטור משתנה (זריעה, עדכון מחיר, הוספה/מחיקה)
+  const allProducts = useSuppliersStore(s => s.products)
   const [searchTerm, setSearchTerm] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<string>(
     searchParams.get('supplier') ?? ''
   )
+  const [cartPulse, setCartPulse] = useState(false)
+  const prevTotalRef = useRef(getTotalItems())
 
-  // שילוב מוצרים סטטיים ודינמיים
-  const allProducts = useMemo(() => {
-    const dynamicProducts = getAllProducts()
-    return [...staticProducts, ...dynamicProducts]
-  }, [getAllProducts])
+  useEffect(() => {
+    const current = getTotalItems()
+    if (current > prevTotalRef.current) {
+      setCartPulse(true)
+      setTimeout(() => setCartPulse(false), 400)
+    }
+    prevTotalRef.current = current
+  })
 
   const suppliers = useMemo(() => {
-    const dynamicSuppliers = getAllSuppliers()
-    const staticSupplierNames = Array.from(new Set(staticProducts.map((p: any) => p.supplier)))
-    const dynamicSupplierNames = dynamicSuppliers.map(s => s.name)
-    const allSupplierNames = Array.from(new Set([...staticSupplierNames, ...dynamicSupplierNames]))
-    return allSupplierNames.sort()
-  }, [getAllSuppliers])
+    const names = Array.from(new Set(allProducts.map(p => p.supplier)))
+    return names.sort()
+  }, [allProducts])
 
   const filteredProducts = useMemo(() => {
     let products = allProducts
@@ -49,7 +51,7 @@ export default function OrdersPage() {
     }
 
     return products
-  }, [selectedSupplier, searchTerm, showFavoritesOnly, favorites])
+  }, [allProducts, selectedSupplier, searchTerm, showFavoritesOnly, favorites])
 
   if (!selectedSupplier) {
     return (
@@ -152,9 +154,11 @@ export default function OrdersPage() {
           <div className="max-w-2xl mx-auto">
             <button
               onClick={() => navigate('/summary')}
-              className="w-full bg-secondary text-primary font-black py-4 rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-xl touch-manipulation"
+              className={`w-full bg-secondary text-primary font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl touch-manipulation ${
+                cartPulse ? 'scale-[1.03]' : 'active:scale-[0.98]'
+              }`}
             >
-              <ShoppingCart size={24} />
+              <ShoppingCart size={24} className={cartPulse ? 'animate-bounce' : ''} />
               <span>סל הקניות ({getTotalItems()})</span>
             </button>
           </div>

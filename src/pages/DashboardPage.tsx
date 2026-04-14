@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import {
   ShoppingCart, History, Bell, LogOut, BarChart3, Zap, Trash2,
   ChevronLeft, Package, Truck, Calendar, WifiOff, RefreshCw,
-  AlertTriangle, Info, X, PlayCircle
+  AlertTriangle, Info, X, PlayCircle, Send
 } from 'lucide-react'
 import { VideoModal, BRANCH_VIDEO_URL, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
+import { getOrdersFromCloud } from '../lib/cloudApi'
 import { useAdminNotificationsStore } from '../stores/adminNotificationsStore'
 import type { NotificationPriority } from '../stores/adminNotificationsStore'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
@@ -32,6 +33,16 @@ export default function DashboardPage() {
 
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [syncing, setSyncing] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  // אדמין — טוען ספירת הזמנות ממתינות מהענן
+  useEffect(() => {
+    if (user?.isAdmin) {
+      getOrdersFromCloud().then(orders => {
+        setPendingCount(orders.filter(o => o.status === 'pending').length)
+      })
+    }
+  }, [user?.isAdmin])
   const [syncedCount, setSyncedCount] = useState(0)
   const [showVideo, setShowVideo] = useState(false)
 
@@ -296,7 +307,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             onClick={(e) => handleDeleteTemplate(e, template.id)}
-                            className="p-2.5 text-red-400 hover:text-red-500 active:scale-90 transition-all touch-manipulation"
+                            className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-90 rounded-xl transition-all touch-manipulation"
                             aria-label="מחק תבנית"
                           >
                             <Trash2 size={16} />
@@ -344,6 +355,33 @@ export default function DashboardPage() {
               </div>
             </div>
           </button>
+
+          {/* שליחה לספקים — לאדמין בלבד */}
+          {user?.isAdmin && (
+            <button
+              onClick={() => navigate('/admin/dispatch')}
+              className="w-full bg-gradient-to-r from-green-600 to-green-700 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+            >
+              <div className="flex items-center gap-4 p-5">
+                <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                  <Send className="text-white" size={24} />
+                </div>
+                <div className="flex-1 text-right">
+                  <h3 className="font-black text-white text-lg mb-1">שליחה לספקים</h3>
+                  <p className="text-white/80 text-xs font-bold">
+                    {pendingCount > 0
+                      ? `${pendingCount} הזמנות ממתינות לשליחה`
+                      : 'אין הזמנות ממתינות כרגע'}
+                  </p>
+                </div>
+                {pendingCount > 0 && (
+                  <div className="bg-white text-green-700 font-black text-lg w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0">
+                    {pendingCount}
+                  </div>
+                )}
+              </div>
+            </button>
+          )}
 
           {/* פאנל אדמין */}
           {user?.isAdmin && (

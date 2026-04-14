@@ -52,8 +52,13 @@ function App() {
     getSuppliersFromCloud().then(data => {
       const hasSchedules = data?.suppliers?.some((s: any) => s.schedules?.length > 0)
       if (hasSchedules) {
-        // יש נתוני אדמין בענן — טען (הענן גובר)
+        // יש נתוני אדמין בענן — טען (הענן גובר על ספקים/לוח זמנים)
         loadCloudData(data!.suppliers, data!.products ?? [])
+        // חובה: זרע מחדש את המוצרים הסטטיים כדי לגבור על כל נתון ישן מהענן
+        seedStaticProducts(PRODUCTS)
+        // שמור מחדש לענן — כדי שהנתון הסטטי המעודכן ידרוס את הישן שם
+        const fresh = useSuppliersStore.getState()
+        saveSuppliersToCloud({ suppliers: fresh.suppliers, products: fresh.products }).catch(console.error)
       } else {
         // אין נתונים בענן — אם ב-localStorage יש לוחות זמנים, שמור לענן
         const { suppliers: localSuppliers, products: localProducts } = useSuppliersStore.getState()

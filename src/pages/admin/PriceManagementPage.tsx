@@ -1,31 +1,39 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Search, Edit2, Save, X } from 'lucide-react'
+import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus } from 'lucide-react'
 import { PRODUCTS as staticProducts } from '../../data/products'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { formatPrice } from '../../lib/utils'
-import { motion } from 'framer-motion'
 
 export default function PriceManagementPage() {
   const navigate = useNavigate()
-  const { getAllProducts, updateProduct, seedStaticProducts } = useSuppliersStore()
+  const { updateProduct, deleteProduct, addProducts, seedStaticProducts } = useSuppliersStore()
+  const products = useSuppliersStore(s => s.products)
+
   const [searchTerm, setSearchTerm] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editPrice, setEditPrice] = useState('')
+  const [addingSupplier, setAddingSupplier] = useState<string | null>(null)
+  const [newProductName, setNewProductName] = useState('')
+  const [newProductPrice, setNewProductPrice] = useState('')
 
-  // זריעת מוצרים סטטיים לstore בטעינה ראשונה (חד-פעמי)
   useEffect(() => {
     seedStaticProducts(staticProducts)
   }, [seedStaticProducts])
 
-  // כל המוצרים מגיעים מהstore (כולל הסטטיים שנזרעו)
-  const products = useMemo(() => getAllProducts(), [getAllProducts])
-
-  const filteredProducts = useMemo(() => {
-    return products.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+  // קבץ לפי ספק, עם סינון חיפוש
+  const grouped = useMemo(() => {
+    const lower = searchTerm.toLowerCase()
+    const filtered = products.filter(p =>
+      p.name.toLowerCase().includes(lower) ||
+      p.supplier.toLowerCase().includes(lower)
     )
+    const map = new Map<string, typeof filtered>()
+    for (const p of filtered) {
+      if (!map.has(p.supplier)) map.set(p.supplier, [])
+      map.get(p.supplier)!.push(p)
+    }
+    return map
   }, [products, searchTerm])
 
   const handleSave = (id: string) => {
@@ -37,13 +45,35 @@ export default function PriceManagementPage() {
     }
   }
 
-  const handleStartEdit = (productId: string, currentPrice: number) => {
-    setEditingId(productId)
+  const handleStartEdit = (id: string, currentPrice: number) => {
+    setEditingId(id)
     setEditPrice(currentPrice.toString())
+  }
+
+  const handleDelete = (id: string, name: string) => {
+    if (confirm(`למחוק את "${name}"?`)) {
+      deleteProduct(id)
+    }
+  }
+
+  const handleAdd = (supplier: string) => {
+    const price = parseFloat(newProductPrice)
+    if (!newProductName.trim() || isNaN(price) || price <= 0) return
+    addProducts([{ name: newProductName.trim(), supplier, price }])
+    setNewProductName('')
+    setNewProductPrice('')
+    setAddingSupplier(null)
+  }
+
+  const handleCancelAdd = () => {
+    setNewProductName('')
+    setNewProductPrice('')
+    setAddingSupplier(null)
   }
 
   return (
     <div className="min-h-screen bg-primary pb-safe">
+      {/* Header */}
       <div className="sticky top-0 z-10 bg-primary p-4 sm:p-6 pb-3">
         <div className="max-w-2xl mx-auto">
           <div className="bg-secondary rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 mb-3 shadow-xl">
@@ -56,7 +86,7 @@ export default function PriceManagementPage() {
                 <ChevronRight size={28} className="hidden sm:block" />
               </button>
               <div className="flex-1 text-center">
-                <h2 className="font-black text-primary text-xl sm:text-2xl">ניהול מחירים</h2>
+                <h2 className="font-black text-primary text-xl sm:text-2xl">ניהול מחירים ומוצרים</h2>
               </div>
               <div className="w-6 sm:w-7" />
             </div>
@@ -65,7 +95,7 @@ export default function PriceManagementPage() {
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40" size={20} />
               <input
                 type="text"
-                placeholder="חיפוש מוצר..."
+                placeholder="חיפוש מוצר או ספק..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-primary/5 text-primary placeholder:text-primary/40 rounded-xl py-3 pr-10 pl-4 font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -75,62 +105,126 @@ export default function PriceManagementPage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-2">
-        {filteredProducts.map((product) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-secondary rounded-xl p-4 shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <h3 className="font-bold text-primary text-sm mb-1">{product.name}</h3>
-                <p className="text-primary/60 text-xs">{product.supplier}</p>
+      {/* Content — grouped by supplier */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-4 pb-8">
+        {[...grouped.entries()].map(([supplier, supplierProducts]) => (
+          <div key={supplier} className="bg-secondary rounded-2xl shadow-md overflow-hidden">
+            {/* Supplier header */}
+            <div className="px-4 py-3 bg-primary/5 border-b border-primary/10 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-primary text-base">{supplier}</h3>
+                <p className="text-primary/50 text-xs">{supplierProducts.length} מוצרים</p>
               </div>
-              
-              {editingId === product.id ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    className="w-24 bg-primary/5 text-primary text-center font-bold rounded-lg py-2 px-2 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => handleSave(product.id)}
-                    className="p-2 bg-green-500 text-white rounded-lg touch-manipulation"
-                  >
-                    <Save size={18} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingId(null)
-                      setEditPrice('')
-                    }}
-                    className="p-2 bg-red-500 text-white rounded-lg touch-manipulation"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="text-left">
-                    <p className="font-black text-primary text-lg">{formatPrice(product.price)}</p>
-                  </div>
-                  <button
-                    onClick={() => handleStartEdit(product.id, product.price)}
-                    className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors touch-manipulation"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                </div>
-              )}
             </div>
-          </motion.div>
+
+            {/* Products */}
+            {supplierProducts.map((product, idx) => (
+              <div
+                key={product.id}
+                className={`flex items-center gap-3 px-4 py-3 ${idx < supplierProducts.length - 1 ? 'border-b border-primary/5' : ''}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-primary text-sm leading-snug">{product.name}</p>
+                </div>
+
+                {editingId === product.id ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSave(product.id)}
+                      className="w-20 bg-primary/5 text-primary text-center font-bold rounded-lg py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleSave(product.id)}
+                      className="p-1.5 bg-green-500 text-white rounded-lg touch-manipulation"
+                    >
+                      <Save size={15} />
+                    </button>
+                    <button
+                      onClick={() => { setEditingId(null); setEditPrice('') }}
+                      className="p-1.5 bg-red-500 text-white rounded-lg touch-manipulation"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <p className="font-black text-primary text-base min-w-[3rem] text-left">{formatPrice(product.price)}</p>
+                    <button
+                      onClick={() => handleStartEdit(product.id, product.price)}
+                      className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors touch-manipulation"
+                      title="ערוך מחיר"
+                    >
+                      <Edit2 size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id, product.name)}
+                      className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100 transition-colors touch-manipulation"
+                      title="מחק מוצר"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Add product row */}
+            {addingSupplier === supplier ? (
+              <div className="px-4 py-3 bg-green-50/50 border-t border-primary/10 flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="שם מוצר"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                  className="flex-1 bg-white text-primary placeholder:text-primary/40 rounded-lg py-2 px-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-green-400/40 border border-primary/10"
+                  autoFocus
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="מחיר"
+                  value={newProductPrice}
+                  onChange={(e) => setNewProductPrice(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdd(supplier)}
+                  className="w-20 bg-white text-primary placeholder:text-primary/40 rounded-lg py-2 px-2 font-bold text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400/40 border border-primary/10"
+                />
+                <button
+                  onClick={() => handleAdd(supplier)}
+                  className="p-2 bg-green-500 text-white rounded-lg touch-manipulation shrink-0"
+                  title="הוסף"
+                >
+                  <Save size={16} />
+                </button>
+                <button
+                  onClick={handleCancelAdd}
+                  className="p-2 bg-red-500 text-white rounded-lg touch-manipulation shrink-0"
+                  title="ביטול"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setAddingSupplier(supplier); setEditingId(null) }}
+                className="w-full px-4 py-2.5 flex items-center gap-2 text-primary/40 hover:text-primary/70 hover:bg-primary/5 transition-colors border-t border-primary/5 touch-manipulation"
+              >
+                <Plus size={16} />
+                <span className="text-sm font-bold">הוסף מוצר</span>
+              </button>
+            )}
+          </div>
         ))}
+
+        {grouped.size === 0 && (
+          <div className="text-center text-primary/40 py-12 font-bold">
+            לא נמצאו מוצרים
+          </div>
+        )}
       </div>
     </div>
   )
