@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, CheckCircle, XCircle, AlertTriangle, TrendingUp, CreditCard } from 'lucide-react'
-import { useOrdersStore } from '../../stores/ordersStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { useDeliveriesStore } from '../../stores/deliveriesStore'
+import { useAdminOrders } from '../../hooks/useAdminOrders'
 import { formatPrice } from '../../lib/utils'
 
 const BRANCHES = [
@@ -23,11 +23,10 @@ const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padS
 
 export default function BranchOverviewPage() {
   const navigate = useNavigate()
-  const { getAllOrders } = useOrdersStore()
   const { suppliers } = useSuppliersStore()
   const { getPendingCredits } = useDeliveriesStore()
 
-  const allOrders = getAllOrders()
+  const allOrders = useAdminOrders()
   const pendingCredits = getPendingCredits()
   const todayDay = today.getDay()
 

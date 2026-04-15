@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, TrendingUp, Package, DollarSign, ShoppingCart } from 'lucide-react'
-import { useOrdersStore } from '../../stores/ordersStore'
+import { useAdminOrders } from '../../hooks/useAdminOrders'
 import { formatPrice } from '../../lib/utils'
 import { motion } from 'framer-motion'
 import {
@@ -24,8 +24,7 @@ const COLORS = ['#9d4444', '#8b7355', '#a8b968', '#96a556', '#7a6348']
 
 export default function AnalyticsDashboard() {
   const navigate = useNavigate()
-  const { getAllOrders } = useOrdersStore()
-  const orders = getAllOrders()
+  const orders = useAdminOrders()
 
   const analytics = useMemo(() => {
     const now = new Date()

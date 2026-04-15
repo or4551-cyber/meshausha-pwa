@@ -5,14 +5,13 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area, CartesianGrid
 } from 'recharts'
-import { useOrdersStore } from '../../stores/ordersStore'
+import { useAdminOrders } from '../../hooks/useAdminOrders'
 import { formatPrice } from '../../lib/utils'
 import { motion } from 'framer-motion'
 
 export default function AnalyticsPage() {
   const navigate = useNavigate()
-  const { getAllOrders } = useOrdersStore()
-  const orders = getAllOrders()
+  const orders = useAdminOrders()
 
   const analytics = useMemo(() => {
     const now = new Date()

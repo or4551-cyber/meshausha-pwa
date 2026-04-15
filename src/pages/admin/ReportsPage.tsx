@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Calendar, Download, TrendingUp } from 'lucide-react'
-import { useOrdersStore } from '../../stores/ordersStore'
+import { useAdminOrders } from '../../hooks/useAdminOrders'
 import { formatPrice, calculateVAT, calculateTotal } from '../../lib/utils'
 import { motion } from 'framer-motion'
 import {
@@ -29,11 +29,10 @@ const BRANCHES = [
 
 export default function ReportsPage() {
   const navigate = useNavigate()
-  const { getAllOrders } = useOrdersStore()
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('month')
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
 
-  const orders = getAllOrders()
+  const orders = useAdminOrders()
 
   const filteredOrders = useMemo(() => {
     const now = new Date()

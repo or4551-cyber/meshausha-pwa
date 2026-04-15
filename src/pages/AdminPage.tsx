@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, BellOff, BellRing, Zap, Eye, Calendar, CreditCard, PlayCircle, Send, Cloud } from 'lucide-react'
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
-import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { useState, useEffect } from 'react'
 import { sendBulkInvoiceRequests } from '../lib/emailService'
 import { saveSuppliersToCloud, getOrdersFromCloud } from '../lib/cloudApi'
+import { useAdminOrders } from '../hooks/useAdminOrders'
 import {
   isNotificationSupported,
   subscribeToPushNotifications,
@@ -15,9 +15,9 @@ import {
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const { getAllOrders } = useOrdersStore()
   const { getAllSuppliers } = useSuppliersStore()
-  const totalOrders = getAllOrders().length
+  const allOrders = useAdminOrders()
+  const totalOrders = allOrders.length
   const totalSuppliers = getAllSuppliers().length
   const [pendingCount, setPendingCount] = useState(0)
 
