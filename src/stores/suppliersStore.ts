@@ -135,8 +135,22 @@ export const useSuppliersStore = create<SuppliersState>()(
         saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
       },
 
+      // ממזג ספקים+מוצרים מהענן עם המצב המקומי:
+      // - ספקים: הענן הוא המקור (כולל לוחות זמנים שאדמין הגדיר ממכשיר אחר)
+      // - מוצרים: המקומי מנצח לכל (supplier+name) — שומר על עריכות שטרם הספיקו להגיע לענן.
+      //   מוצרים בענן שאינם מקומית — מתווספים (סנכרון ממכשיר אחר).
+      //   מוצרים מקומיים שאינם בענן — נשמרים (הוספות חדשות של אדמין).
       loadCloudData: (suppliers, products) => {
-        set(state => ({ suppliers, products, adminPhone: state.adminPhone }))
+        set(state => {
+          const keyOf = (p: Product) => `${p.supplier}|${p.name}`
+          const localMap = new Map(state.products.map(p => [keyOf(p), p]))
+          const cloudKeys = new Set(products.map(keyOf))
+          const merged: Product[] = products.map(cp => localMap.get(keyOf(cp)) ?? cp)
+          state.products.forEach(lp => {
+            if (!cloudKeys.has(keyOf(lp))) merged.push(lp)
+          })
+          return { suppliers, products: merged, adminPhone: state.adminPhone }
+        })
       },
 
       getSupplierById: (id) => {
