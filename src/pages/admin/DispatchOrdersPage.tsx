@@ -150,23 +150,24 @@ export default function DispatchOrdersPage() {
     const group = supplierGroups[supplier]
     const selectedOrders = group.orders.filter(o => sel.has(o.id))
     const url = getWhatsAppUrl(supplier, phone, selectedOrders)
-
-    window.open(url, '_blank')
-
     const ids = [...sel]
+
+    // 1. עדכון מקומי + שליחה לענן לפני הניווט (keepalive — שורד פתיחת WhatsApp)
     ids.forEach(id => markOrderDispatched(id))
-    markOrdersDispatchedInCloud(ids).then(() => {
-      setCloudOrders(prev =>
-        prev.map(o => ids.includes(o.id) ? { ...o, status: 'dispatched' } : o)
-      )
-    })
+    markOrdersDispatchedInCloud(ids)
+    setCloudOrders(prev =>
+      prev.map(o => ids.includes(o.id) ? { ...o, status: 'dispatched' } : o)
+    )
     setSelected(prev => ({ ...prev, [supplier]: new Set() }))
+
+    // 2. פתיחת WhatsApp בסוף
+    window.open(url, '_blank')
   }
 
-  const handleSavePhone = async () => {
+  const handleSavePhone = () => {
     setAdminPhone(phoneInput)
     setEditPhone(false)
-    await saveAdminPhoneToCloud(phoneInput)
+    saveAdminPhoneToCloud(phoneInput)
   }
 
   return (

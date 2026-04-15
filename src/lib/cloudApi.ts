@@ -2,15 +2,48 @@ import type { Order } from '../stores/ordersStore'
 
 const BASE = '/.netlify/functions'
 
-// ─── ספקים ומוצרים ────────────────────────────────────────
-// משתמשים ב-settings-api (פונקציה קיימת ועובדת) במקום פונקציה חדשה
+/**
+ * שמירה לענן שמובטחת לשרוד ניווט/סגירת טאב/יציאה לאפליקציה אחרת (WhatsApp).
+ * משתמש ב-sendBeacon כשזמין; אחרת ב-fetch עם keepalive:true.
+ * כל הכתיבות לענן חייבות להשתמש ב-helper זה כדי למנוע איבוד נתונים.
+ */
+export function beaconPost(path: string, data: unknown): void {
+  const url = `${BASE}/${path}`
+  const body = JSON.stringify(data)
+  try {
+    const blob = new Blob([body], { type: 'application/json' })
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      if (navigator.sendBeacon(url, blob)) return
+    }
+  } catch { /* ignore */ }
+  // fallback: fetch עם keepalive — שורד גם במהלך unload
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {})
+}
 
-/** שמור ספקים ומוצרים בענן (נתוני אדמין) */
+/** שליחת PATCH שמובטחת לשרוד ניווט. sendBeacon לא תומך ב-PATCH ולכן keepalive בלבד. */
+export function keepalivePatch(path: string, data: unknown): void {
+  fetch(`${BASE}/${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    keepalive: true,
+  }).catch(() => {})
+}
+
+// ─── ספקים ומוצרים ────────────────────────────────────────
+
+/** שמור ספקים ומוצרים בענן (נתוני אדמין) — שורד ניווט */
 export async function saveSuppliersToCloud(data: { suppliers: any[]; products: any[] }): Promise<void> {
   const res = await fetch(`${BASE}/settings-api`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ suppliersData: data }),
+    keepalive: true,
   })
   if (!res.ok) {
     let errMsg = `HTTP ${res.status}`
@@ -32,37 +65,22 @@ export async function getSuppliersFromCloud(): Promise<{ suppliers: any[]; produ
 
 // ─── הזמנות ───────────────────────────────────────────────
 
-/** שמור הזמנה בענן (fire-and-forget) */
+/** שמור הזמנה בענן (awaitable) */
 export async function saveOrderToCloud(order: Order): Promise<void> {
   await fetch(`${BASE}/orders-api`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(order),
+    keepalive: true,
   })
 }
 
 /**
  * שמור הזמנה לענן באמצעות sendBeacon — אמין גם בזמן ניווט/יציאה לאפליקציה אחרת
- * (כמו פתיחת WhatsApp במובייל). מחזיר true אם נוספה לתור השליחה.
+ * (כמו פתיחת WhatsApp במובייל).
  */
-export function saveOrderToCloudBeacon(order: Order): boolean {
-  try {
-    const blob = new Blob([JSON.stringify(order)], { type: 'application/json' })
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      const ok = navigator.sendBeacon(`${BASE}/orders-api`, blob)
-      if (ok) return true
-    }
-    // fallback: fetch keepalive — שורד גם במהלך unload
-    fetch(`${BASE}/orders-api`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(order),
-      keepalive: true,
-    }).catch(() => {})
-    return true
-  } catch {
-    return false
-  }
+export function saveOrderToCloudBeacon(order: Order): void {
+  beaconPost('orders-api', order)
 }
 
 /** קבל את כל ההזמנות מהענן */
@@ -76,13 +94,9 @@ export async function getOrdersFromCloud(): Promise<Order[]> {
   }
 }
 
-/** סמן הזמנות כנשלחו לספק */
-export async function markOrdersDispatchedInCloud(ids: string[]): Promise<void> {
-  await fetch(`${BASE}/orders-api`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, status: 'dispatched' }),
-  })
+/** סמן הזמנות כנשלחו לספק — שורד ניווט (keepalive) */
+export function markOrdersDispatchedInCloud(ids: string[]): void {
+  keepalivePatch('orders-api', { ids, status: 'dispatched' })
 }
 
 // ─── הגדרות ───────────────────────────────────────────────
@@ -99,11 +113,7 @@ export async function getAdminPhoneFromCloud(): Promise<string> {
   }
 }
 
-/** שמור מספר WhatsApp של אדמין בענן */
-export async function saveAdminPhoneToCloud(phone: string): Promise<void> {
-  await fetch(`${BASE}/settings-api`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ adminPhone: phone }),
-  })
+/** שמור מספר WhatsApp של אדמין בענן — שורד ניווט */
+export function saveAdminPhoneToCloud(phone: string): void {
+  beaconPost('settings-api', { adminPhone: phone })
 }
