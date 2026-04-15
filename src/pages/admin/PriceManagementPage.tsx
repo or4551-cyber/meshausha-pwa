@@ -1,13 +1,12 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus } from 'lucide-react'
-import { PRODUCTS as staticProducts } from '../../data/products'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { formatPrice } from '../../lib/utils'
 
 export default function PriceManagementPage() {
   const navigate = useNavigate()
-  const { updateProduct, deleteProduct, addProducts, seedStaticProducts } = useSuppliersStore()
+  const { updateProduct, deleteProduct, addProducts } = useSuppliersStore()
   const products = useSuppliersStore(s => s.products)
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -16,10 +15,6 @@ export default function PriceManagementPage() {
   const [addingSupplier, setAddingSupplier] = useState<string | null>(null)
   const [newProductName, setNewProductName] = useState('')
   const [newProductPrice, setNewProductPrice] = useState('')
-
-  useEffect(() => {
-    seedStaticProducts(staticProducts)
-  }, [seedStaticProducts])
 
   // קבץ לפי ספק, עם סינון חיפוש
   const grouped = useMemo(() => {

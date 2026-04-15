@@ -300,10 +300,13 @@ export default function DispatchOrdersPage() {
                         <div key={order.id}
                           className={`transition-colors ${isSelected ? 'bg-green-50/50' : ''}`}>
                           {/* שורת הזמנה */}
-                          <div className="flex items-center gap-3 px-4 py-3">
+                          <div
+                            className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-primary/5 touch-manipulation"
+                            onClick={() => toggleExpand(order.id, supplier)}
+                          >
                             {/* Checkbox */}
                             <button
-                              onClick={() => toggleOrder(supplier, order.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleOrder(supplier, order.id) }}
                               className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${
                                 isSelected
                                   ? 'bg-green-500 border-green-500'
@@ -327,7 +330,8 @@ export default function DispatchOrdersPage() {
                             {/* עריכה + פתיחה */}
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation()
                                   const key = expandKey
                                   setExpanded(prev => {
                                     const next = new Set(prev); next.add(key); return next
@@ -340,7 +344,7 @@ export default function DispatchOrdersPage() {
                                 <Edit2 size={15} />
                               </button>
                               <button
-                                onClick={() => toggleExpand(order.id, supplier)}
+                                onClick={(e) => { e.stopPropagation(); toggleExpand(order.id, supplier) }}
                                 className="p-1.5 text-primary/40 hover:text-primary active:scale-90 touch-manipulation transition-colors"
                               >
                                 {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

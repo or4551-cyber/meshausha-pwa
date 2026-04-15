@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSuppliersStore } from './stores/suppliersStore'
 import { PRODUCTS, INITIAL_SUPPLIERS } from './data/products'
-import { getAdminPhoneFromCloud, getSuppliersFromCloud, saveSuppliersToCloud } from './lib/cloudApi'
+import { getAdminPhoneFromCloud, getSuppliersFromCloud } from './lib/cloudApi'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
@@ -54,18 +54,8 @@ function App() {
       if (hasSchedules) {
         // יש נתוני אדמין בענן — טען (הענן גובר על ספקים/לוח זמנים)
         loadCloudData(data!.suppliers, data!.products ?? [])
-        // חובה: זרע מחדש את המוצרים הסטטיים כדי לגבור על כל נתון ישן מהענן
+        // הוסף רק מוצרים סטטיים חדשים שעדיין אינם בענן (לא דורס עדכונים)
         seedStaticProducts(PRODUCTS)
-        // שמור מחדש לענן — כדי שהנתון הסטטי המעודכן ידרוס את הישן שם
-        const fresh = useSuppliersStore.getState()
-        saveSuppliersToCloud({ suppliers: fresh.suppliers, products: fresh.products }).catch(console.error)
-      } else {
-        // אין נתונים בענן — אם ב-localStorage יש לוחות זמנים, שמור לענן
-        const { suppliers: localSuppliers, products: localProducts } = useSuppliersStore.getState()
-        const localHasSchedules = localSuppliers.some(s => s.schedules && s.schedules.length > 0)
-        if (localHasSchedules) {
-          saveSuppliersToCloud({ suppliers: localSuppliers, products: localProducts }).catch(console.error)
-        }
       }
     })
   }, [])

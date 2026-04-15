@@ -1,11 +1,17 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, Zap, Eye, Calendar, CreditCard, PlayCircle, Send, Cloud } from 'lucide-react'
+import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, BellOff, BellRing, Zap, Eye, Calendar, CreditCard, PlayCircle, Send, Cloud } from 'lucide-react'
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useOrdersStore } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { useState, useEffect } from 'react'
 import { sendBulkInvoiceRequests } from '../lib/emailService'
 import { saveSuppliersToCloud, getOrdersFromCloud } from '../lib/cloudApi'
+import {
+  isNotificationSupported,
+  subscribeToPushNotifications,
+  ensurePushSubscription,
+  sendLocalNotification,
+} from '../lib/notifications'
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -26,6 +32,46 @@ export default function AdminPage() {
   const [showVideo, setShowVideo] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default')
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+
+  useEffect(() => {
+    if (isNotificationSupported()) {
+      setPushPermission(Notification.permission)
+      // בדוק אם יש מנוי קיים
+      navigator.serviceWorker.ready.then(reg =>
+        reg.pushManager.getSubscription().then(sub => {
+          setPushSubscribed(!!sub)
+          if (sub) ensurePushSubscription() // שמור מחדש בשרת
+        })
+      ).catch(() => {})
+    }
+  }, [])
+
+  const handleSubscribePush = async () => {
+    setPushLoading(true)
+    const sub = await subscribeToPushNotifications()
+    if (sub) {
+      setPushPermission('granted')
+      setPushSubscribed(true)
+      await sendLocalNotification({
+        title: 'התראות פעילות!',
+        body: 'תקבל התראה על כל הזמנה חדשה מהסניפים',
+      })
+    } else {
+      setPushPermission(Notification.permission as NotificationPermission)
+    }
+    setPushLoading(false)
+  }
+
+  const handleTestPush = async () => {
+    await sendLocalNotification({
+      title: '🛒 בדיקת התראה',
+      body: 'אם אתה רואה את זה — ההתראות עובדות!',
+      data: { url: '/admin/dispatch' },
+    })
+  }
 
   const handleSyncToCloud = async () => {
     const { suppliers, products } = useSuppliersStore.getState()
@@ -151,6 +197,62 @@ export default function AdminPage() {
               )}
             </div>
           </button>
+
+          {/* התראות Push לאדמין */}
+          {isNotificationSupported() && (
+            <div className={`w-full rounded-3xl shadow-lg overflow-hidden ${
+              pushPermission === 'granted' && pushSubscribed
+                ? 'bg-gradient-to-br from-emerald-600 to-emerald-800'
+                : pushPermission === 'denied'
+                  ? 'bg-gradient-to-br from-gray-500 to-gray-700'
+                  : 'bg-gradient-to-br from-amber-500 to-amber-700'
+            }`}>
+              <div className="flex items-center gap-4 p-5">
+                <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+                  {pushPermission === 'granted' && pushSubscribed
+                    ? <Bell className="text-white" size={24} />
+                    : pushPermission === 'denied'
+                      ? <BellOff className="text-white" size={24} />
+                      : <BellRing className="text-white" size={24} />
+                  }
+                </div>
+                <div className="flex-1 text-right">
+                  <h3 className="font-black text-white text-base mb-1">
+                    {pushPermission === 'granted' && pushSubscribed
+                      ? 'התראות Push פעילות'
+                      : pushPermission === 'denied'
+                        ? 'התראות חסומות בדפדפן'
+                        : 'הפעל התראות Push'}
+                  </h3>
+                  <p className="text-white/80 text-xs font-bold">
+                    {pushPermission === 'granted' && pushSubscribed
+                      ? 'תקבל התראה על כל הזמנה חדשה'
+                      : pushPermission === 'denied'
+                        ? 'יש לאפשר בהגדרות הדפדפן'
+                        : 'לקבל התראה כשמגיעה הזמנה חדשה'}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {pushPermission === 'granted' && pushSubscribed ? (
+                    <button
+                      onClick={handleTestPush}
+                      className="bg-white/20 text-white font-bold text-xs px-3 py-2 rounded-xl active:scale-95 touch-manipulation whitespace-nowrap"
+                    >
+                      בדיקה
+                    </button>
+                  ) : pushPermission !== 'denied' && (
+                    <button
+                      onClick={handleSubscribePush}
+                      disabled={pushLoading}
+                      className="bg-white text-amber-700 font-bold text-xs px-3 py-2 rounded-xl active:scale-95 touch-manipulation disabled:opacity-60 whitespace-nowrap"
+                    >
+                      {pushLoading ? '...' : 'הפעל'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* מדריך וידאו */}
           <button

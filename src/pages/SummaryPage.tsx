@@ -8,7 +8,7 @@ import { useSuppliersStore } from '../stores/suppliersStore'
 import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { printOrderAsPDF } from '../lib/pdfExport'
-import { saveOrderToCloud } from '../lib/cloudApi'
+import { saveOrderToCloudBeacon } from '../lib/cloudApi'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function SummaryPage() {
@@ -69,8 +69,21 @@ export default function SummaryPage() {
   const handleSendOrder = async () => {
     if (sendState !== 'idle') return
     setSendState('saving')
-    // פתיחת WhatsApp חייבת להיות סינכרונית (לפני כל await)
-    // דפדפן חוסם window.open שנקרא אחרי await
+
+    // 1. שמירה מקומית סינכרונית
+    const newOrder = addOrder({
+      branch: user?.branch || '',
+      branchCode: user?.branchCode || '',
+      items,
+      notes,
+      totalPrice: totalWithVAT
+    })
+    recordOrderPrices(items, user?.branchCode || '', newOrder.createdAt)
+
+    // 2. שליחה לענן באמצעות sendBeacon — אמין גם כשהדפדפן עובר ל-WhatsApp
+    saveOrderToCloudBeacon(newOrder)
+
+    // 3. פתיחת WhatsApp — חייבת להיות סינכרונית (אחרת דפדפנים חוסמים)
     if (user?.isAdmin) {
       const supplierEntries = Object.entries(groupedItems)
       if (supplierEntries.length === 1) {
@@ -93,19 +106,6 @@ export default function SummaryPage() {
         : `https://wa.me/?text=${encodeURIComponent(orderText)}`
       window.open(url, '_blank')
     }
-
-    // שמירת ההזמנה — מקומית + ענן
-    const newOrder = addOrder({
-      branch: user?.branch || '',
-      branchCode: user?.branchCode || '',
-      items,
-      notes,
-      totalPrice: totalWithVAT
-    })
-    recordOrderPrices(items, user?.branchCode || '', newOrder.createdAt)
-
-    // שמירה בענן — fire and forget, לא חוסם את ה-UI
-    saveOrderToCloud(newOrder).catch(console.error)
 
     setSendState('done')
     clearCart()

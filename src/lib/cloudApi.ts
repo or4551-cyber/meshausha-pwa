@@ -41,6 +41,30 @@ export async function saveOrderToCloud(order: Order): Promise<void> {
   })
 }
 
+/**
+ * שמור הזמנה לענן באמצעות sendBeacon — אמין גם בזמן ניווט/יציאה לאפליקציה אחרת
+ * (כמו פתיחת WhatsApp במובייל). מחזיר true אם נוספה לתור השליחה.
+ */
+export function saveOrderToCloudBeacon(order: Order): boolean {
+  try {
+    const blob = new Blob([JSON.stringify(order)], { type: 'application/json' })
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const ok = navigator.sendBeacon(`${BASE}/orders-api`, blob)
+      if (ok) return true
+    }
+    // fallback: fetch keepalive — שורד גם במהלך unload
+    fetch(`${BASE}/orders-api`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+      keepalive: true,
+    }).catch(() => {})
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** קבל את כל ההזמנות מהענן */
 export async function getOrdersFromCloud(): Promise<Order[]> {
   try {

@@ -110,13 +110,14 @@ export const useSuppliersStore = create<SuppliersState>()(
         })
       },
 
-      // זורע מוצרים סטטיים — מחליף את כל מוצרי הספקים הסטטיים (מבטיח התאמה מלאה למחירון)
+      // זורע מוצרים סטטיים — מוסיף רק מוצרים חסרים (לפי supplier+name).
+      // שומר על עדכוני מחיר/מחיקות/הוספות שביצע האדמין — לעולם לא דורס.
       seedStaticProducts: (products) => {
         set((state) => {
-          const staticSuppliers = new Set(products.map(p => p.supplier))
-          // שמור מוצרים דינמיים (ספקים שאינם ברשימה הסטטית) + החלף את כל הסטטיים
-          const nonStatic = state.products.filter(p => !staticSuppliers.has(p.supplier))
-          return { products: [...nonStatic, ...products] }
+          const existingKeys = new Set(state.products.map(p => `${p.supplier}|${p.name}`))
+          const toAdd = products.filter(p => !existingKeys.has(`${p.supplier}|${p.name}`))
+          if (toAdd.length === 0) return state
+          return { products: [...state.products, ...toAdd] }
         })
       },
 
