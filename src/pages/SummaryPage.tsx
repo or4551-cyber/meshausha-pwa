@@ -9,6 +9,7 @@ import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { printOrderAsPDF } from '../lib/pdfExport'
 import { saveOrderToCloudBeacon } from '../lib/cloudApi'
+import { formatSingleSupplierOrder, formatMultiSupplierOrder } from '../lib/orderFormat'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function SummaryPage() {
@@ -35,15 +36,13 @@ export default function SummaryPage() {
   }
 
   const buildSupplierText = (supplierName: string, supplierItems: typeof items) => {
-    let text = `🛒 הזמנה - ${user?.branch}\n`
-    text += `📅 ${new Date().toLocaleDateString('he-IL')}\n\n`
-    text += `📦 ${supplierName}\n${'─'.repeat(28)}\n`
-    supplierItems.forEach(item => {
-      text += `• ${item.name}\n  כמות: ${item.quantity}\n`
-      if (user?.isAdmin) text += `  מחיר: ${formatPrice(item.price * item.quantity)}\n`
+    return formatSingleSupplierOrder({
+      branch: user?.branch || '',
+      supplier: supplierName,
+      items: supplierItems,
+      notes,
+      showPrice: user?.isAdmin ?? false,
     })
-    if (notes) text += `\n📝 הערות: ${notes}`
-    return text
   }
 
   const openWhatsApp = (supplierName: string, supplierItems: typeof items) => {
@@ -125,34 +124,15 @@ export default function SummaryPage() {
   }
 
   const generateOrderText = () => {
-    let text = `🛒 הזמנה חדשה - ${user?.branch}\n`
-    text += `📅 ${new Date().toLocaleDateString('he-IL')}\n\n`
-
-    Object.entries(groupedItems).forEach(([supplier, supplierItems]) => {
-      text += `📦 ${supplier}\n`
-      text += `${'─'.repeat(30)}\n`
-      supplierItems.forEach(item => {
-        text += `• ${item.name}\n`
-        text += `  כמות: ${item.quantity}\n`
-        if (user?.isAdmin) {
-          text += `  מחיר: ${formatPrice(item.price * item.quantity)}\n`
-        }
-      })
-      text += `\n`
+    return formatMultiSupplierOrder({
+      branch: user?.branch || '',
+      groups: groupedItems,
+      notes,
+      showPrice: user?.isAdmin ?? false,
+      showFinancial: user?.isAdmin
+        ? { totalBeforeVAT, vat, totalWithVAT }
+        : undefined,
     })
-
-    if (user?.isAdmin) {
-      text += `💰 סיכום כספי:\n`
-      text += `סה"כ לפני מע"מ: ${formatPrice(totalBeforeVAT)}\n`
-      text += `מע"מ (17%): ${formatPrice(vat)}\n`
-      text += `סה"כ כולל מע"מ: ${formatPrice(totalWithVAT)}\n`
-    }
-
-    if (notes) {
-      text += `\n📝 הערות: ${notes}`
-    }
-
-    return text
   }
 
   if (items.length === 0) {

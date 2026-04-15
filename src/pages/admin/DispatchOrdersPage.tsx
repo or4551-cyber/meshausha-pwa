@@ -13,6 +13,7 @@ import {
   getAdminPhoneFromCloud, saveAdminPhoneToCloud
 } from '../../lib/cloudApi'
 import { motion, AnimatePresence } from 'framer-motion'
+import { formatDispatchOrder } from '../../lib/orderFormat'
 
 export default function DispatchOrdersPage() {
   const navigate = useNavigate()
@@ -120,23 +121,14 @@ export default function DispatchOrdersPage() {
 
   // בניית הודעת WhatsApp לספק
   const buildMessage = (supplier: string, orders: Order[]) => {
-    let text = `🛒 הזמנה - ${supplier}\n`
-    text += `📅 ${new Date().toLocaleDateString('he-IL')}\n\n`
-
-    orders.forEach(order => {
-      const items = order.items
+    const branches = orders.map(order => ({
+      branch: order.branch,
+      notes: order.notes,
+      items: order.items
         .filter(i => i.supplier === supplier)
-        .map(i => ({ ...i, quantity: getQty(order.id, i) }))
-        .filter(i => i.quantity > 0)
-      if (items.length === 0) return
-
-      text += `📍 ${order.branch}:\n`
-      items.forEach(i => { text += `• ${i.name} × ${i.quantity}\n` })
-      if (order.notes) text += `  📝 ${order.notes}\n`
-      text += '\n'
-    })
-
-    return text
+        .map(i => ({ name: i.name, quantity: getQty(order.id, i) })),
+    }))
+    return formatDispatchOrder({ supplier, branches })
   }
 
   const getWhatsAppUrl = (supplier: string, phone: string, orders: Order[]) => {
