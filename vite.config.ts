@@ -6,6 +6,17 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toISOString())
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          charts: ['recharts'],
+          'image-gen': ['html2canvas'],
+          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

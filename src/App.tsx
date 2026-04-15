@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSuppliersStore } from './stores/suppliersStore'
 import { PRODUCTS, INITIAL_SUPPLIERS } from './data/products'
@@ -10,29 +10,38 @@ import OrdersPage from './pages/OrdersPage'
 import SummaryPage from './pages/SummaryPage'
 import HistoryPage from './pages/HistoryPage'
 import RemindersPage from './pages/RemindersPage'
-import AdminPage from './pages/AdminPage'
-import PriceManagementPage from './pages/admin/PriceManagementPage'
-import ReportsPage from './pages/admin/ReportsPage'
-import AnalyticsPage from './pages/admin/AnalyticsPage'
-import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
-import AddSupplierPage from './pages/admin/AddSupplierPage'
-import SuppliersContactPage from './pages/admin/SuppliersContactPage'
-import InvoicesPage from './pages/admin/InvoicesPage'
-import InvoiceAnalysisPage from './pages/admin/InvoiceAnalysisPage'
-import GmailSettingsPage from './pages/admin/GmailSettingsPage'
-import GmailCallbackPage from './pages/admin/GmailCallbackPage'
-import AdminNotificationsPage from './pages/admin/AdminNotificationsPage'
-import AutomationPage from './pages/admin/AutomationPage'
 import DeliveryConfirmPage from './pages/DeliveryConfirmPage'
-import CreditClaimsPage from './pages/admin/CreditClaimsPage'
-import WeeklySchedulePage from './pages/admin/WeeklySchedulePage'
-import BranchOverviewPage from './pages/admin/BranchOverviewPage'
-import PriceHistoryPage from './pages/admin/PriceHistoryPage'
-import CalendarRemindersPage from './pages/admin/CalendarRemindersPage'
-import DispatchOrdersPage from './pages/admin/DispatchOrdersPage'
-import ChatBot from './components/ChatBot'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
+
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const PriceManagementPage = lazy(() => import('./pages/admin/PriceManagementPage'))
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'))
+const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'))
+const AnalyticsDashboard = lazy(() => import('./pages/admin/AnalyticsDashboard'))
+const AddSupplierPage = lazy(() => import('./pages/admin/AddSupplierPage'))
+const SuppliersContactPage = lazy(() => import('./pages/admin/SuppliersContactPage'))
+const InvoicesPage = lazy(() => import('./pages/admin/InvoicesPage'))
+const InvoiceAnalysisPage = lazy(() => import('./pages/admin/InvoiceAnalysisPage'))
+const GmailSettingsPage = lazy(() => import('./pages/admin/GmailSettingsPage'))
+const GmailCallbackPage = lazy(() => import('./pages/admin/GmailCallbackPage'))
+const AdminNotificationsPage = lazy(() => import('./pages/admin/AdminNotificationsPage'))
+const AutomationPage = lazy(() => import('./pages/admin/AutomationPage'))
+const CreditClaimsPage = lazy(() => import('./pages/admin/CreditClaimsPage'))
+const WeeklySchedulePage = lazy(() => import('./pages/admin/WeeklySchedulePage'))
+const BranchOverviewPage = lazy(() => import('./pages/admin/BranchOverviewPage'))
+const PriceHistoryPage = lazy(() => import('./pages/admin/PriceHistoryPage'))
+const CalendarRemindersPage = lazy(() => import('./pages/admin/CalendarRemindersPage'))
+const DispatchOrdersPage = lazy(() => import('./pages/admin/DispatchOrdersPage'))
+const ChatBot = lazy(() => import('./components/ChatBot'))
+
+function PageFallback() {
+  return (
+    <div className="min-h-screen bg-primary flex items-center justify-center">
+      <div className="w-12 h-12 rounded-full border-4 border-secondary/20 border-t-secondary animate-spin" />
+    </div>
+  )
+}
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
@@ -65,11 +74,14 @@ function App() {
       <div className="min-h-screen bg-primary">
         {isAuthenticated && (
           <>
-            <ChatBot />
+            <Suspense fallback={null}>
+              <ChatBot />
+            </Suspense>
             <NotificationManager />
             <NotificationScheduler />
           </>
         )}
+        <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route 
             path="/login" 
@@ -176,6 +188,7 @@ function App() {
             element={isAuthenticated && user?.isAdmin ? <DispatchOrdersPage /> : <Navigate to="/" />}
           />
         </Routes>
+        </Suspense>
       </div>
     </Router>
   )
