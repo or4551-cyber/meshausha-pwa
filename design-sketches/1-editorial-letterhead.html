@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>סקיצה 1 — Editorial Letterhead</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  body {
+    margin: 0;
+    padding: 40px 20px;
+    background: #2a0f0f;
+    font-family: 'Heebo', sans-serif;
+    direction: rtl;
+    display: flex;
+    justify-content: center;
+  }
+  .sheet {
+    width: 640px;
+    background: #FBF5EA;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(128,32,32,0.035) 0, transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(128,32,32,0.035) 0, transparent 40%);
+    padding: 44px 44px 36px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    position: relative;
+    color: #2A1410;
+  }
+  .sheet::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border: 1px solid rgba(128,32,32,0.25);
+    pointer-events: none;
+  }
+  .sheet::after {
+    content: '';
+    position: absolute;
+    inset: 19px;
+    border: 3px double rgba(128,32,32,0.18);
+    pointer-events: none;
+  }
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(128,32,32,0.3);
+    position: relative;
+  }
+  .brand-mark {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: #802020;
+    color: #FBF5EA;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Frank Ruhl Libre', serif;
+    font-weight: 900;
+    font-size: 38px;
+    line-height: 1;
+    box-shadow: 0 6px 16px rgba(128,32,32,0.3), inset 0 0 0 3px rgba(251,245,234,0.25);
+    letter-spacing: -1px;
+  }
+  .brand-text {
+    flex: 1;
+    padding-right: 16px;
+  }
+  .brand-name {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-weight: 900;
+    font-size: 34px;
+    color: #802020;
+    line-height: 1;
+    letter-spacing: -0.5px;
+  }
+  .brand-tag {
+    font-family: 'Heebo', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    color: #8A5A3A;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+  .meta {
+    text-align: left;
+    font-family: 'Heebo', sans-serif;
+  }
+  .meta-label {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    color: #8A5A3A;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .meta-date {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #2A1410;
+    margin-top: 2px;
+  }
+  .title-block {
+    text-align: center;
+    margin: 28px 0 8px;
+    position: relative;
+  }
+  .title-eyebrow {
+    font-family: 'Heebo', sans-serif;
+    font-size: 11px;
+    letter-spacing: 6px;
+    color: #8A5A3A;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .title-main {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 40px;
+    font-weight: 900;
+    color: #802020;
+    line-height: 1;
+    margin-top: 6px;
+    letter-spacing: -1px;
+  }
+  .title-rule {
+    width: 60px;
+    height: 2px;
+    background: #802020;
+    margin: 14px auto 0;
+  }
+  .admin-note {
+    margin-top: 22px;
+    padding: 16px 18px;
+    background: #FFFFFF;
+    border-right: 4px solid #802020;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .admin-note-label {
+    font-family: 'Heebo', sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #802020;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .admin-note-text {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #2A1410;
+    font-style: italic;
+  }
+  .branch-section {
+    margin-top: 24px;
+  }
+  .branch-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 2px solid #802020;
+    margin-bottom: 0;
+  }
+  .branch-name {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #802020;
+    letter-spacing: -0.3px;
+  }
+  .branch-count {
+    font-family: 'Heebo', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #8A5A3A;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th {
+    font-family: 'Heebo', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: #8A5A3A;
+    padding: 10px 6px 6px;
+    text-align: right;
+    border-bottom: 1px solid rgba(128,32,32,0.15);
+  }
+  th.qty { text-align: center; width: 80px; }
+  td {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 18px;
+    color: #2A1410;
+    padding: 9px 6px;
+    border-bottom: 1px dotted rgba(128,32,32,0.2);
+    font-weight: 500;
+  }
+  td.qty {
+    text-align: center;
+    font-weight: 900;
+    color: #802020;
+    font-size: 20px;
+  }
+  .branch-notes {
+    font-family: 'Heebo', sans-serif;
+    font-size: 12px;
+    color: #8A5A3A;
+    font-style: italic;
+    padding: 8px 10px;
+    margin-top: 6px;
+    background: rgba(128,32,32,0.04);
+    border-right: 2px solid rgba(128,32,32,0.3);
+  }
+  .footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(128,32,32,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-contact {
+    font-family: 'Heebo', sans-serif;
+  }
+  .footer-label {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    color: #8A5A3A;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .footer-phone {
+    font-family: 'Frank Ruhl Libre', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #802020;
+    direction: ltr;
+    display: inline-block;
+    margin-top: 2px;
+  }
+  .footer-seal {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 2px solid #802020;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Frank Ruhl Libre', serif;
+    font-weight: 900;
+    font-size: 10px;
+    color: #802020;
+    text-align: center;
+    line-height: 1.2;
+    transform: rotate(-8deg);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="brand-mark">מ</div>
+      <div class="brand-text">
+        <div class="brand-name">משאוושה</div>
+        <div class="brand-tag">רשת חומוסיות · צפון</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="meta-label">תאריך</div>
+      <div class="meta-date">15.04.2026</div>
+    </div>
+  </div>
+
+  <div class="title-block">
+    <div class="title-eyebrow">הזמנה רשמית לספק</div>
+    <div class="title-main">יבולי שדה תמרה</div>
+    <div class="title-rule"></div>
+  </div>
+
+  <div class="admin-note">
+    <div class="admin-note-label">הודעה חשובה</div>
+    <div class="admin-note-text">נא לוודא טריות העגבניות, חסר מלפפון מהמשלוח הקודם.</div>
+  </div>
+
+  <div class="branch-section">
+    <div class="branch-header">
+      <div class="branch-name">נהריה — מרכזי</div>
+      <div class="branch-count">4 פריטים</div>
+    </div>
+    <table>
+      <thead><tr><th>מוצר</th><th class="qty">כמות</th></tr></thead>
+      <tbody>
+        <tr><td>עגבנייה</td><td class="qty">12</td></tr>
+        <tr><td>מלפפון</td><td class="qty">8</td></tr>
+        <tr><td>בצל סגול</td><td class="qty">5</td></tr>
+        <tr><td>פטרוזיליה</td><td class="qty">3</td></tr>
+      </tbody>
+    </table>
+    <div class="branch-notes">📝 לארוז בנפרד — לטיול של הגן</div>
+  </div>
+
+  <div class="branch-section">
+    <div class="branch-header">
+      <div class="branch-name">קריית ביאליק</div>
+      <div class="branch-count">3 פריטים</div>
+    </div>
+    <table>
+      <thead><tr><th>מוצר</th><th class="qty">כמות</th></tr></thead>
+      <tbody>
+        <tr><td>עגבנייה</td><td class="qty">10</td></tr>
+        <tr><td>שמן זית</td><td class="qty">6</td></tr>
+        <tr><td>לימון</td><td class="qty">4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <div class="footer-contact">
+      <div class="footer-label">לבירורים</div>
+      <div class="footer-phone">052-123-4567</div>
+    </div>
+    <div class="footer-seal">משאוושה<br/>· אותנטי ·</div>
+  </div>
+</div>
+</body>
+</html>

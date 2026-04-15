@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>סקיצה 3 — מינימל מעודן</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Assistant:wght@300;500;700;800&display=swap" rel="stylesheet">
+<style>
+  body {
+    margin: 0;
+    padding: 40px 20px;
+    background: #e9e2d4;
+    font-family: 'Assistant', sans-serif;
+    direction: rtl;
+    display: flex;
+    justify-content: center;
+  }
+  .sheet {
+    width: 640px;
+    background: #FDFAF3;
+    padding: 56px 56px 44px;
+    box-shadow: 0 30px 80px rgba(42,20,16,0.15);
+    color: #1A0E08;
+    position: relative;
+  }
+  .corner {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: #802020;
+    border-style: solid;
+  }
+  .corner.tl { top: 20px; right: 20px; border-width: 1px 1px 0 0; }
+  .corner.tr { top: 20px; left: 20px;  border-width: 1px 0 0 1px; }
+  .corner.bl { bottom: 20px; right: 20px; border-width: 0 1px 1px 0; }
+  .corner.br { bottom: 20px; left: 20px;  border-width: 0 0 1px 1px; }
+
+  .masthead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 12px;
+  }
+  .logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 44px;
+    color: #802020;
+    line-height: 0.9;
+    letter-spacing: -2px;
+  }
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    background: #802020;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 4px 8px;
+  }
+  .tagline {
+    font-family: 'Assistant', sans-serif;
+    font-size: 10px;
+    letter-spacing: 5px;
+    color: #6B4A3A;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .date {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    color: #1A0E08;
+    font-weight: 700;
+    font-style: italic;
+  }
+  .hairline {
+    height: 1px;
+    background: #1A0E08;
+    margin: 4px 0 0;
+    opacity: 0.3;
+  }
+  .hairline.thick {
+    height: 2px;
+    background: #802020;
+    opacity: 1;
+    width: 48px;
+    margin: 0;
+  }
+
+  .eyebrow-row {
+    margin-top: 56px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 6px;
+    color: #6B4A3A;
+    font-weight: 800;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .supplier {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 52px;
+    color: #1A0E08;
+    line-height: 1;
+    letter-spacing: -2px;
+    margin-top: 8px;
+  }
+  .supplier em {
+    color: #802020;
+    font-style: italic;
+    font-weight: 700;
+  }
+
+  .note {
+    margin-top: 36px;
+    padding: 18px 0;
+    border-top: 1px solid #1A0E08;
+    border-bottom: 1px solid #1A0E08;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .note-key {
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: #802020;
+    font-weight: 800;
+    text-transform: uppercase;
+    min-width: 90px;
+    padding-top: 4px;
+  }
+  .note-body {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-style: italic;
+    color: #1A0E08;
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .branch {
+    margin-top: 36px;
+  }
+  .branch-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 8px;
+  }
+  .branch-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: #1A0E08;
+    letter-spacing: -0.5px;
+  }
+  .branch-meta {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #6B4A3A;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+  }
+  td {
+    font-size: 16px;
+    font-weight: 500;
+    color: #1A0E08;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(26,14,8,0.08);
+  }
+  td:last-child {
+    text-align: center;
+    width: 70px;
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 20px;
+    color: #802020;
+  }
+
+  .footer {
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid #1A0E08;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .phone-label {
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: #6B4A3A;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .phone {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1A0E08;
+    direction: ltr;
+    display: inline-block;
+    margin-top: 2px;
+  }
+  .mono {
+    font-family: 'Playfair Display', serif;
+    font-size: 11px;
+    letter-spacing: 4px;
+    font-weight: 700;
+    color: #802020;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div class="masthead">
+    <div class="logo-wrap">
+      <span class="logo">M</span>
+      <span class="logo-dot"></span>
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-weight:900;font-size:28px;color:#802020;line-height:1;">משאוושה</div>
+        <div class="tagline">Hummusiyot · Est.2020</div>
+      </div>
+    </div>
+    <div class="date">Wed · 15 · IV · MMXXVI</div>
+  </div>
+  <div class="hairline"></div>
+
+  <div class="eyebrow-row">
+    <div class="hairline thick"></div>
+    <div class="eyebrow">Purchase Order / הזמנה</div>
+  </div>
+  <div class="supplier"><em>יבולי</em> שדה תמרה</div>
+
+  <div class="note">
+    <div class="note-key">Note</div>
+    <div class="note-body">"נא לוודא טריות העגבניות, חסר מלפפון מהמשלוח הקודם."</div>
+  </div>
+
+  <div class="branch">
+    <div class="branch-row">
+      <div class="branch-name">נהריה, מרכזי</div>
+      <div class="branch-meta">04 items</div>
+    </div>
+    <table>
+      <tr><td>עגבנייה</td><td>12</td></tr>
+      <tr><td>מלפפון</td><td>08</td></tr>
+      <tr><td>בצל סגול</td><td>05</td></tr>
+      <tr><td>פטרוזיליה</td><td>03</td></tr>
+    </table>
+  </div>
+
+  <div class="branch">
+    <div class="branch-row">
+      <div class="branch-name">קריית ביאליק</div>
+      <div class="branch-meta">03 items</div>
+    </div>
+    <table>
+      <tr><td>עגבנייה</td><td>10</td></tr>
+      <tr><td>שמן זית</td><td>06</td></tr>
+      <tr><td>לימון</td><td>04</td></tr>
+    </table>
+  </div>
+
+  <div class="footer">
+    <div>
+      <div class="phone-label">Inquiries</div>
+      <div class="phone">052-123-4567</div>
+    </div>
+    <div class="mono">משאוושה · north</div>
+  </div>
+</div>
+</body>
+</html>

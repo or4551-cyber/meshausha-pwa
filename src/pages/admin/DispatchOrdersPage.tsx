@@ -14,6 +14,7 @@ import {
 } from '../../lib/cloudApi'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDispatchOrder } from '../../lib/orderFormat'
+import DispatchPreviewModal from '../../components/DispatchPreviewModal'
 
 export default function DispatchOrdersPage() {
   const navigate = useNavigate()
@@ -37,6 +38,16 @@ export default function DispatchOrdersPage() {
   const [editedQty, setEditedQty] = useState<Record<string, number>>({})
   // מצב עריכה פעיל: editingKey = orderId_supplier
   const [editingKey, setEditingKey] = useState<string | null>(null)
+
+  // מצב מודאל תצוגה מקדימה
+  const [previewState, setPreviewState] = useState<{
+    open: boolean
+    supplier: string
+    supplierPhone: string
+    branches: { branch: string; items: { name: string; quantity: number }[]; notes?: string }[]
+    messageText: string
+    orderIds: string[]
+  } | null>(null)
 
   const loadOrders = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -131,37 +142,42 @@ export default function DispatchOrdersPage() {
     return formatDispatchOrder({ supplier, branches })
   }
 
-  const getWhatsAppUrl = (supplier: string, phone: string, orders: Order[]) => {
-    const text = buildMessage(supplier, orders)
-    const digits = phone.replace(/\D/g, '')
-    const wa = digits.startsWith('972') ? digits
-      : digits.startsWith('0') ? '972' + digits.slice(1)
-      : digits ? '972' + digits : ''
-    return wa
-      ? `https://wa.me/${wa}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`
-  }
-
-  // שליחה לספק
+  // פתיחת מודאל תצוגה מקדימה
   const handleDispatch = (supplier: string, phone: string) => {
     const sel = selected[supplier]
     if (!sel || sel.size === 0) return
 
     const group = supplierGroups[supplier]
     const selectedOrders = group.orders.filter(o => sel.has(o.id))
-    const url = getWhatsAppUrl(supplier, phone, selectedOrders)
-    const ids = [...sel]
+    const branchesData = selectedOrders.map(order => ({
+      branch: order.branch,
+      notes: order.notes,
+      items: order.items
+        .filter(i => i.supplier === supplier)
+        .map(i => ({ name: i.name, quantity: getQty(order.id, i) })),
+    }))
 
-    // 1. עדכון מקומי + שליחה לענן לפני הניווט (keepalive — שורד פתיחת WhatsApp)
-    ids.forEach(id => markOrderDispatched(id))
-    markOrdersDispatchedInCloud(ids)
+    setPreviewState({
+      open: true,
+      supplier,
+      supplierPhone: phone,
+      branches: branchesData,
+      messageText: buildMessage(supplier, selectedOrders),
+      orderIds: [...sel],
+    })
+  }
+
+  // סיום שליחה — סימון כנשלח + ניקוי
+  const handleSent = () => {
+    if (!previewState) return
+    const { supplier, orderIds } = previewState
+    orderIds.forEach(id => markOrderDispatched(id))
+    markOrdersDispatchedInCloud(orderIds)
     setCloudOrders(prev =>
-      prev.map(o => ids.includes(o.id) ? { ...o, status: 'dispatched' } : o)
+      prev.map(o => (orderIds.includes(o.id) ? { ...o, status: 'dispatched' } : o)),
     )
     setSelected(prev => ({ ...prev, [supplier]: new Set() }))
-
-    // 2. פתיחת WhatsApp בסוף
-    window.open(url, '_blank')
+    setPreviewState(null)
   }
 
   const handleSavePhone = () => {
@@ -432,6 +448,19 @@ export default function DispatchOrdersPage() {
           </div>
         )}
       </div>
+
+      {previewState && (
+        <DispatchPreviewModal
+          open={previewState.open}
+          supplier={previewState.supplier}
+          supplierPhone={previewState.supplierPhone}
+          branches={previewState.branches}
+          adminPhone={adminPhone}
+          messageText={previewState.messageText}
+          onClose={() => setPreviewState(null)}
+          onSent={handleSent}
+        />
+      )}
     </div>
   )
 }
