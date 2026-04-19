@@ -8,6 +8,7 @@ export interface Product {
   supplier: string
   price: number
   category?: string
+  adminOnly?: boolean
 }
 
 export interface DaySchedule {

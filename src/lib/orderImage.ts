@@ -49,54 +49,94 @@ function buildHtml({ supplier, branches, adminPhone, adminNote }: RenderOpts): s
     day: '2-digit', month: '2-digit', year: 'numeric',
   })
 
+  const activeBranches = branches.filter(b => b.items.some(i => i.quantity > 0))
+  const totalItems = activeBranches.reduce((s, b) => s + b.items.filter(i => i.quantity > 0).length, 0)
+
+  // Compact mode: many branches or many items total
+  const compact = activeBranches.length > 2 || totalItems > 30
+  // Two-column layout for 3+ branches
+  const twoCols = activeBranches.length >= 3
+
+  const imgWidth = twoCols ? 960 : 640
+  const pad = compact ? '28px 28px 24px' : '44px 44px 36px'
+  const itemFont = compact ? '14px' : '18px'
+  const qtyFont = compact ? '15px' : '20px'
+  const rowPad = compact ? '5px 4px' : '9px 6px'
+  const qtyW = compact ? '52px' : '80px'
+  const branchTitleFont = compact ? '17px' : '22px'
+  const branchMargin = compact ? '14px' : '24px'
+
   const adminNoteBlock = adminNote?.trim()
     ? `
-      <div style="margin-top:22px;padding:16px 18px;background:#FFFFFF;border-right:4px solid ${BURGUNDY};box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="margin-top:16px;padding:12px 14px;background:#FFFFFF;border-right:4px solid ${BURGUNDY};box-shadow:0 2px 8px rgba(0,0,0,0.04);">
         <div style="font-family:'Heebo',sans-serif;font-weight:800;font-size:11px;letter-spacing:2px;color:${BURGUNDY};text-transform:uppercase;margin-bottom:4px;">הודעה חשובה</div>
-        <div style="font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:500;line-height:1.5;color:${INK};font-style:italic;white-space:pre-wrap;">${escapeHtml(adminNote.trim())}</div>
+        <div style="font-family:'Frank Ruhl Libre',serif;font-size:15px;font-weight:500;line-height:1.5;color:${INK};font-style:italic;white-space:pre-wrap;">${escapeHtml(adminNote.trim())}</div>
       </div>`
     : ''
 
-  const sections = branches
-    .filter(b => b.items.some(i => i.quantity > 0))
-    .map(b => {
-      const filtered = b.items.filter(i => i.quantity > 0)
-      const rows = filtered
-        .map(
-          i => `
-          <tr>
-            <td style="font-family:'Frank Ruhl Libre',serif;font-size:18px;color:${INK};padding:9px 6px;border-bottom:1px dotted ${BORDER_SOFT};font-weight:500;">${escapeHtml(i.name)}</td>
-            <td style="font-family:'Frank Ruhl Libre',serif;font-size:20px;color:${BURGUNDY};padding:9px 6px;border-bottom:1px dotted ${BORDER_SOFT};font-weight:900;text-align:center;width:80px;">${i.quantity}</td>
-          </tr>`,
-        )
-        .join('')
-      const notesLine = b.notes
-        ? `<div style="font-family:'Heebo',sans-serif;font-size:12px;color:${MUTED};font-style:italic;padding:8px 10px;margin-top:6px;background:rgba(128,32,32,0.04);border-right:2px solid ${BORDER_SOFT};">📝 ${escapeHtml(b.notes)}</div>`
-        : ''
-      return `
-        <div style="margin-top:24px;">
-          <div style="display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;border-bottom:2px solid ${BURGUNDY};">
-            <div style="font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:900;color:${BURGUNDY};letter-spacing:-0.3px;">${escapeHtml(b.branch)}</div>
-            <div style="font-family:'Heebo',sans-serif;font-size:11px;letter-spacing:2px;color:${MUTED};font-weight:700;text-transform:uppercase;">${filtered.length} פריטים</div>
-          </div>
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr>
-                <th style="font-family:'Heebo',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:800;color:${MUTED};padding:10px 6px 6px;text-align:right;border-bottom:1px solid rgba(128,32,32,0.15);">מוצר</th>
-                <th style="font-family:'Heebo',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:800;color:${MUTED};padding:10px 6px 6px;text-align:center;width:80px;border-bottom:1px solid rgba(128,32,32,0.15);">כמות</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          ${notesLine}
-        </div>`
+  const buildBranchSection = (b: BranchItems) => {
+    const filtered = b.items.filter(i => i.quantity > 0)
+    const rows = filtered
+      .map(
+        i => `
+        <tr>
+          <td style="font-family:'Frank Ruhl Libre',serif;font-size:${itemFont};color:${INK};padding:${rowPad};border-bottom:1px dotted ${BORDER_SOFT};font-weight:500;">${escapeHtml(i.name)}</td>
+          <td style="font-family:'Frank Ruhl Libre',serif;font-size:${qtyFont};color:${BURGUNDY};padding:${rowPad};border-bottom:1px dotted ${BORDER_SOFT};font-weight:900;text-align:center;width:${qtyW};">${i.quantity}</td>
+        </tr>`,
+      )
+      .join('')
+    const notesLine = b.notes
+      ? `<div style="font-family:'Heebo',sans-serif;font-size:11px;color:${MUTED};font-style:italic;padding:6px 8px;margin-top:4px;background:rgba(128,32,32,0.04);border-right:2px solid ${BORDER_SOFT};">📝 ${escapeHtml(b.notes)}</div>`
+      : ''
+    return `
+      <div style="margin-top:${branchMargin};break-inside:avoid;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:${compact ? '5px' : '8px'} 0;border-bottom:2px solid ${BURGUNDY};">
+          <div style="font-family:'Frank Ruhl Libre',serif;font-size:${branchTitleFont};font-weight:900;color:${BURGUNDY};letter-spacing:-0.3px;">${escapeHtml(b.branch)}</div>
+          <div style="font-family:'Heebo',sans-serif;font-size:${compact ? '9px' : '11px'};letter-spacing:2px;color:${MUTED};font-weight:700;text-transform:uppercase;">${filtered.length} פריטים</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <tbody>${rows}</tbody>
+        </table>
+        ${notesLine}
+      </div>`
+  }
+
+  let sectionsHtml: string
+  if (twoCols) {
+    // Split branches into 2 columns, balancing item count
+    const left: BranchItems[] = []
+    const right: BranchItems[] = []
+    let leftCount = 0
+    let rightCount = 0
+    activeBranches.forEach(b => {
+      const count = b.items.filter(i => i.quantity > 0).length
+      if (leftCount <= rightCount) {
+        left.push(b)
+        leftCount += count
+      } else {
+        right.push(b)
+        rightCount += count
+      }
     })
-    .join('')
+    sectionsHtml = `
+      <div style="display:flex;gap:24px;direction:rtl;">
+        <div style="flex:1;min-width:0;">${left.map(buildBranchSection).join('')}</div>
+        <div style="flex:1;min-width:0;">${right.map(buildBranchSection).join('')}</div>
+      </div>`
+  } else {
+    sectionsHtml = activeBranches.map(buildBranchSection).join('')
+  }
+
+  // Smaller header in compact mode
+  const logoSize = compact ? '58px' : '78px'
+  const logoFont = compact ? '28px' : '38px'
+  const titleFont = compact ? '26px' : '34px'
+  const supplierFont = compact ? '30px' : '40px'
 
   return `
     <div style="
-      width:640px;
-      padding:44px 44px 36px;
+      width:${imgWidth}px;
+      padding:${pad};
       background:${PAPER};
       direction:rtl;
       color:${INK};
@@ -107,36 +147,36 @@ function buildHtml({ supplier, branches, adminPhone, adminNote }: RenderOpts): s
       <div style="position:absolute;top:14px;right:14px;bottom:14px;left:14px;border:1px solid ${BORDER_SOFT};pointer-events:none;"></div>
       <div style="position:absolute;top:19px;right:19px;bottom:19px;left:19px;border:3px double ${BORDER_DOUBLE};pointer-events:none;"></div>
 
-      <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:20px;border-bottom:1px solid ${BORDER_SOFT};">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:78px;height:78px;border-radius:50%;background:${BURGUNDY};color:${PAPER};display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:38px;line-height:1;box-shadow:0 6px 16px rgba(128,32,32,0.3),inset 0 0 0 3px rgba(251,245,234,0.25);letter-spacing:-1px;">מ</div>
+      <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:${compact ? '14px' : '20px'};border-bottom:1px solid ${BORDER_SOFT};">
+        <div style="display:flex;align-items:center;gap:${compact ? '10px' : '14px'};">
+          <div style="width:${logoSize};height:${logoSize};border-radius:50%;background:${BURGUNDY};color:${PAPER};display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:${logoFont};line-height:1;box-shadow:0 6px 16px rgba(128,32,32,0.3),inset 0 0 0 3px rgba(251,245,234,0.25);letter-spacing:-1px;">מ</div>
           <div style="padding-right:4px;">
-            <div style="font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:34px;color:${BURGUNDY};line-height:1;letter-spacing:-0.5px;">משאוושה</div>
-            <div style="font-family:'Heebo',sans-serif;font-weight:600;font-size:11px;color:${MUTED};letter-spacing:4px;text-transform:uppercase;margin-top:6px;">רשת חומוסיות · צפון</div>
+            <div style="font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:${titleFont};color:${BURGUNDY};line-height:1;letter-spacing:-0.5px;">משאוושה</div>
+            <div style="font-family:'Heebo',sans-serif;font-weight:600;font-size:${compact ? '9px' : '11px'};color:${MUTED};letter-spacing:4px;text-transform:uppercase;margin-top:${compact ? '4px' : '6px'};">רשת חומוסיות · צפון</div>
           </div>
         </div>
         <div style="text-align:left;">
           <div style="font-family:'Heebo',sans-serif;font-size:10px;letter-spacing:2.5px;color:${MUTED};font-weight:800;text-transform:uppercase;">תאריך</div>
-          <div style="font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:700;color:${INK};margin-top:2px;">${dateStr}</div>
+          <div style="font-family:'Frank Ruhl Libre',serif;font-size:${compact ? '18px' : '22px'};font-weight:700;color:${INK};margin-top:2px;">${dateStr}</div>
         </div>
       </div>
 
-      <div style="position:relative;text-align:center;margin:28px 0 8px;">
-        <div style="font-family:'Heebo',sans-serif;font-size:11px;letter-spacing:6px;color:${MUTED};font-weight:800;text-transform:uppercase;">הזמנה רשמית לספק</div>
-        <div style="font-family:'Frank Ruhl Libre',serif;font-size:40px;font-weight:900;color:${BURGUNDY};line-height:1;margin-top:6px;letter-spacing:-1px;">${escapeHtml(supplier)}</div>
-        <div style="width:60px;height:2px;background:${BURGUNDY};margin:14px auto 0;"></div>
+      <div style="position:relative;text-align:center;margin:${compact ? '16px 0 4px' : '28px 0 8px'};">
+        <div style="font-family:'Heebo',sans-serif;font-size:${compact ? '9px' : '11px'};letter-spacing:6px;color:${MUTED};font-weight:800;text-transform:uppercase;">הזמנה רשמית לספק</div>
+        <div style="font-family:'Frank Ruhl Libre',serif;font-size:${supplierFont};font-weight:900;color:${BURGUNDY};line-height:1;margin-top:6px;letter-spacing:-1px;">${escapeHtml(supplier)}</div>
+        <div style="width:60px;height:2px;background:${BURGUNDY};margin:${compact ? '8px' : '14px'} auto 0;"></div>
       </div>
 
       ${adminNoteBlock}
 
-      <div style="position:relative;">${sections}</div>
+      <div style="position:relative;">${sectionsHtml}</div>
 
-      <div style="position:relative;margin-top:32px;padding-top:20px;border-top:1px solid ${BORDER_SOFT};display:flex;align-items:center;justify-content:space-between;">
+      <div style="position:relative;margin-top:${compact ? '20px' : '32px'};padding-top:${compact ? '14px' : '20px'};border-top:1px solid ${BORDER_SOFT};display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-family:'Heebo',sans-serif;font-size:10px;letter-spacing:2.5px;color:${MUTED};font-weight:800;text-transform:uppercase;">לבירורים</div>
-          <div style="font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:700;color:${BURGUNDY};direction:ltr;display:inline-block;margin-top:2px;">${escapeHtml(adminPhone || '—')}</div>
+          <div style="font-family:'Frank Ruhl Libre',serif;font-size:${compact ? '18px' : '22px'};font-weight:700;color:${BURGUNDY};direction:ltr;display:inline-block;margin-top:2px;">${escapeHtml(adminPhone || '—')}</div>
         </div>
-        <div style="width:68px;height:68px;border-radius:50%;border:2px solid ${BURGUNDY};display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:10px;color:${BURGUNDY};text-align:center;line-height:1.2;transform:rotate(-8deg);letter-spacing:1px;">משאוושה<br/>· אותנטי ·</div>
+        <div style="width:${compact ? '52px' : '68px'};height:${compact ? '52px' : '68px'};border-radius:50%;border:2px solid ${BURGUNDY};display:flex;align-items:center;justify-content:center;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:${compact ? '8px' : '10px'};color:${BURGUNDY};text-align:center;line-height:1.2;transform:rotate(-8deg);letter-spacing:1px;">משאוושה<br/>· אותנטי ·</div>
       </div>
     </div>`
 }
@@ -149,15 +189,13 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export async function generateOrderImage(opts: RenderOpts): Promise<Blob> {
-  await ensureFontsLoaded()
-
+async function renderHtmlToBlob(html: string): Promise<Blob> {
   const host = document.createElement('div')
   host.style.position = 'fixed'
   host.style.top = '-10000px'
   host.style.left = '-10000px'
   host.style.pointerEvents = 'none'
-  host.innerHTML = buildHtml(opts)
+  host.innerHTML = html
   document.body.appendChild(host)
 
   const target = host.firstElementChild as HTMLElement
@@ -179,4 +217,23 @@ export async function generateOrderImage(opts: RenderOpts): Promise<Blob> {
   } finally {
     document.body.removeChild(host)
   }
+}
+
+export async function generateOrderImage(opts: RenderOpts): Promise<Blob> {
+  await ensureFontsLoaded()
+  return renderHtmlToBlob(buildHtml(opts))
+}
+
+/** מייצר תמונה נפרדת לכל סניף — לשימוש כשיש 3+ סניפים */
+export async function generateBranchImages(opts: RenderOpts): Promise<{ branch: string; blob: Blob }[]> {
+  await ensureFontsLoaded()
+  const activeBranches = opts.branches.filter(b => b.items.some(i => i.quantity > 0))
+  const results: { branch: string; blob: Blob }[] = []
+  for (const branch of activeBranches) {
+    const blob = await renderHtmlToBlob(
+      buildHtml({ ...opts, branches: [branch] }),
+    )
+    results.push({ branch: branch.branch, blob })
+  }
+  return results
 }

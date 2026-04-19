@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus } from 'lucide-react'
+import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { formatPrice } from '../../lib/utils'
 
@@ -15,21 +15,28 @@ export default function PriceManagementPage() {
   const [addingSupplier, setAddingSupplier] = useState<string | null>(null)
   const [newProductName, setNewProductName] = useState('')
   const [newProductPrice, setNewProductPrice] = useState('')
+  const [newProductAdminOnly, setNewProductAdminOnly] = useState(false)
+  const [filterAdminOnly, setFilterAdminOnly] = useState(false)
 
-  // קבץ לפי ספק, עם סינון חיפוש
+  const adminOnlyCount = useMemo(() => products.filter(p => p.adminOnly).length, [products])
+
+  // קבץ לפי ספק, עם סינון חיפוש + פילטר אדמין
   const grouped = useMemo(() => {
     const lower = searchTerm.toLowerCase()
-    const filtered = products.filter(p =>
+    let filtered = products.filter(p =>
       p.name.toLowerCase().includes(lower) ||
       p.supplier.toLowerCase().includes(lower)
     )
+    if (filterAdminOnly) {
+      filtered = filtered.filter(p => p.adminOnly)
+    }
     const map = new Map<string, typeof filtered>()
     for (const p of filtered) {
       if (!map.has(p.supplier)) map.set(p.supplier, [])
       map.get(p.supplier)!.push(p)
     }
     return map
-  }, [products, searchTerm])
+  }, [products, searchTerm, filterAdminOnly])
 
   const handleSave = (id: string) => {
     const price = parseFloat(editPrice)
@@ -54,15 +61,17 @@ export default function PriceManagementPage() {
   const handleAdd = (supplier: string) => {
     const price = parseFloat(newProductPrice)
     if (!newProductName.trim() || isNaN(price) || price <= 0) return
-    addProducts([{ name: newProductName.trim(), supplier, price }])
+    addProducts([{ name: newProductName.trim(), supplier, price, adminOnly: newProductAdminOnly || undefined }])
     setNewProductName('')
     setNewProductPrice('')
+    setNewProductAdminOnly(false)
     setAddingSupplier(null)
   }
 
   const handleCancelAdd = () => {
     setNewProductName('')
     setNewProductPrice('')
+    setNewProductAdminOnly(false)
     setAddingSupplier(null)
   }
 
@@ -96,6 +105,16 @@ export default function PriceManagementPage() {
                 className="w-full bg-primary/5 text-primary placeholder:text-primary/40 rounded-xl py-3 pr-10 pl-4 font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
+
+            {adminOnlyCount > 0 && (
+              <button
+                onClick={() => setFilterAdminOnly(f => !f)}
+                className={`mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors touch-manipulation ${filterAdminOnly ? 'bg-amber-100 text-amber-700' : 'bg-primary/5 text-primary/50 hover:bg-primary/10'}`}
+              >
+                <EyeOff size={14} />
+                <span>מוצרי אדמין בלבד ({adminOnlyCount})</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -119,7 +138,10 @@ export default function PriceManagementPage() {
                 className={`flex items-center gap-3 px-4 py-3 ${idx < supplierProducts.length - 1 ? 'border-b border-primary/5' : ''}`}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-primary text-sm leading-snug">{product.name}</p>
+                  <p className="font-bold text-primary text-sm leading-snug">
+                    {product.name}
+                    {product.adminOnly && <span className="text-amber-500 text-xs mr-1">(אדמין)</span>}
+                  </p>
                 </div>
 
                 {editingId === product.id ? (
@@ -157,6 +179,13 @@ export default function PriceManagementPage() {
                       <Edit2 size={15} />
                     </button>
                     <button
+                      onClick={() => updateProduct(product.id, { adminOnly: !product.adminOnly })}
+                      className={`p-1.5 rounded-lg transition-colors touch-manipulation ${product.adminOnly ? 'bg-amber-100 text-amber-600' : 'bg-primary/10 text-primary/40 hover:bg-primary/20'}`}
+                      title={product.adminOnly ? 'מוצר אדמין בלבד — לחץ להצגה לסניפים' : 'גלוי לסניפים — לחץ להסתרה'}
+                    >
+                      {product.adminOnly ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                    <button
                       onClick={() => handleDelete(product.id, product.name)}
                       className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100 transition-colors touch-manipulation"
                       title="מחק מוצר"
@@ -170,38 +199,50 @@ export default function PriceManagementPage() {
 
             {/* Add product row */}
             {addingSupplier === supplier ? (
-              <div className="px-4 py-3 bg-green-50/50 border-t border-primary/10 flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="שם מוצר"
-                  value={newProductName}
-                  onChange={(e) => setNewProductName(e.target.value)}
-                  className="flex-1 bg-white text-primary placeholder:text-primary/40 rounded-lg py-2 px-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-green-400/40 border border-primary/10"
-                  autoFocus
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="מחיר"
-                  value={newProductPrice}
-                  onChange={(e) => setNewProductPrice(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd(supplier)}
-                  className="w-20 bg-white text-primary placeholder:text-primary/40 rounded-lg py-2 px-2 font-bold text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400/40 border border-primary/10"
-                />
-                <button
-                  onClick={() => handleAdd(supplier)}
-                  className="p-2 bg-green-500 text-white rounded-lg touch-manipulation shrink-0"
-                  title="הוסף"
-                >
-                  <Save size={16} />
-                </button>
-                <button
-                  onClick={handleCancelAdd}
-                  className="p-2 bg-red-500 text-white rounded-lg touch-manipulation shrink-0"
-                  title="ביטול"
-                >
-                  <X size={16} />
-                </button>
+              <div className="px-4 py-3 bg-green-50/50 border-t border-primary/10 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="שם מוצר"
+                    value={newProductName}
+                    onChange={(e) => setNewProductName(e.target.value)}
+                    className="flex-1 bg-white text-primary placeholder:text-primary/40 rounded-lg py-2 px-3 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-green-400/40 border border-primary/10"
+                    autoFocus
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="מחיר"
+                    value={newProductPrice}
+                    onChange={(e) => setNewProductPrice(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdd(supplier)}
+                    className="w-20 bg-white text-primary placeholder:text-primary/40 rounded-lg py-2 px-2 font-bold text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400/40 border border-primary/10"
+                  />
+                  <button
+                    onClick={() => handleAdd(supplier)}
+                    className="p-2 bg-green-500 text-white rounded-lg touch-manipulation shrink-0"
+                    title="הוסף"
+                  >
+                    <Save size={16} />
+                  </button>
+                  <button
+                    onClick={handleCancelAdd}
+                    className="p-2 bg-red-500 text-white rounded-lg touch-manipulation shrink-0"
+                    title="ביטול"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 text-xs font-bold text-primary/60 cursor-pointer touch-manipulation">
+                  <input
+                    type="checkbox"
+                    checked={newProductAdminOnly}
+                    onChange={(e) => setNewProductAdminOnly(e.target.checked)}
+                    className="w-4 h-4 rounded accent-amber-500"
+                  />
+                  <EyeOff size={13} className="text-amber-500" />
+                  <span>מוצר אדמין בלבד (מוסתר מהסניפים)</span>
+                </label>
               </div>
             ) : (
               <button

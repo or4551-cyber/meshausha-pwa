@@ -63,6 +63,8 @@ function App() {
       if (hasSchedules) {
         // יש נתוני אדמין בענן — טען (הענן גובר על ספקים/לוח זמנים)
         loadCloudData(data!.suppliers, data!.products ?? [])
+        // הוסף ספקים סטטיים חדשים שעדיין לא בענן (כמו קוקה קולה, סלטים משאוושה, נט פארם)
+        seedStaticSuppliers(INITIAL_SUPPLIERS)
         // הוסף רק מוצרים סטטיים חדשים שעדיין אינם בענן (לא דורס עדכונים)
         seedStaticProducts(PRODUCTS)
       }

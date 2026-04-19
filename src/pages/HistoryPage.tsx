@@ -29,28 +29,30 @@ export default function HistoryPage() {
   const [cloudOrders, setCloudOrders] = useState<Order[]>([])
   const [isLoadingCloud, setIsLoadingCloud] = useState(false)
 
-  // אדמין — טוען הזמנות מכל הסניפים מהענן
+  // טוען הזמנות מהענן — אדמין רואה הכל, סניף רואה רק שלו
   useEffect(() => {
-    if (user?.isAdmin) {
-      setIsLoadingCloud(true)
-      getOrdersFromCloud().then(orders => {
+    if (!user) return
+    setIsLoadingCloud(true)
+    getOrdersFromCloud().then(orders => {
+      if (user.isAdmin) {
         setCloudOrders(orders)
-      }).finally(() => setIsLoadingCloud(false))
-    }
-  }, [user?.isAdmin])
+      } else {
+        setCloudOrders(orders.filter(o => o.branchCode === user.branchCode))
+      }
+    }).finally(() => setIsLoadingCloud(false))
+  }, [user?.isAdmin, user?.branchCode])
 
   const localOrders = user?.isAdmin ? getAllOrders() : getOrdersByBranch(user?.branchCode || '')
 
   // מיזוג: ענן + מקומי, כפילויות לפי ID
   const displayOrders = useMemo(() => {
-    if (!user?.isAdmin) return localOrders
     const merged = new Map<string, Order>()
     cloudOrders.forEach(o => merged.set(o.id, o))
     localOrders.forEach(o => { if (!merged.has(o.id)) merged.set(o.id, o) })
     return Array.from(merged.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
-  }, [cloudOrders, localOrders, user?.isAdmin])
+  }, [cloudOrders, localOrders])
 
   const filteredOrders = useMemo(() => {
     return displayOrders.filter(order => {

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { X, Send, Download, Loader2, MessageSquare, Image as ImageIcon } from 'lucide-react'
-import { generateOrderImage } from '../lib/orderImage'
+import { X, Send, Download, Loader2, MessageSquare, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { generateOrderImage, generateBranchImages } from '../lib/orderImage'
 
 interface BranchItems {
   branch: string
@@ -44,8 +44,9 @@ export default function DispatchPreviewModal({
   onSent,
 }: Props) {
   const [adminNote, setAdminNote] = useState('')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [blob, setBlob] = useState<Blob | null>(null)
+  // Multi-image support: array of { branch, url, blob }
+  const [images, setImages] = useState<{ branch: string; url: string; blob: Blob }[]>([])
+  const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const genSeq = useRef(0)
@@ -53,17 +54,20 @@ export default function DispatchPreviewModal({
   const noteId = useId()
   const titleId = useId()
 
+  const activeBranches = branches.filter(b => b.items.some(i => i.quantity > 0))
+  const multiPage = activeBranches.length > 2
+
   useEffect(() => {
     if (!open) {
       setAdminNote('')
-      setPreviewUrl(null)
-      setBlob(null)
+      setImages(prev => { prev.forEach(i => URL.revokeObjectURL(i.url)); return [] })
+      setActiveIdx(0)
       setError(null)
       return
     }
   }, [open])
 
-  // Regenerate image when note changes (debounced)
+  // Generate images when note changes (debounced)
   useEffect(() => {
     if (!open) return
     const seq = ++genSeq.current
@@ -71,32 +75,52 @@ export default function DispatchPreviewModal({
     setError(null)
     const t = setTimeout(async () => {
       try {
-        const b = await generateOrderImage({
-          supplier,
-          branches,
-          adminPhone,
-          adminNote,
-        })
-        if (seq !== genSeq.current) return
-        setBlob(b)
-        setPreviewUrl(prev => {
-          if (prev) URL.revokeObjectURL(prev)
-          return URL.createObjectURL(b)
-        })
-      } catch (e) {
+        if (multiPage) {
+          // Generate one image per branch
+          const results = await generateBranchImages({
+            supplier,
+            branches,
+            adminPhone,
+            adminNote,
+          })
+          if (seq !== genSeq.current) return
+          setImages(prev => {
+            prev.forEach(i => URL.revokeObjectURL(i.url))
+            return results.map(r => ({
+              branch: r.branch,
+              url: URL.createObjectURL(r.blob),
+              blob: r.blob,
+            }))
+          })
+        } else {
+          // Single combined image
+          const blob = await generateOrderImage({
+            supplier,
+            branches,
+            adminPhone,
+            adminNote,
+          })
+          if (seq !== genSeq.current) return
+          setImages(prev => {
+            prev.forEach(i => URL.revokeObjectURL(i.url))
+            return [{ branch: '', url: URL.createObjectURL(blob), blob }]
+          })
+        }
+        setActiveIdx(0)
+      } catch {
         if (seq === genSeq.current) setError('שגיאה ביצירת התמונה')
       } finally {
         if (seq === genSeq.current) setLoading(false)
       }
     }, 350)
     return () => clearTimeout(t)
-  }, [open, adminNote, supplier, branches, adminPhone])
+  }, [open, adminNote, supplier, branches, adminPhone, multiPage])
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      images.forEach(i => URL.revokeObjectURL(i.url))
     }
-  }, [previewUrl])
+  }, [])
 
   // Escape to close + focus trap
   useEffect(() => {
@@ -123,31 +147,38 @@ export default function DispatchPreviewModal({
     : messageText
 
   const handleShare = async () => {
-    if (!blob) return
-    const file = new File([blob], `order-${supplier}-${Date.now()}.png`, {
-      type: 'image/png',
+    if (images.length === 0) return
+    const files = images.map(img => {
+      const name = img.branch
+        ? `order-${supplier}-${img.branch}-${Date.now()}.png`
+        : `order-${supplier}-${Date.now()}.png`
+      return new File([img.blob], name, { type: 'image/png' })
     })
     try {
       const nav = navigator as Navigator & {
         canShare?: (d: { files?: File[] }) => boolean
       }
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], text: finalText, title: `הזמנה - ${supplier}` })
+      if (nav.canShare && nav.canShare({ files })) {
+        await nav.share({ files, text: finalText, title: `הזמנה - ${supplier}` })
         onSent()
         return
       }
     } catch {
       // user cancelled or unsupported — fall through
     }
-    // Fallback: download image, open WhatsApp with text
-    downloadImage(file)
+    // Fallback: download all images, open WhatsApp with text
+    files.forEach(f => downloadImage(f))
     window.open(buildWhatsAppUrl(supplierPhone, finalText), '_blank')
     onSent()
   }
 
   const handleDownload = () => {
-    if (!blob) return
-    downloadImage(new File([blob], `order-${supplier}-${Date.now()}.png`, { type: 'image/png' }))
+    images.forEach(img => {
+      const name = img.branch
+        ? `order-${supplier}-${img.branch}-${Date.now()}.png`
+        : `order-${supplier}-${Date.now()}.png`
+      downloadImage(new File([img.blob], name, { type: 'image/png' }))
+    })
   }
 
   const handleTextOnly = () => {
@@ -172,7 +203,10 @@ export default function DispatchPreviewModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-primary/10">
           <div>
             <h3 id={titleId} className="font-black text-primary text-base">תצוגה מקדימה</h3>
-            <p className="text-primary/50 text-xs">{supplier}</p>
+            <p className="text-primary/50 text-xs">
+              {supplier}
+              {multiPage && ` · ${activeBranches.length} דפים`}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -207,18 +241,20 @@ export default function DispatchPreviewModal({
           <div>
             <div className="flex items-center gap-1.5 text-primary font-black text-sm mb-1.5">
               <ImageIcon size={14} />
-              תצוגה מקדימה של התמונה
+              {multiPage
+                ? `תמונה ${activeIdx + 1} מתוך ${images.length} — ${images[activeIdx]?.branch || '...'}`
+                : 'תצוגה מקדימה של התמונה'}
             </div>
-            <div className="bg-primary/5 rounded-2xl p-3 flex items-center justify-center min-h-[260px]">
-              {loading && !previewUrl ? (
+            <div className="bg-primary/5 rounded-2xl p-3 flex items-center justify-center min-h-[260px] relative">
+              {loading && images.length === 0 ? (
                 <Loader2 size={28} className="text-primary/40 animate-spin" />
               ) : error ? (
                 <p className="text-red-600 text-sm font-bold">{error}</p>
-              ) : previewUrl ? (
+              ) : images[activeIdx] ? (
                 <div className="relative w-full">
                   <img
-                    src={previewUrl}
-                    alt="תצוגה מקדימה"
+                    src={images[activeIdx].url}
+                    alt={images[activeIdx].branch || 'תצוגה מקדימה'}
                     className="w-full rounded-xl shadow-md"
                   />
                   {loading && (
@@ -228,7 +264,45 @@ export default function DispatchPreviewModal({
                   )}
                 </div>
               ) : null}
+
+              {/* Navigation arrows for multi-page */}
+              {multiPage && images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setActiveIdx(i => Math.max(0, i - 1))}
+                    disabled={activeIdx === 0}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 bg-white/90 shadow-md rounded-full p-1.5 text-primary disabled:opacity-30 active:scale-90 touch-manipulation"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                  <button
+                    onClick={() => setActiveIdx(i => Math.min(images.length - 1, i + 1))}
+                    disabled={activeIdx === images.length - 1}
+                    className="absolute left-1 top-1/2 -translate-y-1/2 bg-white/90 shadow-md rounded-full p-1.5 text-primary disabled:opacity-30 active:scale-90 touch-manipulation"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                </>
+              )}
             </div>
+
+            {/* Page dots */}
+            {multiPage && images.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 mt-2">
+                {images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveIdx(i)}
+                    className={`h-2 rounded-full transition-all touch-manipulation ${
+                      i === activeIdx
+                        ? 'w-6 bg-primary'
+                        : 'w-2 bg-primary/25 hover:bg-primary/40'
+                    }`}
+                    title={img.branch}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -236,20 +310,22 @@ export default function DispatchPreviewModal({
         <div className="px-5 py-4 border-t border-primary/10 space-y-2">
           <button
             onClick={handleShare}
-            disabled={!blob || loading}
+            disabled={images.length === 0 || loading}
             className="w-full flex items-center justify-center gap-2 bg-green-500 text-white font-black py-3.5 rounded-2xl text-base active:scale-95 touch-manipulation disabled:opacity-50 shadow-md"
           >
             <Send size={18} />
-            שלח לוואטסאפ (תמונה + טקסט)
+            {multiPage
+              ? `שלח לוואטסאפ (${images.length} תמונות + טקסט)`
+              : 'שלח לוואטסאפ (תמונה + טקסט)'}
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleDownload}
-              disabled={!blob || loading}
+              disabled={images.length === 0 || loading}
               className="flex items-center justify-center gap-1.5 bg-primary/10 text-primary font-bold py-2.5 rounded-xl text-sm active:scale-95 touch-manipulation disabled:opacity-50"
             >
               <Download size={15} />
-              הורד תמונה
+              {multiPage ? `הורד ${images.length} תמונות` : 'הורד תמונה'}
             </button>
             <button
               onClick={handleTextOnly}

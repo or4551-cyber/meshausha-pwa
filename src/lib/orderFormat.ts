@@ -16,15 +16,12 @@ interface BranchItems {
 const SEP = '━━━━━━━━━━━━━━━━━━━━'
 const dateStr = () => new Date().toLocaleDateString('he-IL')
 
-/** מיישר טבלה: שם מוצר משמאל (עם ריפוד נקודות), כמות מימין */
+/** מיישר טבלה: שם מוצר + כמות בצורה קריאה */
 function formatRows(items: Item[], showPrice: boolean): string {
-  const NAME_WIDTH = 22
   return items.map(it => {
-    const name = it.name.length > NAME_WIDTH ? it.name.slice(0, NAME_WIDTH - 1) + '…' : it.name
-    const padded = name.padEnd(NAME_WIDTH, ' ')
     const qty = `× ${it.quantity}`
-    const priceCol = showPrice && it.price ? `   ${formatPrice(it.price * it.quantity)}` : ''
-    return `${padded}${qty}${priceCol}`
+    const priceCol = showPrice && it.price ? ` — ${formatPrice(it.price * it.quantity)}` : ''
+    return `${it.name}  ${qty}${priceCol}`
   }).join('\n')
 }
 
@@ -94,20 +91,29 @@ export function formatDispatchOrder(opts: {
   branches: BranchItems[]
 }): string {
   const { supplier, branches } = opts
-  let text = `🛒 *הזמנה — ${supplier}*\n`
-  text += `📅 ${dateStr()}\n\n`
+  const activeBranches = branches.filter(b => b.items.some(i => i.quantity > 0))
+  const totalItems = activeBranches.reduce((s, b) => s + b.items.filter(i => i.quantity > 0).length, 0)
 
-  branches.forEach(({ branch, items, notes }) => {
+  // Compact: skip code blocks for large orders to stay readable
+  const compact = activeBranches.length > 3 || totalItems > 40
+
+  let text = `🛒 *הזמנה — ${supplier}*\n`
+  text += `📅 ${dateStr()}  •  ${activeBranches.length} סניפים\n\n`
+
+  activeBranches.forEach(({ branch, items, notes }) => {
     const filtered = items.filter(i => i.quantity > 0)
     if (filtered.length === 0) return
     const total = filtered.reduce((s, i) => s + i.quantity, 0)
     text += `📍 *${branch}*\n`
-    text += '```\n'
-    text += `${SEP}\n`
-    text += formatRows(filtered, false) + '\n'
-    text += `${SEP}\n`
-    text += '```'
-    text += `\n_${total} יחידות_`
+    if (compact) {
+      text += filtered.map(i => `• ${i.name}  × ${i.quantity}`).join('\n') + '\n'
+    } else {
+      text += '```\n'
+      text += formatRows(filtered, false) + '\n'
+      text += '```'
+      text += '\n'
+    }
+    text += `_${filtered.length} פריטים • ${total} יח'_`
     if (notes) text += `\n📝 ${notes}`
     text += '\n\n'
   })

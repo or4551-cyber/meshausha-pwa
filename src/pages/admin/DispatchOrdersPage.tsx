@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, Send, CheckCircle, Phone, Package,
-  Loader2, ChevronDown, ChevronUp, Edit2, Check, RefreshCw
+  Loader2, ChevronDown, ChevronUp, Edit2, Check, RefreshCw, Plus, Search, X
 } from 'lucide-react'
 import { useOrdersStore } from '../../stores/ordersStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
@@ -38,6 +38,12 @@ export default function DispatchOrdersPage() {
   const [editedQty, setEditedQty] = useState<Record<string, number>>({})
   // מצב עריכה פעיל: editingKey = orderId_supplier
   const [editingKey, setEditingKey] = useState<string | null>(null)
+
+  // פריטים שנוספו ע"י אדמין: addedItems[orderId_supplier] = CartItem[]
+  const [addedItems, setAddedItems] = useState<Record<string, CartItem[]>>({})
+  // מצב בחירת מוצר חדש: addingProductKey = orderId_supplier
+  const [addingProductKey, setAddingProductKey] = useState<string | null>(null)
+  const [productSearch, setProductSearch] = useState('')
 
   // מצב מודאל תצוגה מקדימה
   const [previewState, setPreviewState] = useState<{
@@ -130,15 +136,51 @@ export default function DispatchOrdersPage() {
     setEditedQty(prev => ({ ...prev, [key]: Math.max(0, qty) }))
   }
 
+  // הוספת פריט חדש להזמנה
+  const addItemToOrder = (orderId: string, supplier: string, product: { id: string; name: string; price: number }) => {
+    const key = `${orderId}_${supplier}`
+    setAddedItems(prev => {
+      const existing = prev[key] || []
+      // לא מוסיף כפילות
+      if (existing.some(i => i.productId === product.id)) return prev
+      return {
+        ...prev,
+        [key]: [...existing, { productId: product.id, name: product.name, supplier, quantity: 1, price: product.price }],
+      }
+    })
+    setAddingProductKey(null)
+    setProductSearch('')
+  }
+
+  const setAddedQty = (key: string, productId: string, qty: number) => {
+    if (qty <= 0) {
+      // מסיר פריט
+      setAddedItems(prev => ({
+        ...prev,
+        [key]: (prev[key] || []).filter(i => i.productId !== productId),
+      }))
+      return
+    }
+    setAddedItems(prev => ({
+      ...prev,
+      [key]: (prev[key] || []).map(i => i.productId === productId ? { ...i, quantity: qty } : i),
+    }))
+  }
+
   // בניית הודעת WhatsApp לספק
   const buildMessage = (supplier: string, orders: Order[]) => {
-    const branches = orders.map(order => ({
-      branch: order.branch,
-      notes: order.notes,
-      items: order.items
+    const branches = orders.map(order => {
+      const key = `${order.id}_${supplier}`
+      const originalItems = order.items
         .filter(i => i.supplier === supplier)
-        .map(i => ({ name: i.name, quantity: getQty(order.id, i) })),
-    }))
+        .map(i => ({ name: i.name, quantity: getQty(order.id, i) }))
+      const extra = (addedItems[key] || []).map(i => ({ name: i.name, quantity: i.quantity }))
+      return {
+        branch: order.branch,
+        notes: order.notes,
+        items: [...originalItems, ...extra],
+      }
+    })
     return formatDispatchOrder({ supplier, branches })
   }
 
@@ -149,13 +191,18 @@ export default function DispatchOrdersPage() {
 
     const group = supplierGroups[supplier]
     const selectedOrders = group.orders.filter(o => sel.has(o.id))
-    const branchesData = selectedOrders.map(order => ({
-      branch: order.branch,
-      notes: order.notes,
-      items: order.items
+    const branchesData = selectedOrders.map(order => {
+      const key = `${order.id}_${supplier}`
+      const originalItems = order.items
         .filter(i => i.supplier === supplier)
-        .map(i => ({ name: i.name, quantity: getQty(order.id, i) })),
-    }))
+        .map(i => ({ name: i.name, quantity: getQty(order.id, i) }))
+      const extra = (addedItems[key] || []).map(i => ({ name: i.name, quantity: i.quantity }))
+      return {
+        branch: order.branch,
+        notes: order.notes,
+        items: [...originalItems, ...extra],
+      }
+    })
 
     setPreviewState({
       open: true,
@@ -406,7 +453,96 @@ export default function DispatchOrdersPage() {
                                         )}
                                       </div>
                                     ))}
+
+                                    {/* פריטים שנוספו ע"י אדמין */}
+                                    {(addedItems[expandKey] || []).map(added => (
+                                      <div key={added.productId}
+                                        className="flex items-center justify-between gap-3">
+                                        <span className="text-green-700 font-bold text-sm flex-1">
+                                          + {added.name}
+                                        </span>
+                                        {isEditing ? (
+                                          <div className="flex items-center gap-1.5">
+                                            <button
+                                              onClick={() => setAddedQty(expandKey, added.productId, added.quantity - 1)}
+                                              className="w-7 h-7 rounded-lg bg-primary/10 text-primary font-black flex items-center justify-center active:scale-90 touch-manipulation">
+                                              −
+                                            </button>
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              value={added.quantity}
+                                              onChange={e => setAddedQty(expandKey, added.productId, parseInt(e.target.value) || 1)}
+                                              className="w-12 text-center bg-white border border-primary/20 text-primary font-black rounded-lg py-1 text-sm focus:outline-none"
+                                            />
+                                            <button
+                                              onClick={() => setAddedQty(expandKey, added.productId, added.quantity + 1)}
+                                              className="w-7 h-7 rounded-lg bg-primary/10 text-primary font-black flex items-center justify-center active:scale-90 touch-manipulation">
+                                              +
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <span className="text-green-600 font-bold text-sm">
+                                            × {added.quantity}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
                                   </div>
+
+                                  {/* הוספת פריט חדש — בוחר מוצר מהקטלוג */}
+                                  {isEditing && addingProductKey === expandKey && (
+                                    <div className="mt-2 bg-white rounded-xl border border-primary/20 p-2">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Search size={14} className="text-primary/40" />
+                                        <input
+                                          type="text"
+                                          value={productSearch}
+                                          onChange={e => setProductSearch(e.target.value)}
+                                          placeholder="חיפוש מוצר..."
+                                          autoFocus
+                                          className="flex-1 text-sm text-primary font-bold bg-transparent focus:outline-none placeholder:text-primary/30"
+                                        />
+                                        <button onClick={() => { setAddingProductKey(null); setProductSearch('') }}
+                                          className="text-primary/40 p-0.5 touch-manipulation">
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                      <div className="max-h-36 overflow-y-auto space-y-1">
+                                        {(() => {
+                                          const { getProductsBySupplier } = useSuppliersStore.getState()
+                                          const existingNames = new Set([
+                                            ...supplierItems.map(i => i.name),
+                                            ...(addedItems[expandKey] || []).map(i => i.name),
+                                          ])
+                                          const available = getProductsBySupplier(supplier)
+                                            .filter(p => !existingNames.has(p.name))
+                                            .filter(p => !productSearch || p.name.includes(productSearch))
+                                          if (available.length === 0) {
+                                            return <p className="text-primary/40 text-xs text-center py-2">לא נמצאו מוצרים</p>
+                                          }
+                                          return available.slice(0, 20).map(p => (
+                                            <button
+                                              key={p.id}
+                                              onClick={() => addItemToOrder(order.id, supplier, p)}
+                                              className="w-full text-right px-2 py-1.5 rounded-lg text-xs font-bold text-primary hover:bg-primary/5 active:bg-primary/10 touch-manipulation transition-colors"
+                                            >
+                                              {p.name}
+                                            </button>
+                                          ))
+                                        })()}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {isEditing && addingProductKey !== expandKey && (
+                                    <button
+                                      onClick={() => { setAddingProductKey(expandKey); setProductSearch('') }}
+                                      className="mt-2 w-full flex items-center justify-center gap-1.5 border-2 border-dashed border-primary/20 text-primary/50 font-bold py-2 rounded-xl text-sm active:scale-[0.98] touch-manipulation hover:border-primary/40 transition-colors"
+                                    >
+                                      <Plus size={14} /> הוסף פריט
+                                    </button>
+                                  )}
 
                                   {order.notes && (
                                     <p className="text-amber-700 text-xs font-bold mt-2 pt-2 border-t border-primary/10">
@@ -416,7 +552,7 @@ export default function DispatchOrdersPage() {
 
                                   {isEditing && (
                                     <button
-                                      onClick={() => setEditingKey(null)}
+                                      onClick={() => { setEditingKey(null); setAddingProductKey(null); setProductSearch('') }}
                                       className="mt-2 w-full flex items-center justify-center gap-1.5 bg-primary text-secondary font-bold py-2 rounded-xl text-sm active:scale-95 touch-manipulation"
                                     >
                                       <Check size={14} /> סיום עריכה

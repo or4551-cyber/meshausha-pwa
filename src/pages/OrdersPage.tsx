@@ -10,7 +10,8 @@ export default function OrdersPage() {
   const [searchParams] = useSearchParams()
   const { favorites, getTotalItems } = useCartStore()
   // סלקטור ריאקטיבי — מתרענן אוטומטית כשהסטור משתנה (זריעה, עדכון מחיר, הוספה/מחיקה)
-  const allProducts = useSuppliersStore(s => s.products)
+  const storeProducts = useSuppliersStore(s => s.products)
+  const allProducts = useMemo(() => storeProducts.filter(p => !p.adminOnly), [storeProducts])
   const [searchTerm, setSearchTerm] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<string>(
