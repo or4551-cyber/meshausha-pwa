@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Star, Plus, Minus, ShoppingCart } from 'lucide-react'
+import { Star, Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { Product } from '../data/products'
@@ -12,7 +12,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [quantity, setQuantity] = useState(1)
-  const { addItem, favorites, toggleFavorite, items } = useCartStore()
+  const { addItem, removeItem, updateQuantity, favorites, toggleFavorite, items } = useCartStore()
   const { user } = useAuthStore()
   const isFavorite = favorites.includes(product.id)
   const cartItem = items.find(item => item.productId === product.id)
@@ -56,10 +56,34 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {cartItem && (
-        <div className="bg-primary/5 rounded-xl p-2 mb-3 text-center">
-          <span className="text-primary font-bold text-sm">
-            בסל: {cartItem.quantity} יחידות
-          </span>
+        <div className="bg-primary/5 rounded-xl p-2 mb-3 flex items-center justify-between gap-2">
+          <span className="text-primary font-bold text-sm">בסל</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
+              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg active:scale-90 touch-manipulation"
+              aria-label="הורד כמות"
+            >
+              <Minus size={16} />
+            </button>
+            <span className="font-black text-primary min-w-[1.75rem] text-center text-sm">
+              {cartItem.quantity}
+            </span>
+            <button
+              onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg active:scale-90 touch-manipulation"
+              aria-label="הוסף כמות"
+            >
+              <Plus size={16} />
+            </button>
+            <button
+              onClick={() => removeItem(product.id)}
+              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg active:scale-90 touch-manipulation mr-1"
+              aria-label="הסר מהסל"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         </div>
       )}
 

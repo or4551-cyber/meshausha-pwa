@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown, CheckCircle2, Loader2 } from 'lucide-react'
+import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { useOrdersStore } from '../stores/ordersStore'
@@ -9,7 +9,7 @@ import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { printOrderAsPDF } from '../lib/pdfExport'
 import { saveOrderToCloudBeacon } from '../lib/cloudApi'
-import { formatSingleSupplierOrder, formatMultiSupplierOrder } from '../lib/orderFormat'
+import SendOrderModal from '../components/SendOrderModal'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function SummaryPage() {
@@ -22,37 +22,14 @@ export default function SummaryPage() {
   const [notes, setNotes] = useState('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
-  const [sendState, setSendState] = useState<'idle' | 'saving' | 'done'>('idle')
-  const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [showSendModal, setShowSendModal] = useState(false)
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // מחזיר מספר WhatsApp בפורמט בינלאומי ישראלי
-  const getWhatsAppNumber = (supplierName: string) => {
+  const getSupplierPhone = (supplierName: string) => {
     const supplier = getAllSuppliers().find(s => s.name === supplierName)
-    if (!supplier?.phone) return ''
-    const digits = supplier.phone.replace(/\D/g, '')
-    if (digits.startsWith('972')) return digits
-    if (digits.startsWith('0')) return '972' + digits.slice(1)
-    return '972' + digits
+    return supplier?.phone || ''
   }
 
-  const buildSupplierText = (supplierName: string, supplierItems: typeof items) => {
-    return formatSingleSupplierOrder({
-      branch: user?.branch || '',
-      supplier: supplierName,
-      items: supplierItems,
-      notes,
-      showPrice: user?.isAdmin ?? false,
-    })
-  }
-
-  const openWhatsApp = (supplierName: string, supplierItems: typeof items) => {
-    const phone = getWhatsAppNumber(supplierName)
-    const text = buildSupplierText(supplierName, supplierItems)
-    const url = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`
-    window.open(url, '_blank')
-  }
   const groupedItems = items.reduce((acc, item) => {
     if (!acc[item.supplier]) {
       acc[item.supplier] = []
@@ -65,11 +42,7 @@ export default function SummaryPage() {
   const vat = calculateVAT(totalBeforeVAT)
   const totalWithVAT = calculateTotal(totalBeforeVAT)
 
-  const handleSendOrder = async () => {
-    if (sendState !== 'idle') return
-    setSendState('saving')
-
-    // 1. שמירה מקומית סינכרונית
+  const persistOrder = () => {
     const newOrder = addOrder({
       branch: user?.branch || '',
       branchCode: user?.branchCode || '',
@@ -78,37 +51,13 @@ export default function SummaryPage() {
       totalPrice: totalWithVAT
     })
     recordOrderPrices(items, user?.branchCode || '', newOrder.createdAt)
-
-    // 2. שליחה לענן באמצעות sendBeacon — אמין גם כשהדפדפן עובר ל-WhatsApp
     saveOrderToCloudBeacon(newOrder)
+  }
 
-    // 3. פתיחת WhatsApp — חייבת להיות סינכרונית (אחרת דפדפנים חוסמים)
-    if (user?.isAdmin) {
-      const supplierEntries = Object.entries(groupedItems)
-      if (supplierEntries.length === 1) {
-        const [supplierName, supplierItems] = supplierEntries[0]
-        openWhatsApp(supplierName, supplierItems)
-      } else {
-        const orderText = generateOrderText()
-        window.open(`https://wa.me/?text=${encodeURIComponent(orderText)}`, '_blank')
-      }
-    } else {
-      const orderText = generateOrderText()
-      const adminDigits = adminPhone.replace(/\D/g, '')
-      const adminWA = adminDigits.startsWith('972')
-        ? adminDigits
-        : adminDigits.startsWith('0')
-          ? '972' + adminDigits.slice(1)
-          : adminDigits ? '972' + adminDigits : ''
-      const url = adminWA
-        ? `https://wa.me/${adminWA}?text=${encodeURIComponent(orderText)}`
-        : `https://wa.me/?text=${encodeURIComponent(orderText)}`
-      window.open(url, '_blank')
-    }
-
-    setSendState('done')
+  const handleCompleteSend = () => {
+    setShowSendModal(false)
     clearCart()
-    sendTimerRef.current = setTimeout(() => navigate('/'), 800)
+    navTimerRef.current = setTimeout(() => navigate('/'), 300)
   }
 
   const handleSaveAsNewTemplate = () => {
@@ -121,18 +70,6 @@ export default function SummaryPage() {
   const handleUpdateTemplate = (templateId: string) => {
     updateTemplate(templateId, items)
     setShowTemplateModal(false)
-  }
-
-  const generateOrderText = () => {
-    return formatMultiSupplierOrder({
-      branch: user?.branch || '',
-      groups: groupedItems,
-      notes,
-      showPrice: user?.isAdmin ?? false,
-      showFinancial: user?.isAdmin
-        ? { totalBeforeVAT, vat, totalWithVAT }
-        : undefined,
-    })
   }
 
   if (items.length === 0) {
@@ -183,15 +120,6 @@ export default function SummaryPage() {
           >
             <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-primary/10">
               <h3 className="font-black text-primary text-lg">{supplier}</h3>
-              {user?.isAdmin && Object.keys(groupedItems).length > 1 && (
-                <button
-                  onClick={() => openWhatsApp(supplier, supplierItems)}
-                  className="flex items-center gap-1.5 bg-green-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl active:scale-95 touch-manipulation"
-                >
-                  <Send size={13} />
-                  שלח
-                </button>
-              )}
             </div>
             <div className="space-y-2">
               {supplierItems.map(item => (
@@ -291,32 +219,11 @@ export default function SummaryPage() {
             </button>
           </div>
           <button
-            onClick={handleSendOrder}
-            disabled={sendState !== 'idle'}
-            className={`w-full font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl touch-manipulation ${
-              sendState === 'done'
-                ? 'bg-green-600 text-white scale-[0.99]'
-                : sendState === 'saving'
-                  ? 'bg-green-400 text-white cursor-wait'
-                  : 'bg-green-500 text-white active:scale-[0.98]'
-            }`}
+            onClick={() => setShowSendModal(true)}
+            className="w-full font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl touch-manipulation bg-green-500 text-white active:scale-[0.98]"
           >
-            {sendState === 'done' ? (
-              <>
-                <CheckCircle2 size={24} />
-                <span>נשלח!</span>
-              </>
-            ) : sendState === 'saving' ? (
-              <>
-                <Loader2 size={24} className="animate-spin" />
-                <span>שומר...</span>
-              </>
-            ) : (
-              <>
-                <Send size={24} />
-                <span>שלח הזמנה</span>
-              </>
-            )}
+            <Send size={24} />
+            <span>בדוק ושלח</span>
           </button>
         </div>
       </div>
@@ -396,6 +303,20 @@ export default function SummaryPage() {
           </>
         )}
       </AnimatePresence>
+
+      <SendOrderModal
+        open={showSendModal}
+        isAdmin={user?.isAdmin ?? false}
+        branch={user?.branch || ''}
+        notes={notes}
+        onNotesChange={setNotes}
+        adminPhone={adminPhone}
+        getSupplierPhone={getSupplierPhone}
+        showFinancial={user?.isAdmin ? { totalBeforeVAT, vat, totalWithVAT } : undefined}
+        onClose={() => setShowSendModal(false)}
+        onPersist={persistOrder}
+        onComplete={handleCompleteSend}
+      />
     </div>
   )
 }
