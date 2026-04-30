@@ -5,6 +5,11 @@ import { useCartStore, CartItem } from '../stores/cartStore'
 import { formatPrice } from '../lib/utils'
 import { formatSingleSupplierOrder } from '../lib/orderFormat'
 
+interface BranchOption {
+  code: string
+  name: string
+}
+
 interface Props {
   open: boolean
   isAdmin: boolean
@@ -14,6 +19,9 @@ interface Props {
   adminPhone: string
   getSupplierPhone: (supplierName: string) => string
   showFinancial?: { totalBeforeVAT: number; vat: number; totalWithVAT: number }
+  branchOptions?: BranchOption[]
+  selectedBranchCode?: string
+  onSelectBranch?: (code: string) => void
   onClose: () => void
   onPersist: () => void
   onComplete: () => void
@@ -36,6 +44,9 @@ export default function SendOrderModal({
   adminPhone,
   getSupplierPhone,
   showFinancial,
+  branchOptions,
+  selectedBranchCode,
+  onSelectBranch,
   onClose,
   onPersist,
   onComplete,
@@ -43,6 +54,8 @@ export default function SendOrderModal({
   const { items, updateQuantity, removeItem } = useCartStore()
   const [sent, setSent] = useState<Set<string>>(new Set())
   const persistedRef = useRef(false)
+  const wasHiddenRef = useRef(false)
+  const autoFinishedRef = useRef(false)
 
   const grouped = useMemo(() => {
     return items.reduce((acc, item) => {
@@ -59,8 +72,33 @@ export default function SendOrderModal({
     if (!open) {
       setSent(new Set())
       persistedRef.current = false
+      wasHiddenRef.current = false
+      autoFinishedRef.current = false
     }
   }, [open])
+
+  // After all suppliers sent, auto-finish when user returns to the app
+  useEffect(() => {
+    if (!open) return
+    const handleVisibility = () => {
+      if (document.hidden) {
+        wasHiddenRef.current = true
+        return
+      }
+      if (
+        wasHiddenRef.current &&
+        !autoFinishedRef.current &&
+        sent.size > 0 &&
+        supplierNames.length > 0 &&
+        supplierNames.every(s => sent.has(s))
+      ) {
+        autoFinishedRef.current = true
+        setTimeout(() => onComplete(), 400)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [open, sent, supplierNames, onComplete])
 
   useEffect(() => {
     if (!open) return
@@ -136,7 +174,7 @@ export default function SendOrderModal({
             <div>
               <h3 className="font-black text-primary text-lg">אישור ושליחת הזמנה</h3>
               <p className="text-primary/50 text-xs">
-                {isAdmin ? 'כל ספק נשלח ישירות' : `${supplierNames.length} ${supplierNames.length === 1 ? 'ספק — נשלח לאדמין' : 'ספקים — הודעה נפרדת לאדמין לכל ספק'}`}
+                {isAdmin ? 'כל ספק נשלח ישירות' : `${supplierNames.length} ${supplierNames.length === 1 ? 'ספק — נשלח לאור' : 'ספקים — הודעה נפרדת לאור לכל ספק'}`}
               </p>
             </div>
             <button
@@ -152,6 +190,27 @@ export default function SendOrderModal({
             {isEmpty && (
               <div className="text-center py-8 text-primary/50 font-bold">
                 הסל ריק
+              </div>
+            )}
+
+            {isAdmin && branchOptions && branchOptions.length > 0 && !isEmpty && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                <label className="block text-amber-800 font-black text-sm mb-2">
+                  שייך הזמנה לסניף
+                </label>
+                <select
+                  value={selectedBranchCode || ''}
+                  onChange={e => onSelectBranch?.(e.target.value)}
+                  className="w-full bg-white text-primary font-bold rounded-xl py-2.5 px-3 text-sm border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                >
+                  <option value="">— בחר סניף —</option>
+                  {branchOptions.map(b => (
+                    <option key={b.code} value={b.code}>{b.name}</option>
+                  ))}
+                </select>
+                <p className="text-amber-700/70 text-xs mt-1.5 font-bold">
+                  ההזמנה תישמר בהיסטוריה של הסניף שנבחר
+                </p>
               </div>
             )}
 
@@ -232,7 +291,7 @@ export default function SendOrderModal({
                     ) : (
                       <>
                         <Send size={15} />
-                        <span>{isAdmin ? `שלח ל-${supplier}` : 'שלח לאדמין'}</span>
+                        <span>{isAdmin ? `שלח ל-${supplier}` : 'שלח לאור'}</span>
                       </>
                     )}
                   </button>
@@ -275,25 +334,34 @@ export default function SendOrderModal({
           </div>
 
           <div className="px-5 py-4 border-t border-primary/10 space-y-2">
-            <button
-              onClick={handleFinish}
-              disabled={isEmpty}
-              className={`w-full flex items-center justify-center gap-2 font-black py-3.5 rounded-2xl text-base active:scale-95 touch-manipulation shadow-md disabled:opacity-50 ${
-                allSent
-                  ? 'bg-primary text-secondary'
-                  : 'bg-primary/15 text-primary'
-              }`}
-            >
-              <CheckCircle2 size={18} />
-              <span>{allSent ? 'סיים — שמור הזמנה' : 'סיים'}</span>
-            </button>
-            <p className="text-primary/40 text-xs text-center">
-              {allSent
-                ? 'כל הספקים נשלחו · לחץ סיים לשמירה'
-                : isEmpty
-                  ? 'הוסף פריטים לסל לפני שליחה'
-                  : 'שלח כל ספק בנפרד, ואז לחץ סיים'}
-            </p>
+            {sent.size > 0 && !isEmpty ? (
+              <>
+                <button
+                  onClick={handleFinish}
+                  className={`w-full flex items-center justify-center gap-2 font-black py-3.5 rounded-2xl text-base active:scale-95 touch-manipulation shadow-md ${
+                    allSent
+                      ? 'bg-primary text-secondary'
+                      : 'bg-primary/15 text-primary'
+                  }`}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>{allSent ? 'סיים — שמור הזמנה' : 'סיים בכל מקרה'}</span>
+                </button>
+                <p className="text-primary/40 text-xs text-center">
+                  {allSent
+                    ? 'כל הספקים נשלחו · לחץ סיים לשמירה'
+                    : `${sent.size} מתוך ${supplierNames.length} ספקים נשלחו`}
+                </p>
+              </>
+            ) : (
+              <p className="text-primary/40 text-xs text-center py-2">
+                {isEmpty
+                  ? 'הסל ריק'
+                  : isAdmin
+                    ? 'שלח את ההזמנה לכל ספק'
+                    : 'שלח את ההזמנה לאור'}
+              </p>
+            )}
           </div>
         </motion.div>
       </motion.div>

@@ -23,7 +23,20 @@ export default function SummaryPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [showSendModal, setShowSendModal] = useState(false)
+  const [adminAssignedCode, setAdminAssignedCode] = useState('')
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const BRANCH_OPTIONS = [
+    { code: '1001', name: 'עין המפרץ' },
+    { code: '1002', name: 'ביאליק קרן היסוד' },
+    { code: '1003', name: 'מוצקין הילדים' },
+    { code: '1004', name: 'צור שלום' },
+    { code: '1005', name: 'גושן 60' },
+    { code: '1006', name: 'נהריה הגעתון' },
+    { code: '1007', name: 'ההסתדרות' },
+    { code: '1008', name: 'משכנות האומנים' },
+    { code: '1009', name: 'רון קריית ביאליק' },
+  ]
 
   const getSupplierPhone = (supplierName: string) => {
     const supplier = getAllSuppliers().find(s => s.name === supplierName)
@@ -43,19 +56,29 @@ export default function SummaryPage() {
   const totalWithVAT = calculateTotal(totalBeforeVAT)
 
   const persistOrder = () => {
+    let branchName = user?.branch || ''
+    let branchCode = user?.branchCode || ''
+    if (user?.isAdmin && adminAssignedCode) {
+      const picked = BRANCH_OPTIONS.find(b => b.code === adminAssignedCode)
+      if (picked) {
+        branchName = picked.name
+        branchCode = picked.code
+      }
+    }
     const newOrder = addOrder({
-      branch: user?.branch || '',
-      branchCode: user?.branchCode || '',
+      branch: branchName,
+      branchCode,
       items,
       notes,
       totalPrice: totalWithVAT
     })
-    recordOrderPrices(items, user?.branchCode || '', newOrder.createdAt)
+    recordOrderPrices(items, branchCode, newOrder.createdAt)
     saveOrderToCloudBeacon(newOrder)
   }
 
   const handleCompleteSend = () => {
     setShowSendModal(false)
+    setAdminAssignedCode('')
     clearCart()
     navTimerRef.current = setTimeout(() => navigate('/'), 300)
   }
@@ -307,12 +330,19 @@ export default function SummaryPage() {
       <SendOrderModal
         open={showSendModal}
         isAdmin={user?.isAdmin ?? false}
-        branch={user?.branch || ''}
+        branch={
+          user?.isAdmin && adminAssignedCode
+            ? (BRANCH_OPTIONS.find(b => b.code === adminAssignedCode)?.name || user?.branch || '')
+            : (user?.branch || '')
+        }
         notes={notes}
         onNotesChange={setNotes}
         adminPhone={adminPhone}
         getSupplierPhone={getSupplierPhone}
         showFinancial={user?.isAdmin ? { totalBeforeVAT, vat, totalWithVAT } : undefined}
+        branchOptions={user?.isAdmin ? BRANCH_OPTIONS : undefined}
+        selectedBranchCode={adminAssignedCode}
+        onSelectBranch={setAdminAssignedCode}
         onClose={() => setShowSendModal(false)}
         onPersist={persistOrder}
         onComplete={handleCompleteSend}
