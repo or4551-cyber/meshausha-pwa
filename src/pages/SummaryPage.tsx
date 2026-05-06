@@ -1,22 +1,32 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Trash2, Send, Save, X, Plus, FileDown } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
-import { useOrdersStore } from '../stores/ordersStore'
+import { useOrdersStore, type Order } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
 import { printOrderAsPDF } from '../lib/pdfExport'
-import { saveOrderToCloudBeacon } from '../lib/cloudApi'
+import { saveOrderToCloudBeacon, getOrdersFromCloud, mergeIntoOrder } from '../lib/cloudApi'
+import { formatAdditionOrder } from '../lib/orderFormat'
 import SendOrderModal from '../components/SendOrderModal'
+import DuplicateOrderModal from '../components/DuplicateOrderModal'
 import { motion, AnimatePresence } from 'framer-motion'
+
+function toWaNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('972')) return digits
+  if (digits.startsWith('0')) return '972' + digits.slice(1)
+  return '972' + digits
+}
 
 export default function SummaryPage() {
   const navigate = useNavigate()
   const { items, updateQuantity, removeItem, clearCart, getTotalPrice } = useCartStore()
   const { user } = useAuthStore()
-  const { addOrder, saveTemplate, updateTemplate, templates } = useOrdersStore()
+  const { addOrder, saveTemplate, updateTemplate, templates, getRecentOrderForSupplierBranch, applyMergeAppend } = useOrdersStore()
   const { getAllSuppliers, adminPhone } = useSuppliersStore()
   const { recordOrderPrices } = usePriceHistoryStore()
   const [notes, setNotes] = useState('')
@@ -24,7 +34,15 @@ export default function SummaryPage() {
   const [newTemplateName, setNewTemplateName] = useState('')
   const [showSendModal, setShowSendModal] = useState(false)
   const [adminAssignedCode, setAdminAssignedCode] = useState('')
+  const [cloudOrders, setCloudOrders] = useState<Order[]>([])
+  const [duplicateState, setDuplicateState] = useState<{ open: boolean; existing: Order | null }>({ open: false, existing: null })
+  const [merging, setMerging] = useState(false)
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // טעינת הזמנות מהענן פעם אחת בעלייה — לזיהוי כפילות 12 שעות
+  useEffect(() => {
+    getOrdersFromCloud().then(setCloudOrders).catch(() => {})
+  }, [])
 
   const BRANCH_OPTIONS = [
     { code: '1001', name: 'עין המפרץ' },
@@ -56,15 +74,7 @@ export default function SummaryPage() {
   const totalWithVAT = calculateTotal(totalBeforeVAT)
 
   const persistOrder = () => {
-    let branchName = user?.branch || ''
-    let branchCode = user?.branchCode || ''
-    if (user?.isAdmin && adminAssignedCode) {
-      const picked = BRANCH_OPTIONS.find(b => b.code === adminAssignedCode)
-      if (picked) {
-        branchName = picked.name
-        branchCode = picked.code
-      }
-    }
+    const { branchName, branchCode } = resolveBranchInfo()
     const newOrder = addOrder({
       branch: branchName,
       branchCode,
@@ -81,6 +91,95 @@ export default function SummaryPage() {
     setAdminAssignedCode('')
     clearCart()
     navTimerRef.current = setTimeout(() => navigate('/'), 300)
+  }
+
+  const resolveBranchInfo = () => {
+    let branchName = user?.branch || ''
+    let branchCode = user?.branchCode || ''
+    if (user?.isAdmin && adminAssignedCode) {
+      const picked = BRANCH_OPTIONS.find(b => b.code === adminAssignedCode)
+      if (picked) {
+        branchName = picked.name
+        branchCode = picked.code
+      }
+    }
+    return { branchName, branchCode }
+  }
+
+  // לחיצה על "בדוק ושלח" — בודק אם יש הזמנה אקטיבית ב-12 השעות לאותו ספק+סניף
+  const handleClickSend = () => {
+    if (items.length === 0) return
+    // אדמין חייב לבחור סניף לפני שליחה
+    if (user?.isAdmin && !adminAssignedCode) {
+      setShowSendModal(true)
+      return
+    }
+    const { branchCode } = resolveBranchInfo()
+    if (!branchCode) {
+      setShowSendModal(true)
+      return
+    }
+    const supplier = items[0]?.supplier
+    if (!supplier) {
+      setShowSendModal(true)
+      return
+    }
+    const existing = getRecentOrderForSupplierBranch(supplier, branchCode, 12, cloudOrders)
+    if (existing) {
+      setDuplicateState({ open: true, existing })
+    } else {
+      setShowSendModal(true)
+    }
+  }
+
+  const handleMergeIntoExisting = () => {
+    const existing = duplicateState.existing
+    if (!existing || merging) return
+    setMerging(true)
+    const { branchName, branchCode } = resolveBranchInfo()
+    const supplier = items[0]?.supplier
+    if (!supplier) { setMerging(false); return }
+
+    // 1. פתח WhatsApp מיידית — בתוך ה-click context, אחרת פופאפ ייחסם בסמארטפון
+    const supplierObj = getAllSuppliers().find(s => s.name === supplier)
+    const targetRaw = user?.isAdmin ? (supplierObj?.phone || '') : adminPhone
+    const wa = toWaNumber(targetRaw)
+    const text = formatAdditionOrder({
+      branch: branchName,
+      supplier,
+      items,
+      notes,
+      originalOrderTime: new Date(existing.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+    })
+    const url = wa
+      ? `https://wa.me/${wa}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank')
+
+    // 2. עדכון ענן — fire-and-forget (keepalive שורד ניווט/יציאה ל-WhatsApp)
+    mergeIntoOrder(existing.id, items, notes, branchName).catch(err => {
+      console.warn('mergeIntoOrder cloud failed, addition kept locally only', err)
+    })
+
+    // 3. עדכון מקומי — מיידי
+    const additionTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
+    const newTotalWithVAT = calculateTotal(
+      existing.items.reduce((s, i) => s + i.price * i.quantity, 0) + additionTotal
+    )
+    applyMergeAppend(existing.id, items, notes, newTotalWithVAT)
+    recordOrderPrices(items, branchCode, new Date().toISOString())
+
+    // 4. ניקוי וניווט
+    setMerging(false)
+    setDuplicateState({ open: false, existing: null })
+    clearCart()
+    setNotes('')
+    navTimerRef.current = setTimeout(() => navigate('/'), 300)
+  }
+
+  const handleSendAsNew = () => {
+    setDuplicateState({ open: false, existing: null })
+    setShowSendModal(true)
   }
 
   const handleSaveAsNewTemplate = () => {
@@ -242,7 +341,7 @@ export default function SummaryPage() {
             </button>
           </div>
           <button
-            onClick={() => setShowSendModal(true)}
+            onClick={handleClickSend}
             className="w-full font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl touch-manipulation bg-green-500 text-white active:scale-[0.98]"
           >
             <Send size={24} />
@@ -346,6 +445,16 @@ export default function SummaryPage() {
         onClose={() => setShowSendModal(false)}
         onPersist={persistOrder}
         onComplete={handleCompleteSend}
+      />
+
+      <DuplicateOrderModal
+        open={duplicateState.open}
+        supplier={items[0]?.supplier ?? ''}
+        existingOrderTime={duplicateState.existing?.createdAt ?? new Date().toISOString()}
+        itemsCount={duplicateState.existing?.items.length ?? 0}
+        onMerge={handleMergeIntoExisting}
+        onSendNew={handleSendAsNew}
+        onClose={() => setDuplicateState({ open: false, existing: null })}
       />
     </div>
   )

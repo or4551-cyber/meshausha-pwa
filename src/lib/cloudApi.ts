@@ -99,6 +99,39 @@ export function markOrdersDispatchedInCloud(ids: string[]): void {
   keepalivePatch('orders-api', { ids, status: 'dispatched' })
 }
 
+/** מחיקה רכה של הזמנה (אדמין) — שורד ניווט */
+export function deleteOrderInCloud(id: string): void {
+  keepalivePatch('orders-api', { ids: [id], status: 'deleted' })
+}
+
+/** סימון הזמנה כממוזגת (אחרי מיזוג ידני באדמין) — שורד ניווט */
+export function markOrderMergedInCloud(id: string, mergedIntoId: string): void {
+  keepalivePatch('orders-api', { ids: [id], status: 'merged', mergedIntoId })
+}
+
+/**
+ * מיזוג תוספת לתוך הזמנה קיימת בענן (manager-initiated או admin-initiated).
+ * שולח awaitable כדי שנדע אם הצליח לפני שמסיימים את הזרימה.
+ */
+export async function mergeIntoOrder(
+  targetId: string,
+  items: Array<{ productId: string; name: string; supplier: string; quantity: number; price: number }>,
+  notes: string,
+  branch: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/orders-api`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'merge', targetId, items, notes, branch }),
+      keepalive: true,
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // ─── הגדרות ───────────────────────────────────────────────
 
 /** קבל מספר WhatsApp של אדמין מהענן */

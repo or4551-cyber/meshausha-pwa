@@ -103,7 +103,7 @@ export default function HistoryPage() {
     if (!order) return
     clearCart()
     order.items.forEach(item => {
-      addItem({ productId: item.productId, name: item.name, supplier: item.supplier, price: item.price }, item.quantity)
+      addItem({ productId: item.productId, name: item.name, supplier: item.supplier, price: item.price }, item.quantity, true)
     })
     navigate('/summary')
   }
@@ -113,7 +113,7 @@ export default function HistoryPage() {
     if (!order) return
     clearCart()
     order.items.forEach(item => {
-      addItem({ productId: item.productId, name: item.name, supplier: item.supplier, price: item.price }, item.quantity)
+      addItem({ productId: item.productId, name: item.name, supplier: item.supplier, price: item.price }, item.quantity, true)
     })
     navigate('/orders')
   }
@@ -124,6 +124,8 @@ export default function HistoryPage() {
   // --- כרטיס הזמנה (משותף לרשימה ולוח שנה) ---
   const OrderCard = ({ order, onClose }: { order: Order; onClose?: () => void }) => {
     const delivery = getDeliveryForOrder(order.id)
+    const isDeleted = order.status === 'deleted'
+    const isMerged = order.status === 'merged'
 
     const deliveryBadge = !delivery
       ? { label: 'ממתין לאישור', color: 'bg-primary/10 text-primary/50', Icon: Clock }
@@ -134,8 +136,24 @@ export default function HistoryPage() {
           : { label: 'בתהליך אישור', color: 'bg-blue-100 text-blue-700', Icon: Clock }
 
     return (
-      <div className="bg-secondary rounded-3xl p-4 shadow-md">
-        <div className="flex items-start justify-between mb-3 pb-3 border-b border-primary/10">
+      <div className={`bg-secondary rounded-3xl p-4 shadow-md ${isDeleted ? 'opacity-60' : ''}`}>
+        {isDeleted && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-3 py-2 mb-3 flex items-center gap-2">
+            <AlertCircle size={14} className="text-red-600 flex-shrink-0" />
+            <p className="text-red-700 text-xs font-black flex-1">
+              ההזמנה הוסרה ע"י מנהלת רשת{order.deletedAt ? ` · ${new Date(order.deletedAt).toLocaleDateString('he-IL')}` : ''}
+            </p>
+          </div>
+        )}
+        {isMerged && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl px-3 py-2 mb-3 flex items-center gap-2">
+            <CheckCircle size={14} className="text-blue-600 flex-shrink-0" />
+            <p className="text-blue-700 text-xs font-black flex-1">
+              ההזמנה אוחדה לתוך הזמנה קודמת
+            </p>
+          </div>
+        )}
+        <div className={`flex items-start justify-between mb-3 pb-3 border-b border-primary/10 ${isDeleted ? 'line-through' : ''}`}>
           <div className="flex-1">
             <h3 className="font-black text-primary text-base mb-1">{order.branch}</h3>
             <div className="flex items-center gap-2 flex-wrap">
@@ -143,10 +161,12 @@ export default function HistoryPage() {
                 <Calendar size={12} />
                 <span>{new Date(order.createdAt).toLocaleDateString('he-IL')}</span>
               </div>
-              <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${deliveryBadge.color}`}>
-                <deliveryBadge.Icon size={10} />
-                {deliveryBadge.label}
-              </span>
+              {!isDeleted && !isMerged && (
+                <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${deliveryBadge.color}`}>
+                  <deliveryBadge.Icon size={10} />
+                  {deliveryBadge.label}
+                </span>
+              )}
             </div>
           </div>
           {user?.isAdmin && (
@@ -181,22 +201,25 @@ export default function HistoryPage() {
         <div className="flex gap-2">
           <button
             onClick={() => { onClose?.(); handleReorder(order.id) }}
-            className="flex-1 bg-primary text-secondary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm"
+            disabled={isDeleted || isMerged}
+            className={`flex-1 bg-primary text-secondary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm ${(isDeleted || isMerged) ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             <RefreshCw size={14} />
             <span>הזמן שוב</span>
           </button>
           <button
             onClick={() => { onClose?.(); handleEditAndOrder(order.id) }}
-            className="flex-1 bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm"
+            disabled={isDeleted || isMerged}
+            className={`flex-1 bg-primary/10 text-primary font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform touch-manipulation text-sm ${(isDeleted || isMerged) ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             <Edit size={14} />
             <span>ערוך</span>
           </button>
           <button
             onClick={() => { onClose?.(); navigate(`/delivery/${order.id}`) }}
+            disabled={isDeleted || isMerged}
             className={`bg-primary/10 text-primary font-bold py-2 px-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform touch-manipulation ${
-              delivery?.status === 'confirmed' ? 'opacity-50' : ''
+              delivery?.status === 'confirmed' || isDeleted || isMerged ? 'opacity-50' : ''
             }`}
             aria-label="אשר קבלה"
             title="אשר קבלת סחורה"

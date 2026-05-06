@@ -67,6 +67,9 @@ export default function SendOrderModal({
 
   const supplierNames = Object.keys(grouped)
   const allSent = supplierNames.length > 0 && supplierNames.every(s => sent.has(s))
+  // ספק יחיד = הזרימה המומלצת. >1 ספק = legacy data, נציג אזהרה.
+  const isSingleSupplier = supplierNames.length === 1
+  const isMultiSupplierLegacy = supplierNames.length > 1
 
   useEffect(() => {
     if (!open) {
@@ -77,7 +80,7 @@ export default function SendOrderModal({
     }
   }, [open])
 
-  // After all suppliers sent, auto-finish when user returns to the app
+  // אחרי שליחת כל הספקים — auto-finish כשהמשתמש חוזר לאפליקציה (חזרה מ-WhatsApp)
   useEffect(() => {
     if (!open) return
     const handleVisibility = () => {
@@ -174,7 +177,9 @@ export default function SendOrderModal({
             <div>
               <h3 className="font-black text-primary text-lg">אישור ושליחת הזמנה</h3>
               <p className="text-primary/50 text-xs">
-                {isAdmin ? 'כל ספק נשלח ישירות' : `${supplierNames.length} ${supplierNames.length === 1 ? 'ספק — נשלח לאור' : 'ספקים — הודעה נפרדת לאור לכל ספק'}`}
+                {isAdmin
+                  ? (isSingleSupplier ? `שלח ל-${supplierNames[0]}` : 'כל ספק נשלח ישירות')
+                  : (isSingleSupplier ? 'נשלח לאור' : 'הודעה נפרדת לאור לכל ספק')}
               </p>
             </div>
             <button
@@ -190,6 +195,18 @@ export default function SendOrderModal({
             {isEmpty && (
               <div className="text-center py-8 text-primary/50 font-bold">
                 הסל ריק
+              </div>
+            )}
+
+            {isMultiSupplierLegacy && !isEmpty && (
+              <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-3 flex items-start gap-2">
+                <span className="text-red-600 font-black text-lg leading-none mt-0.5">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-red-800 font-black text-sm">הסל מכיל יותר מספק אחד</p>
+                  <p className="text-red-700/80 text-xs font-bold mt-0.5 leading-relaxed">
+                    זה מצב לא רגיל — יישלחו {supplierNames.length} הודעות נפרדות. בעתיד מומלץ ליצור הזמנה אחת לכל ספק.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -349,7 +366,7 @@ export default function SendOrderModal({
                 </button>
                 <p className="text-primary/40 text-xs text-center">
                   {allSent
-                    ? 'כל הספקים נשלחו · לחץ סיים לשמירה'
+                    ? (isSingleSupplier ? 'נשלח ✓ · לחץ סיים לשמירה (או חזור מ-WhatsApp)' : 'כל הספקים נשלחו · לחץ סיים לשמירה')
                     : `${sent.size} מתוך ${supplierNames.length} ספקים נשלחו`}
                 </p>
               </>
@@ -358,7 +375,7 @@ export default function SendOrderModal({
                 {isEmpty
                   ? 'הסל ריק'
                   : isAdmin
-                    ? 'שלח את ההזמנה לכל ספק'
+                    ? (isSingleSupplier ? `שלח את ההזמנה ל-${supplierNames[0]}` : 'שלח את ההזמנה לכל ספק')
                     : 'שלח את ההזמנה לאור'}
               </p>
             )}

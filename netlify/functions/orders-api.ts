@@ -87,17 +87,83 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // PATCH — עדכן סטטוס (dispatched)
+    // PATCH — עדכן סטטוס (dispatched/deleted/merged) או מיזוג תוספת
     if (event.httpMethod === 'PATCH') {
-      const { ids, status } = JSON.parse(event.body || '{}')
+      const body = JSON.parse(event.body || '{}')
+
+      // ── מצב 1: מיזוג תוספת לתוך הזמנה קיימת ──
+      if (body.action === 'merge') {
+        const { targetId, items, notes, branch } = body as {
+          action: 'merge'
+          targetId: string
+          items: Array<{ name: string; quantity: number; price?: number; supplier: string; productId: string }>
+          notes?: string
+          branch?: string
+        }
+        if (!targetId || !Array.isArray(items)) {
+          return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'missing targetId or items' }) }
+        }
+        const target = await store.get(targetId, { type: 'json' }) as any
+        if (!target) {
+          return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'target order not found' }) }
+        }
+        // מיזוג פריטים — שם זהה: סכום כמויות; חדש: הוספה
+        const mergedItems = [...(target.items || [])]
+        for (const ni of items) {
+          const idx = mergedItems.findIndex((m: any) => m.name === ni.name)
+          if (idx >= 0) {
+            mergedItems[idx] = { ...mergedItems[idx], quantity: mergedItems[idx].quantity + ni.quantity }
+          } else {
+            mergedItems.push(ni)
+          }
+        }
+        const mergedNotes = notes
+          ? (target.notes ? `${target.notes}\n--- תוספת ---\n${notes}` : `--- תוספת ---\n${notes}`)
+          : target.notes
+        const totalPrice = mergedItems.reduce(
+          (s: number, i: any) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0),
+          0
+        )
+        // VAT 17% — תואם להתנהגות המקומית (calculateTotal)
+        const totalWithVAT = Math.round(totalPrice * 1.17 * 100) / 100
+        const updated = { ...target, items: mergedItems, notes: mergedNotes, totalPrice: totalWithVAT }
+        await store.set(targetId, JSON.stringify(updated))
+
+        sendPushToAdmins(
+          '➕ תוספת להזמנה',
+          `${branch || target.branch} — ${items.length} פריטים נוספו ל-${items[0]?.supplier ?? 'הזמנה'}`
+        ).catch(() => {})
+
+        return {
+          statusCode: 200,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ok: true, order: updated }),
+        }
+      }
+
+      // ── מצב 2: עדכון סטטוס בלבד (dispatched/deleted/merged) ──
+      const { ids, status, mergedIntoId } = body
       if (!Array.isArray(ids) || !status) {
         return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'missing ids or status' }) }
+      }
+      const allowed = new Set(['pending', 'dispatched', 'deleted', 'merged'])
+      if (!allowed.has(status)) {
+        return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'invalid status' }) }
       }
       await Promise.all(
         ids.map(async (id: string) => {
           const order = await store.get(id, { type: 'json' }) as any
           if (order) {
-            await store.set(id, JSON.stringify({ ...order, status }))
+            const patched: any = { ...order, status }
+            if (status === 'deleted') {
+              patched.deletedAt = new Date().toISOString()
+              patched.deletedBy = 'admin'
+            }
+            if (status === 'merged' && mergedIntoId) {
+              patched.mergedIntoId = mergedIntoId
+              patched.mergedAt = new Date().toISOString()
+            }
+            await store.set(id, JSON.stringify(patched))
           }
         })
       )

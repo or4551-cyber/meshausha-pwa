@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware'
 import { CartItem } from './cartStore'
 import { savePendingOrder, getPendingOrders, markOrderSynced } from '../lib/db'
 
+export type OrderStatus = 'pending' | 'dispatched' | 'deleted' | 'merged'
+
 export interface Order {
   id: string
   branch: string
@@ -11,7 +13,16 @@ export interface Order {
   notes: string
   createdAt: string
   totalPrice: number
-  status: 'pending' | 'dispatched'
+  status: OrderStatus
+  deletedAt?: string
+  deletedBy?: 'admin'
+  mergedIntoId?: string
+  mergedAt?: string
+}
+
+/** האם ההזמנה אקטיבית (לא נמחקה ולא מוזגה) */
+export function isActiveOrder(o: Order): boolean {
+  return o.status !== 'deleted' && o.status !== 'merged'
 }
 
 export interface OrderTemplate {
@@ -32,7 +43,17 @@ interface OrdersState {
   loadTemplate: (templateId: string) => CartItem[] | null
   deleteTemplate: (templateId: string) => void
   markOrderDispatched: (orderId: string) => void
+  markOrderDeleted: (orderId: string) => void
+  markOrderMerged: (orderId: string, targetId: string) => void
+  applyMergeAppend: (targetId: string, items: CartItem[], notesAppendix: string, totalPrice: number) => void
   getPendingOrders: () => Order[]
+  /** הזמנה אחרונה לאותו ספק+סניף בחלון N שעות, רק הזמנות פעילות */
+  getRecentOrderForSupplierBranch: (
+    supplier: string,
+    branchCode: string,
+    hoursWindow?: number,
+    extraOrders?: Order[]
+  ) => Order | null
   syncOfflineOrders: () => Promise<number>
 }
 
@@ -76,8 +97,66 @@ export const useOrdersStore = create<OrdersState>()(
         }))
       },
 
+      markOrderDeleted: (orderId) => {
+        set((state) => ({
+          orders: state.orders.map(o =>
+            o.id === orderId
+              ? { ...o, status: 'deleted' as const, deletedAt: new Date().toISOString(), deletedBy: 'admin' }
+              : o
+          )
+        }))
+      },
+
+      markOrderMerged: (orderId, targetId) => {
+        set((state) => ({
+          orders: state.orders.map(o =>
+            o.id === orderId
+              ? { ...o, status: 'merged' as const, mergedIntoId: targetId, mergedAt: new Date().toISOString() }
+              : o
+          )
+        }))
+      },
+
+      applyMergeAppend: (targetId, newItems, notesAppendix, totalPrice) => {
+        set((state) => ({
+          orders: state.orders.map(o => {
+            if (o.id !== targetId) return o
+            // ממזג פריטים: שם זהה → סוכם quantities, חדש → מתווסף
+            const merged = [...o.items]
+            newItems.forEach(ni => {
+              const idx = merged.findIndex(m => m.name === ni.name)
+              if (idx >= 0) merged[idx] = { ...merged[idx], quantity: merged[idx].quantity + ni.quantity }
+              else merged.push(ni)
+            })
+            const notes = notesAppendix
+              ? (o.notes ? `${o.notes}\n--- תוספת ---\n${notesAppendix}` : `--- תוספת ---\n${notesAppendix}`)
+              : o.notes
+            return { ...o, items: merged, notes, totalPrice }
+          })
+        }))
+      },
+
       getPendingOrders: () => {
         return get().orders.filter(o => o.status === 'pending')
+      },
+
+      getRecentOrderForSupplierBranch: (supplier, branchCode, hoursWindow = 12, extraOrders) => {
+        const cutoff = Date.now() - hoursWindow * 3600 * 1000
+        const all = extraOrders && extraOrders.length > 0
+          ? (() => {
+              const map = new Map<string, Order>()
+              extraOrders.forEach(o => map.set(o.id, o))
+              get().orders.forEach(o => { if (!map.has(o.id)) map.set(o.id, o) })
+              return Array.from(map.values())
+            })()
+          : get().orders
+        const matches = all
+          .filter(isActiveOrder)
+          .filter(o => o.branchCode === branchCode)
+          .filter(o => o.items.some(i => i.supplier === supplier))
+          .filter(o => new Date(o.createdAt).getTime() >= cutoff)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        return matches[0] ?? null
       },
 
       syncOfflineOrders: async () => {

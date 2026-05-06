@@ -96,7 +96,8 @@ export default function DashboardPage() {
     items.forEach(item => {
       addItem(
         { productId: item.productId, name: item.name, supplier: item.supplier, price: item.price },
-        item.quantity
+        item.quantity,
+        true
       )
     })
     navigate('/summary')

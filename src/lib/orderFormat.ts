@@ -85,6 +85,29 @@ export function formatMultiSupplierOrder(opts: {
   return text
 }
 
+/** הודעת תוספת להזמנה קיימת — נשלחת לאחר merge */
+export function formatAdditionOrder(opts: {
+  branch: string
+  supplier: string
+  items: Item[]
+  notes?: string
+  originalOrderTime?: string
+}): string {
+  const { branch, supplier, items, notes, originalOrderTime } = opts
+  let text = `➕ *משאוושה — תוספת להזמנה*\n`
+  text += `📍 ${branch}  •  📦 ${supplier}\n`
+  if (originalOrderTime) text += `_(תוספת להזמנה מ-${originalOrderTime})_\n`
+  text += '\n'
+  text += '```\n'
+  text += `${SEP}\n`
+  text += items.map(it => `+ ${it.name}  × ${it.quantity}`).join('\n') + '\n'
+  text += `${SEP}\n`
+  text += '```'
+  if (notes) text += `\n📝 _הערות:_ ${notes}`
+  text += `\n\n_יש להוסיף את הפריטים האלה להזמנה הקיימת._`
+  return text
+}
+
 /** הזמנה מאוחדת לספק עם מספר סניפים (Dispatch) */
 export function formatDispatchOrder(opts: {
   supplier: string

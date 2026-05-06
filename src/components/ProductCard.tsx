@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { Product } from '../data/products'
 import { formatPrice } from '../lib/utils'
 import { motion } from 'framer-motion'
+import SupplierConflictModal from './SupplierConflictModal'
 
 interface ProductCardProps {
   product: Product
@@ -16,16 +17,26 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuthStore()
   const isFavorite = favorites.includes(product.id)
   const cartItem = items.find(item => item.productId === product.id)
+  const [conflict, setConflict] = useState<{ open: boolean; conflictSupplier: string }>({
+    open: false,
+    conflictSupplier: '',
+  })
 
-  const handleAdd = () => {
-    addItem({
+  const tryAdd = (force = false) => {
+    const result = addItem({
       productId: product.id,
       name: product.name,
       supplier: product.supplier,
       price: product.price
-    }, quantity)
+    }, quantity, force)
+    if (!result.ok && result.reason === 'supplier_conflict') {
+      setConflict({ open: true, conflictSupplier: result.conflictSupplier })
+      return
+    }
     setQuantity(1)
   }
+
+  const handleAdd = () => tryAdd(false)
 
   return (
     <motion.div
@@ -114,6 +125,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           <span>הוסף</span>
         </button>
       </div>
+
+      <SupplierConflictModal
+        open={conflict.open}
+        conflictSupplier={conflict.conflictSupplier}
+        newSupplier={product.supplier}
+        onClose={() => setConflict({ open: false, conflictSupplier: '' })}
+        onClearedAndContinue={() => tryAdd(true)}
+      />
     </motion.div>
   )
 }

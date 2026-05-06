@@ -2,15 +2,17 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, Send, CheckCircle, Phone, Package,
-  Loader2, ChevronDown, ChevronUp, Edit2, Check, RefreshCw, Plus, Search, X
+  Loader2, ChevronDown, ChevronUp, Edit2, Check, RefreshCw, Plus, Search, X, Trash2, GitMerge, AlertTriangle
 } from 'lucide-react'
 import { useOrdersStore } from '../../stores/ordersStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
+import { isActiveOrder } from '../../stores/ordersStore'
 import type { Order } from '../../stores/ordersStore'
 import type { CartItem } from '../../stores/cartStore'
 import {
   getOrdersFromCloud, markOrdersDispatchedInCloud,
-  getAdminPhoneFromCloud, saveAdminPhoneToCloud
+  getAdminPhoneFromCloud, saveAdminPhoneToCloud,
+  deleteOrderInCloud, markOrderMergedInCloud, mergeIntoOrder
 } from '../../lib/cloudApi'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDispatchOrder } from '../../lib/orderFormat'
@@ -18,7 +20,7 @@ import DispatchPreviewModal from '../../components/DispatchPreviewModal'
 
 export default function DispatchOrdersPage() {
   const navigate = useNavigate()
-  const { markOrderDispatched } = useOrdersStore()
+  const { markOrderDispatched, markOrderDeleted, markOrderMerged, applyMergeAppend } = useOrdersStore()
   const { getAllSuppliers, adminPhone, setAdminPhone } = useSuppliersStore()
 
   const [cloudOrders, setCloudOrders] = useState<Order[]>([])
@@ -80,6 +82,7 @@ export default function DispatchOrdersPage() {
     }
   }, [adminPhone])
 
+  // ב"ממתינות" — רק pending אקטיביות. ב"הכל" — גם dispatched/deleted/merged
   const displayOrders = showAll
     ? cloudOrders
     : cloudOrders.filter(o => o.status === 'pending')
@@ -99,8 +102,33 @@ export default function DispatchOrdersPage() {
         groups[sup].orders.push(order)
       })
     })
+    // למיון: בתוך כל קבוצה, חדשות-עד-ישנות
+    Object.values(groups).forEach(g => {
+      g.orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    })
     return groups
   })()
+
+  /**
+   * בודק אם להזמנה הזו יש "אחות מוקדמת" באותו ספק+סניף ב-12 השעות שלפניה (אקטיבית, pending).
+   * אם כן — זו תוספת והאדמין יכול למזג אותה לתוך המוקדמת.
+   */
+  const findEarlierSiblingPending = (order: Order, supplier: string): Order | null => {
+    if (!isActiveOrder(order) || order.status !== 'pending') return null
+    const cutoff = new Date(order.createdAt).getTime() - 12 * 3600 * 1000
+    const siblings = cloudOrders
+      .filter(o => o.id !== order.id)
+      .filter(isActiveOrder)
+      .filter(o => o.status === 'pending')
+      .filter(o => o.branchCode === order.branchCode)
+      .filter(o => o.items.some(i => i.supplier === supplier))
+      .filter(o => {
+        const t = new Date(o.createdAt).getTime()
+        return t >= cutoff && t < new Date(order.createdAt).getTime()
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    return siblings[0] ?? null
+  }
 
   // toggle checkbox
   const toggleOrder = (supplier: string, orderId: string) => {
@@ -233,6 +261,74 @@ export default function DispatchOrdersPage() {
     saveAdminPhoneToCloud(phoneInput)
   }
 
+  // מחיקה רכה של הזמנה — מסיר מ-pending, נשאר בהיסטוריה כ-deleted
+  const handleDeleteOrder = (orderId: string) => {
+    if (!confirm('למחוק לחלוטין את ההזמנה? ההזמנה תוסר מהמסך וגם מהמנהלת.')) return
+    deleteOrderInCloud(orderId)
+    markOrderDeleted(orderId)
+    setCloudOrders(prev => prev.map(o =>
+      o.id === orderId
+        ? { ...o, status: 'deleted', deletedAt: new Date().toISOString(), deletedBy: 'admin' }
+        : o
+    ))
+    // ניקוי בחירה מסומנת אם נבחרה
+    setSelected(prev => {
+      const next: Record<string, Set<string>> = {}
+      Object.entries(prev).forEach(([sup, ids]) => {
+        const s = new Set(ids); s.delete(orderId); next[sup] = s
+      })
+      return next
+    })
+  }
+
+  // מיזוג ידני באדמין — מאחד תוספת לתוך הזמנה מוקדמת באותו ספק+סניף
+  const handleMergeWithEarlier = async (order: Order, earlier: Order, supplier: string) => {
+    if (!confirm(`לאחד תוספת מ-${order.branch} לתוך ההזמנה הקודמת? ההזמנה הזו תיסגר.`)) return
+    // ניקח רק פריטים מהספק הזה (מהזמנה צעירה יותר) ומעביר ל-earlier
+    const itemsToMerge = order.items.filter(i => i.supplier === supplier)
+    const ok = await mergeIntoOrder(earlier.id, itemsToMerge, order.notes || '', order.branch)
+    if (!ok) {
+      alert('המיזוג נכשל. נסי שוב.')
+      return
+    }
+    // עדכון הענן — סמן את הצעירה כממוזגת
+    markOrderMergedInCloud(order.id, earlier.id)
+    // עדכון מקומי
+    markOrderMerged(order.id, earlier.id)
+    // מקביל לעדכון של ה-earlier ב-state המקומי
+    const totalAddition = itemsToMerge.reduce((s, i) => s + (i.price || 0) * i.quantity, 0)
+    const earlierTotalBeforeVAT = earlier.items.reduce((s, i) => s + (i.price || 0) * i.quantity, 0)
+    const newTotalWithVAT = Math.round((earlierTotalBeforeVAT + totalAddition) * 1.17 * 100) / 100
+    applyMergeAppend(earlier.id, itemsToMerge, order.notes || '', newTotalWithVAT)
+
+    setCloudOrders(prev => prev.map(o => {
+      if (o.id === order.id) {
+        return { ...o, status: 'merged' as const, mergedIntoId: earlier.id, mergedAt: new Date().toISOString() }
+      }
+      if (o.id === earlier.id) {
+        const mergedItems = [...o.items]
+        for (const ni of itemsToMerge) {
+          const idx = mergedItems.findIndex(m => m.name === ni.name)
+          if (idx >= 0) mergedItems[idx] = { ...mergedItems[idx], quantity: mergedItems[idx].quantity + ni.quantity }
+          else mergedItems.push(ni)
+        }
+        const mergedNotes = order.notes
+          ? (o.notes ? `${o.notes}\n--- תוספת ---\n${order.notes}` : `--- תוספת ---\n${order.notes}`)
+          : o.notes
+        return { ...o, items: mergedItems, notes: mergedNotes, totalPrice: newTotalWithVAT }
+      }
+      return o
+    }))
+    // ניקוי בחירה
+    setSelected(prev => {
+      const next: Record<string, Set<string>> = {}
+      Object.entries(prev).forEach(([sup, ids]) => {
+        const s = new Set(ids); s.delete(order.id); next[sup] = s
+      })
+      return next
+    })
+  }
+
   return (
     <div className="min-h-screen bg-primary pb-20">
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -351,30 +447,62 @@ export default function DispatchOrdersPage() {
                       const isSelected = selected[supplier]?.has(order.id) || false
                       const isEditing = editingKey === expandKey
                       const supplierItems = order.items.filter(i => i.supplier === supplier)
+                      const isDeleted = order.status === 'deleted'
+                      const isMerged = order.status === 'merged'
+                      const earlierSibling = isDeleted || isMerged ? null : findEarlierSiblingPending(order, supplier)
 
                       return (
                         <div key={order.id}
-                          className={`transition-colors ${isSelected ? 'bg-green-50/50' : ''}`}>
+                          className={`transition-colors ${isSelected ? 'bg-green-50/50' : ''} ${isDeleted ? 'opacity-50' : ''}`}>
+                          {/* באנר תוספת — אם יש אחות מוקדמת */}
+                          {earlierSibling && (
+                            <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
+                              <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
+                              <p className="flex-1 text-amber-800 text-xs font-black leading-tight">
+                                תוספת — נשלחה ב-{new Date(earlierSibling.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleMergeWithEarlier(order, earlierSibling, supplier) }}
+                                className="bg-amber-500 text-white text-xs font-black px-3 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 touch-manipulation"
+                              >
+                                <GitMerge size={12} />
+                                מזג
+                              </button>
+                            </div>
+                          )}
+
                           {/* שורת הזמנה */}
                           <div
                             className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-primary/5 touch-manipulation"
                             onClick={() => toggleExpand(order.id, supplier)}
                           >
-                            {/* Checkbox */}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleOrder(supplier, order.id) }}
-                              className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${
-                                isSelected
-                                  ? 'bg-green-500 border-green-500'
-                                  : 'border-primary/30 bg-white'
-                              }`}
-                            >
-                              {isSelected && <Check size={13} className="text-white" />}
-                            </button>
+                            {/* Checkbox — מוסתר למחוקות */}
+                            {!isDeleted && !isMerged ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleOrder(supplier, order.id) }}
+                                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all touch-manipulation ${
+                                  isSelected
+                                    ? 'bg-green-500 border-green-500'
+                                    : 'border-primary/30 bg-white'
+                                }`}
+                              >
+                                {isSelected && <Check size={13} className="text-white" />}
+                              </button>
+                            ) : (
+                              <div className="w-6 h-6 flex-shrink-0" />
+                            )}
 
                             {/* פרטים */}
                             <div className="flex-1 min-w-0">
-                              <p className="font-black text-primary text-sm">{order.branch}</p>
+                              <div className="flex items-center gap-2">
+                                <p className={`font-black text-primary text-sm ${isDeleted ? 'line-through' : ''}`}>{order.branch}</p>
+                                {isDeleted && (
+                                  <span className="text-[10px] font-black bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md">נמחקה</span>
+                                )}
+                                {isMerged && (
+                                  <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md">מוזגה</span>
+                                )}
+                              </div>
                               <p className="text-primary/50 text-xs">
                                 {new Date(order.createdAt).toLocaleString('he-IL', {
                                   day: '2-digit', month: '2-digit',
@@ -383,22 +511,34 @@ export default function DispatchOrdersPage() {
                               </p>
                             </div>
 
-                            {/* עריכה + פתיחה */}
+                            {/* עריכה + מחיקה + פתיחה */}
                             <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const key = expandKey
-                                  setExpanded(prev => {
-                                    const next = new Set(prev); next.add(key); return next
-                                  })
-                                  setEditingKey(isEditing ? null : key)
-                                }}
-                                className="p-1.5 text-primary/40 hover:text-primary active:scale-90 touch-manipulation transition-colors"
-                                title="ערוך כמויות"
-                              >
-                                <Edit2 size={15} />
-                              </button>
+                              {!isDeleted && !isMerged && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const key = expandKey
+                                      setExpanded(prev => {
+                                        const next = new Set(prev); next.add(key); return next
+                                      })
+                                      setEditingKey(isEditing ? null : key)
+                                    }}
+                                    className="p-1.5 text-primary/40 hover:text-primary active:scale-90 touch-manipulation transition-colors"
+                                    title="ערוך כמויות"
+                                  >
+                                    <Edit2 size={15} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id) }}
+                                    className="p-1.5 text-red-500/60 hover:text-red-600 active:scale-90 touch-manipulation transition-colors"
+                                    title="מחק הזמנה"
+                                    aria-label="מחק הזמנה"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </>
+                              )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); toggleExpand(order.id, supplier) }}
                                 className="p-1.5 text-primary/40 hover:text-primary active:scale-90 touch-manipulation transition-colors"
