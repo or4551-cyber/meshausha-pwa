@@ -46,12 +46,19 @@
 ## סדר עדיפויות לפיתוח
 
 ### שלב 1 - תיקון בגים קיימים
-- [ ] **RemindersPage** - תזכורות לא נשמרות (צריך remindersStore)
-- [ ] **EmailJS** - credentials הם placeholders ב-emailService.ts, מיילים לא נשלחים
-- [ ] **VAPID Key** - מזויף ב-notifications.ts, Push לא עובד
-- [ ] **Invoice Analysis** - `analyzeInvoice()` מחזיר [] ריק, לא ממומש ב-invoicesStore.ts
-- [ ] **AnalyticsPage שורה 139** - className שבור: `bg-gradient-to-baccmntent`
-- [ ] **PriceManagementPage** - מוצרים מ-products.ts לא נשמרים ב-suppliersStore
+- [x] **RemindersPage** - ✅ remindersStore קיים עם persist; מחובר נכון
+- [x] **EmailJS** - ✅ credentials נקראים מ-import.meta.env (חסר עדיין הגדרת .env בייצור — ראה .env.example)
+- [x] **VAPID Key** - ✅ נוצר אוטומטית בשרת (push-manager.ts) ונקבל מהשרת דינמית
+- [x] **Invoice Analysis** - ✅ analyzeInvoice() ממומש במלואו ב-invoicesStore.ts:97-140
+- [x] **AnalyticsPage שורה 139** - ✅ className תקין
+- [x] **PriceManagementPage** - ✅ מחובר ל-updateProduct/deleteProduct/addProducts של suppliersStore
+
+### שלב 1b - תיקונים ב-Phase 1 של "קפיצת מדרגה" (2026-05-08)
+- [x] **איחוד נתוני סניפים** — src/data/branches.ts; הוסרו שמות פיקטיביים מ-AdminPage/InvoicesPage
+- [x] **אבטחה ל-Netlify Functions** — shared-secret token (VITE_API_TOKEN/API_TOKEN) ב-orders-api, settings-api, suppliers-api, push-manager
+- [x] **Error Boundary** — עוטף את כל ה-Routes ב-App.tsx
+- [x] **Security headers ב-netlify.toml** — CSP, X-Frame-Options, HSTS, Permissions-Policy
+- [x] **.env.example** — תיעוד כל env vars הנדרשים
 
 ### שלב 2 - הזמנה מהירה מתבנית (Dashboard)
 - [ ] תבניות שמורות מוצגות ישר בדשבורד הראשי

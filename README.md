@@ -5,13 +5,15 @@
 ## תכונות עיקריות
 
 ### ✨ תכונות קיימות
-- **מערכת התחברות מאובטחת** - התחברות באמצעות PIN לכל סניף
-- **ניהול הזמנות** - הוספת מוצרים לסל קניות מספקים שונים
-- **חיפוש מתקדם** - חיפוש מוצרים בזמן אמת
-- **היסטוריית הזמנות** - שמירה וצפייה בהזמנות קודמות
-- **תזכורות חכמות** - תזכורות אוטומטיות לימי הזמנה של ספקים
-- **שליחה מרובת ערוצים** - שליחה ב-WhatsApp או מייל
-- **חתימה דיגיטלית** - אישור הזמנות עם חתימת מנהל
+- **התחברות עם PIN** — קוד 4 ספרות לכל סניף + אדמין
+- **ניהול הזמנות** — הוספת מוצרים לסל מספק יחיד עם conflict-modal
+- **חיפוש מתקדם** — חיפוש מוצרים בזמן אמת + מועדפים
+- **היסטוריית הזמנות** — שמירה, חיפוש, ייצוא, הזמנה חוזרת
+- **זיהוי הזמנות כפולות** — בודק חלון 12 שעות לפני שליחה ומציע מיזוג
+- **שליחה ב-WhatsApp** — wa.me link עם הטקסט המלא של ההזמנה
+- **תבניות הזמנה** — שמירה ותבעית מתבנית תוך לחיצה אחת
+- **PWA + offline** — שמירת הזמנות אופליין וסנכרון בחזרה לאינטרנט
+- **התראות Push** — אדמין מקבל התראה על כל הזמנה חדשה
 
 ### 🎯 תכונות חדשות
 - **שמירת טיוטות אוטומטית** - ההזמנה נשמרת אוטומטית ומתעדכנת בזמן אמת
@@ -25,24 +27,17 @@
 
 ```
 Meshausha/
-├── public/
-│   ├── index.html              # דף HTML ראשי
-│   ├── styles/
-│   │   └── main.css           # עיצוב ואנימציות
-│   └── js/
-│       ├── data/              # נתוני מערכת
-│       │   ├── products.js    # רשימת מוצרים
-│       │   ├── branches.js    # סניפים
-│       │   └── suppliers.js   # ספקים ולוחות זמנים
-│       ├── utils/             # פונקציות עזר
-│       │   ├── storage.js     # ניהול אחסון
-│       │   └── calendar.js    # אינטגרציה עם יומן
-│       ├── components/        # קומפוננטים
-│       │   ├── Icon.js
-│       │   ├── Toast.js
-│       │   ├── SignaturePad.js
-│       │   ├── LoginScreen.js
-│       │   ├── Header.js
+├── src/
+│   ├── pages/             # דפי האפליקציה (Login, Dashboard, Orders, Summary, History, Reminders, Admin/*)
+│   ├── components/        # קומפוננטים משותפים (ChatBot, ProductCard, ErrorBoundary, ...)
+│   ├── stores/            # Zustand stores (auth, cart, orders, suppliers, invoices, ...)
+│   ├── lib/               # שירותים ועזר (apiClient, cloudApi, emailService, notifications, ...)
+│   ├── data/              # נתונים סטטיים (branches.ts, products.ts)
+│   └── hooks/             # React hooks
+├── netlify/functions/     # Netlify Functions (orders-api, settings-api, push-manager, ...)
+├── public/                # אייקונים, manifest, favicon
+└── netlify.toml           # תצורת deploy + security headers + scheduled functions
+```
 
 ## 📦 התקנה והרצה
 
@@ -50,20 +45,19 @@ Meshausha/
 ```bash
 npm install
 ```
-- אין צורך בהתקנת תוכנות נוספות
+
+### הגדרת משתני סביבה:
+1. העתק את `.env.example` ל-`.env`
+2. מלא את הערכים — בעיקר `VITE_API_TOKEN` ו-`API_TOKEN` (אותו ערך) להגנה על ה-API
+3. הגדר את אותם ערכים גם ב-Netlify (Site settings → Environment variables)
 
 ### הפעלה
-1. פתח את הקובץ `public/index.html` בדפדפן
-2. או השתמש בשרת מקומי:
-   ```bash
-   # אם יש לך Python מותקן:
-   cd public
-   python -m http.server 8000
-   
-   # או עם Node.js:
-   npx http-server public -p 8000
-   ```
-3. גש לכתובת: `http://localhost:8000`
+```bash
+npm run dev      # שרת פיתוח על http://localhost:5173/
+npm run build    # build לייצור (dist/)
+npm run lint     # ESLint
+npm run preview  # תצוגה מקדימה של build הייצור
+```
 
 ## שימוש במערכת
 
@@ -100,11 +94,14 @@ npm install
 
 ## טכנולוגיות
 
-- **React 18** - ספריית UI
-- **Tailwind CSS** - עיצוב
-- **LocalStorage** - אחסון מקומי
-- **Babel Standalone** - קומפילציה בזמן ריצה
-- **Heebo Font** - פונט עברי
+- **React 18 + TypeScript + Vite** — ספריית UI ו-build tool
+- **Tailwind CSS** — עיצוב + RTL
+- **Zustand + persist** — ניהול state (localStorage)
+- **Dexie / IndexedDB** — תור אופליין להזמנות
+- **Netlify Functions + Blobs** — backend serverless + storage
+- **Web Push (VAPID)** — התראות לאדמין
+- **vite-plugin-pwa** — PWA + service worker + offline cache
+- **Heebo Font** — פונט עברי
 
 ## שיפורים עתידיים אפשריים
 

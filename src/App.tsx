@@ -13,6 +13,7 @@ import RemindersPage from './pages/RemindersPage'
 import DeliveryConfirmPage from './pages/DeliveryConfirmPage'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const PriceManagementPage = lazy(() => import('./pages/admin/PriceManagementPage'))
@@ -73,6 +74,7 @@ function App() {
 
   return (
     <Router>
+      <ErrorBoundary>
       <div className="min-h-screen bg-primary">
         {isAuthenticated && (
           <>
@@ -192,6 +194,7 @@ function App() {
         </Routes>
         </Suspense>
       </div>
+      </ErrorBoundary>
     </Router>
   )
 }

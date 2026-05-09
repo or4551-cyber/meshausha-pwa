@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { BRANCH_BY_CODE, ADMIN_BRANCH } from '../data/branches'
 
 interface User {
   branchCode: string
@@ -17,19 +18,6 @@ interface AuthState {
   setRememberMe: (remember: boolean) => void
 }
 
-const BRANCH_PINS: Record<string, string> = {
-  '1001': 'עין המפרץ',
-  '1002': 'ביאליק קרן היסוד',
-  '1003': 'מוצקין הילדים',
-  '1004': 'צור שלום',
-  '1005': 'גושן 60',
-  '1006': 'נהריה הגעתון',
-  '1007': 'ההסתדרות',
-  '1008': 'משכנות האומנים',
-  '1009': 'רון קריית ביאליק',
-  '9999': 'ADMIN'
-}
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -38,21 +26,21 @@ export const useAuthStore = create<AuthState>()(
       rememberMe: false,
       
       login: (pin: string, remember = false) => {
-        const branch = BRANCH_PINS[pin]
-        
+        const branch = BRANCH_BY_CODE[pin]
+
         if (branch) {
           set({
             isAuthenticated: true,
             user: {
               branchCode: pin,
               branch,
-              isAdmin: pin === '9999'
+              isAdmin: pin === ADMIN_BRANCH.code
             },
             rememberMe: remember
           })
           return true
         }
-        
+
         return false
       },
       

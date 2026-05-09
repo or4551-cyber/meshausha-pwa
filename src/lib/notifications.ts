@@ -1,4 +1,5 @@
 // מערכת התראות Push לאדמין
+import { apiGet, apiSend } from './apiClient'
 
 export interface NotificationPayload {
   title: string
@@ -7,8 +8,6 @@ export interface NotificationPayload {
   badge?: string
   data?: any
 }
-
-const BASE = '/.netlify/functions'
 
 // בדיקת תמיכה בהתראות
 export const isNotificationSupported = (): boolean => {
@@ -65,32 +64,18 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 // קבלת המפתח הציבורי מהשרת (נוצר אוטומטית בפעם הראשונה)
 export async function getVapidPublicKey(): Promise<string | null> {
-  try {
-    const res = await fetch(`${BASE}/push-manager`)
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.publicKey ?? null
-  } catch {
-    return null
-  }
+  const data = await apiGet<{ publicKey?: string }>('push-manager')
+  return data?.publicKey ?? null
 }
 
 // שמירת מנוי Push בשרת
 export async function savePushSubscription(subscription: PushSubscription): Promise<void> {
-  await fetch(`${BASE}/push-manager`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription }),
-  })
+  await apiSend('push-manager', 'POST', { subscription })
 }
 
 // מחיקת מנוי Push מהשרת
 export async function deletePushSubscription(endpoint: string): Promise<void> {
-  await fetch(`${BASE}/push-manager`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ endpoint }),
-  })
+  await apiSend('push-manager', 'DELETE', { endpoint })
 }
 
 /**

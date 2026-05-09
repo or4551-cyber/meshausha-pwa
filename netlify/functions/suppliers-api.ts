@@ -1,9 +1,10 @@
 import { Handler } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
+import { isAuthorized, UNAUTHORIZED_RESPONSE } from './_auth'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
@@ -19,6 +20,10 @@ function openStore(name: string) {
 // הפונקציה הזו הוחלפה ב-settings-api — נשמרת רק כ-fallback עם תגובה ברורה
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' }
+
+  if (!isAuthorized(event)) {
+    return { ...UNAUTHORIZED_RESPONSE, headers: { ...UNAUTHORIZED_RESPONSE.headers, ...CORS } }
+  }
 
   try {
     const store = openStore('meshausha-config')

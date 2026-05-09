@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { sendBulkInvoiceRequests } from '../lib/emailService'
 import { saveSuppliersToCloud, getOrdersFromCloud } from '../lib/cloudApi'
 import { useAdminOrders } from '../hooks/useAdminOrders'
+import { BRANCH_NAMES } from '../data/branches'
 import {
   isNotificationSupported,
   subscribeToPushNotifications,
@@ -118,7 +119,7 @@ export default function AdminPage() {
       name: s.name,
       email: s.email!,
       contactPerson: s.contactPerson || s.name,
-      branches: ['תל אביב', 'חיפה', 'באר שבע']
+      branches: BRANCH_NAMES
     }))
 
     const result = await sendBulkInvoiceRequests(

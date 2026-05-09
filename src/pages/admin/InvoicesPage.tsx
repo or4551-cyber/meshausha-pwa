@@ -5,6 +5,7 @@ import { useInvoicesStore } from '../../stores/invoicesStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { useAuthStore } from '../../stores/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
+import { BRANCHES as branches } from '../../data/branches'
 
 export default function InvoicesPage() {
   const navigate = useNavigate()
@@ -19,12 +20,6 @@ export default function InvoicesPage() {
     items: [] as any[],
     notes: ''
   })
-
-  const branches = [
-    { code: 'TLV', name: 'תל אביב' },
-    { code: 'HFA', name: 'חיפה' },
-    { code: 'BER', name: 'באר שבע' }
-  ]
 
   const handleUpload = () => {
     if (!uploadForm.supplierId || !uploadForm.branchCode || !uploadForm.month) {

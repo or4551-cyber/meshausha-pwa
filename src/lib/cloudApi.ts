@@ -1,78 +1,30 @@
 import type { Order } from '../stores/ordersStore'
-
-const BASE = '/.netlify/functions'
+import { apiGet, apiSend, apiBeacon, apiKeepalivePatch } from './apiClient'
 
 /**
- * שמירה לענן שמובטחת לשרוד ניווט/סגירת טאב/יציאה לאפליקציה אחרת (WhatsApp).
- * משתמש ב-sendBeacon כשזמין; אחרת ב-fetch עם keepalive:true.
- * כל הכתיבות לענן חייבות להשתמש ב-helper זה כדי למנוע איבוד נתונים.
+ * Re-exports for backward compatibility with code that imports beaconPost / keepalivePatch
+ * directly. Prefer apiClient helpers in new code.
  */
-export function beaconPost(path: string, data: unknown): void {
-  const url = `${BASE}/${path}`
-  const body = JSON.stringify(data)
-  try {
-    const blob = new Blob([body], { type: 'application/json' })
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      if (navigator.sendBeacon(url, blob)) return
-    }
-  } catch { /* ignore */ }
-  // fallback: fetch עם keepalive — שורד גם במהלך unload
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-    keepalive: true,
-  }).catch(() => {})
-}
-
-/** שליחת PATCH שמובטחת לשרוד ניווט. sendBeacon לא תומך ב-PATCH ולכן keepalive בלבד. */
-export function keepalivePatch(path: string, data: unknown): void {
-  fetch(`${BASE}/${path}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    keepalive: true,
-  }).catch(() => {})
-}
+export const beaconPost = apiBeacon
+export const keepalivePatch = apiKeepalivePatch
 
 // ─── ספקים ומוצרים ────────────────────────────────────────
 
 /** שמור ספקים ומוצרים בענן (נתוני אדמין) — שורד ניווט */
 export async function saveSuppliersToCloud(data: { suppliers: any[]; products: any[] }): Promise<void> {
-  const res = await fetch(`${BASE}/settings-api`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ suppliersData: data }),
-    keepalive: true,
-  })
-  if (!res.ok) {
-    let errMsg = `HTTP ${res.status}`
-    try { const b = await res.json(); errMsg = b.error || b.errorMessage || errMsg } catch {}
-    throw new Error(errMsg)
-  }
+  await apiSend('settings-api', 'POST', { suppliersData: data })
 }
 
 /** טען ספקים ומוצרים מהענן */
 export async function getSuppliersFromCloud(): Promise<{ suppliers: any[]; products: any[] } | null> {
-  try {
-    const res = await fetch(`${BASE}/settings-api?type=suppliers`)
-    if (!res.ok) return null
-    return res.json()
-  } catch {
-    return null
-  }
+  return apiGet<{ suppliers: any[]; products: any[] }>('settings-api?type=suppliers')
 }
 
 // ─── הזמנות ───────────────────────────────────────────────
 
 /** שמור הזמנה בענן (awaitable) */
 export async function saveOrderToCloud(order: Order): Promise<void> {
-  await fetch(`${BASE}/orders-api`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(order),
-    keepalive: true,
-  })
+  await apiSend('orders-api', 'POST', order)
 }
 
 /**
@@ -80,33 +32,27 @@ export async function saveOrderToCloud(order: Order): Promise<void> {
  * (כמו פתיחת WhatsApp במובייל).
  */
 export function saveOrderToCloudBeacon(order: Order): void {
-  beaconPost('orders-api', order)
+  apiBeacon('orders-api', order)
 }
 
 /** קבל את כל ההזמנות מהענן */
 export async function getOrdersFromCloud(): Promise<Order[]> {
-  try {
-    const res = await fetch(`${BASE}/orders-api`)
-    if (!res.ok) return []
-    return res.json()
-  } catch {
-    return []
-  }
+  return (await apiGet<Order[]>('orders-api')) ?? []
 }
 
 /** סמן הזמנות כנשלחו לספק — שורד ניווט (keepalive) */
 export function markOrdersDispatchedInCloud(ids: string[]): void {
-  keepalivePatch('orders-api', { ids, status: 'dispatched' })
+  apiKeepalivePatch('orders-api', { ids, status: 'dispatched' })
 }
 
 /** מחיקה רכה של הזמנה (אדמין) — שורד ניווט */
 export function deleteOrderInCloud(id: string): void {
-  keepalivePatch('orders-api', { ids: [id], status: 'deleted' })
+  apiKeepalivePatch('orders-api', { ids: [id], status: 'deleted' })
 }
 
 /** סימון הזמנה כממוזגת (אחרי מיזוג ידני באדמין) — שורד ניווט */
 export function markOrderMergedInCloud(id: string, mergedIntoId: string): void {
-  keepalivePatch('orders-api', { ids: [id], status: 'merged', mergedIntoId })
+  apiKeepalivePatch('orders-api', { ids: [id], status: 'merged', mergedIntoId })
 }
 
 /**
@@ -120,13 +66,8 @@ export async function mergeIntoOrder(
   branch: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE}/orders-api`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'merge', targetId, items, notes, branch }),
-      keepalive: true,
-    })
-    return res.ok
+    await apiSend('orders-api', 'PATCH', { action: 'merge', targetId, items, notes, branch })
+    return true
   } catch {
     return false
   }
@@ -136,17 +77,11 @@ export async function mergeIntoOrder(
 
 /** קבל מספר WhatsApp של אדמין מהענן */
 export async function getAdminPhoneFromCloud(): Promise<string> {
-  try {
-    const res = await fetch(`${BASE}/settings-api`)
-    if (!res.ok) return ''
-    const data = await res.json()
-    return data.adminPhone || ''
-  } catch {
-    return ''
-  }
+  const data = await apiGet<{ adminPhone?: string }>('settings-api')
+  return data?.adminPhone ?? ''
 }
 
 /** שמור מספר WhatsApp של אדמין בענן — שורד ניווט */
 export function saveAdminPhoneToCloud(phone: string): void {
-  beaconPost('settings-api', { adminPhone: phone })
+  apiBeacon('settings-api', { adminPhone: phone })
 }

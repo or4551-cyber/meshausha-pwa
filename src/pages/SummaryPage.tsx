@@ -7,6 +7,7 @@ import { useOrdersStore, type Order } from '../stores/ordersStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import { usePriceHistoryStore } from '../stores/priceHistoryStore'
 import { formatPrice, calculateVAT, calculateTotal } from '../lib/utils'
+import { BRANCHES as BRANCH_OPTIONS } from '../data/branches'
 import { printOrderAsPDF } from '../lib/pdfExport'
 import { saveOrderToCloudBeacon, getOrdersFromCloud, mergeIntoOrder } from '../lib/cloudApi'
 import { formatAdditionOrder } from '../lib/orderFormat'
@@ -43,18 +44,6 @@ export default function SummaryPage() {
   useEffect(() => {
     getOrdersFromCloud().then(setCloudOrders).catch(() => {})
   }, [])
-
-  const BRANCH_OPTIONS = [
-    { code: '1001', name: 'עין המפרץ' },
-    { code: '1002', name: 'ביאליק קרן היסוד' },
-    { code: '1003', name: 'מוצקין הילדים' },
-    { code: '1004', name: 'צור שלום' },
-    { code: '1005', name: 'גושן 60' },
-    { code: '1006', name: 'נהריה הגעתון' },
-    { code: '1007', name: 'ההסתדרות' },
-    { code: '1008', name: 'משכנות האומנים' },
-    { code: '1009', name: 'רון קריית ביאליק' },
-  ]
 
   const getSupplierPhone = (supplierName: string) => {
     const supplier = getAllSuppliers().find(s => s.name === supplierName)
