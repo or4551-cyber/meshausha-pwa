@@ -3,16 +3,29 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Search, Star, ShoppingCart, Package } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
+import { useOrdersStore } from '../stores/ordersStore'
+import { useAuthStore } from '../stores/authStore'
 import ProductCard from '../components/ProductCard'
 import EmptyState from '../components/ui/EmptyState'
+import { buildProductHistoryMap } from '../lib/utils'
 
 export default function OrdersPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { favorites, getTotalItems } = useCartStore()
+  const { user } = useAuthStore()
+  const allOrders = useOrdersStore(s => s.orders)
   // סלקטור ריאקטיבי — מתרענן אוטומטית כשהסטור משתנה (זריעה, עדכון מחיר, הוספה/מחיקה)
   const storeProducts = useSuppliersStore(s => s.products)
   const allProducts = useMemo(() => storeProducts.filter(p => !p.adminOnly), [storeProducts])
+
+  // היסטוריית הזמנה ל-6 חודשים אחרונים (לsparkline בכרטיס מוצר)
+  const productHistory = useMemo(() => {
+    const relevant = user?.isAdmin
+      ? allOrders
+      : allOrders.filter(o => o.branchCode === user?.branchCode)
+    return buildProductHistoryMap(relevant, 6)
+  }, [allOrders, user])
   const [searchTerm, setSearchTerm] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<string>(
@@ -140,7 +153,11 @@ export default function OrdersPage() {
       <div className="max-w-2xl mx-auto px-4">
         <div className="space-y-3">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              monthlyHistory={productHistory.get(product.name)}
+            />
           ))}
         </div>
 

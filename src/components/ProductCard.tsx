@@ -6,12 +6,15 @@ import { Product } from '../data/products'
 import { formatPrice } from '../lib/utils'
 import { motion } from 'framer-motion'
 import SupplierConflictModal from './SupplierConflictModal'
+import Sparkline from './Sparkline'
 
 interface ProductCardProps {
   product: Product
+  /** כמויות הזמנה לפי חודש — מהישן לחדש. אם undefined או כל הערכים 0, sparkline לא יוצג. */
+  monthlyHistory?: number[]
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, monthlyHistory }: ProductCardProps) {
   const [quantity, setQuantity] = useState(1)
   const { addItem, removeItem, updateQuantity, favorites, toggleFavorite, items } = useCartStore()
   const { user } = useAuthStore()
@@ -45,7 +48,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       className="bg-secondary rounded-2xl p-4 shadow-md"
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h3 className="font-bold text-primary text-sm leading-tight mb-1">
             {product.name}
           </h3>
@@ -53,6 +56,17 @@ export default function ProductCard({ product }: ProductCardProps) {
             <p className="text-primary/70 font-bold text-lg">
               {formatPrice(product.price)}
             </p>
+          )}
+          {monthlyHistory && monthlyHistory.some(v => v > 0) && (
+            <div
+              className="flex items-center gap-1.5 mt-1.5"
+              title={`הזמנות 6 חודשים אחרונים: ${monthlyHistory.join(', ')}`}
+            >
+              <Sparkline data={monthlyHistory} width={64} height={16} />
+              <span className="text-primary/50 text-[10px] font-bold leading-none">
+                6 חודשים
+              </span>
+            </div>
           )}
         </div>
         <button

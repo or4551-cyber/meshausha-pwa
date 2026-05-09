@@ -7,15 +7,16 @@ import { getAdminPhoneFromCloud, getSuppliersFromCloud } from './lib/cloudApi'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
-import SummaryPage from './pages/SummaryPage'
-import HistoryPage from './pages/HistoryPage'
-import RemindersPage from './pages/RemindersPage'
-import DeliveryConfirmPage from './pages/DeliveryConfirmPage'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
 import ErrorBoundary from './components/ErrorBoundary'
 import ToastContainer from './components/Toast'
 import ConfirmDialog from './components/ConfirmDialog'
+
+const SummaryPage = lazy(() => import('./pages/SummaryPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const RemindersPage = lazy(() => import('./pages/RemindersPage'))
+const DeliveryConfirmPage = lazy(() => import('./pages/DeliveryConfirmPage'))
 
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const PriceManagementPage = lazy(() => import('./pages/admin/PriceManagementPage'))
