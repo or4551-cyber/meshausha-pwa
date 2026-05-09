@@ -46,16 +46,18 @@ export default function ReportsPage() {
         case 'today':
           dateMatch = orderDate >= today
           break
-        case 'week':
+        case 'week': {
           const weekAgo = new Date(today)
           weekAgo.setDate(weekAgo.getDate() - 7)
           dateMatch = orderDate >= weekAgo
           break
-        case 'month':
+        }
+        case 'month': {
           const monthAgo = new Date(today)
           monthAgo.setMonth(monthAgo.getMonth() - 1)
           dateMatch = orderDate >= monthAgo
           break
+        }
         default:
           dateMatch = true
       }
@@ -90,14 +92,16 @@ export default function ReportsPage() {
           switch (dateRange) {
             case 'today':
               return orderDate >= today
-            case 'week':
+            case 'week': {
               const weekAgo = new Date(today)
               weekAgo.setDate(weekAgo.getDate() - 7)
               return orderDate >= weekAgo
-            case 'month':
+            }
+            case 'month': {
               const monthAgo = new Date(today)
               monthAgo.setMonth(monthAgo.getMonth() - 1)
               return orderDate >= monthAgo
+            }
             default:
               return true
           }
