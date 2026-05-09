@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Plus, Trash2, Calendar, Clock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRemindersStore } from '../stores/remindersStore'
+import { toast } from '../lib/toast'
+import EmptyState from '../components/ui/EmptyState'
 
 export default function RemindersPage() {
   const navigate = useNavigate()
@@ -17,7 +19,7 @@ export default function RemindersPage() {
 
   const handleAddReminder = () => {
     if (!newReminder.title || !newReminder.date || !newReminder.time) {
-      alert('נא למלא את כל השדות הנדרשים')
+      toast.warning('שדות חסרים', 'מלא את הכותרת, התאריך והשעה')
       return
     }
 
@@ -69,16 +71,12 @@ export default function RemindersPage() {
 
         <div className="space-y-3">
           {reminders.length === 0 && !showAddForm && (
-            <div className="text-center py-12">
-              <Calendar className="mx-auto text-secondary/30 mb-4" size={64} />
-              <p className="text-secondary/60 font-bold text-lg mb-4">אין תזכורות</p>
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="bg-secondary text-primary font-bold py-3 px-6 rounded-xl active:scale-95 transition-transform"
-              >
-                הוסף תזכורת ראשונה
-              </button>
-            </div>
+            <EmptyState
+              icon={Calendar}
+              title="אין תזכורות עדיין"
+              description="הוסף תזכורת ראשונה כדי לקבל התראה ביום ובשעה שהגדרת"
+              action={{ label: 'הוסף תזכורת ראשונה', onClick: () => setShowAddForm(true) }}
+            />
           )}
 
           <AnimatePresence>

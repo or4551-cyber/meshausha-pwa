@@ -1,18 +1,119 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, DollarSign, FileText, BarChart3, Plus, Mail, Upload, TrendingUp, Bell, BellOff, BellRing, Zap, Eye, Calendar, CreditCard, PlayCircle, Send, Cloud } from 'lucide-react'
+import {
+  ChevronRight, ChevronDown, DollarSign, FileText, BarChart3, Plus, Mail,
+  Upload, TrendingUp, Bell, BellOff, BellRing, Zap, Eye, Calendar, CreditCard,
+  PlayCircle, Send, Cloud, Briefcase, Package, MessageCircle, Receipt, HelpCircle,
+  type LucideIcon,
+} from 'lucide-react'
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
 import { useSuppliersStore } from '../stores/suppliersStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { sendBulkInvoiceRequests } from '../lib/emailService'
 import { saveSuppliersToCloud, getOrdersFromCloud } from '../lib/cloudApi'
 import { useAdminOrders } from '../hooks/useAdminOrders'
 import { BRANCH_NAMES } from '../data/branches'
+import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from '../lib/toast'
 import {
   isNotificationSupported,
   subscribeToPushNotifications,
   ensurePushSubscription,
   sendLocalNotification,
 } from '../lib/notifications'
+
+interface AdminSectionProps {
+  id: string
+  title: string
+  description: string
+  icon: LucideIcon
+  expanded: boolean
+  onToggle: (id: string) => void
+  children: ReactNode
+}
+
+function AdminSection({ id, title, description, icon: Icon, expanded, onToggle, children }: AdminSectionProps) {
+  return (
+    <div className="bg-secondary/95 rounded-3xl shadow-lg overflow-hidden">
+      <button
+        onClick={() => onToggle(id)}
+        className="w-full flex items-center gap-4 p-5 active:scale-[0.99] transition-transform touch-manipulation text-right"
+        aria-expanded={expanded}
+      >
+        <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
+          <Icon className="text-primary" size={22} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-black text-primary text-base">{title}</h3>
+          <p className="text-primary/55 text-xs font-bold mt-0.5">{description}</p>
+        </div>
+        <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="text-primary/50 flex-shrink-0" size={20} />
+        </motion.div>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-4 space-y-2 border-t-2 border-primary/5">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+interface AdminTileProps {
+  icon: LucideIcon
+  title: string
+  subtitle?: string
+  onClick: () => void
+  variant?: 'primary' | 'amber' | 'emerald' | 'indigo' | 'violet' | 'sky' | 'rose' | 'teal'
+  badge?: number
+  disabled?: boolean
+}
+
+function AdminTile({ icon: Icon, title, subtitle, onClick, variant = 'primary', badge, disabled }: AdminTileProps) {
+  const variants: Record<NonNullable<AdminTileProps['variant']>, string> = {
+    primary: 'bg-primary/5 text-primary',
+    amber: 'bg-amber-500/15 text-amber-700',
+    emerald: 'bg-emerald-600/15 text-emerald-700',
+    indigo: 'bg-indigo-600/15 text-indigo-700',
+    violet: 'bg-violet-600/15 text-violet-700',
+    sky: 'bg-sky-500/15 text-sky-700',
+    rose: 'bg-rose-500/15 text-rose-700',
+    teal: 'bg-teal-600/15 text-teal-700',
+  }
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full ${variants[variant]} rounded-2xl active:scale-[0.98] transition-transform touch-manipulation text-right disabled:opacity-50`}
+    >
+      <div className="flex items-center gap-3 p-3.5">
+        <div className="flex-shrink-0 bg-white/40 p-2 rounded-xl">
+          <Icon size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-black text-sm leading-tight">{title}</p>
+          {subtitle && <p className="opacity-70 text-xs font-bold mt-0.5 truncate">{subtitle}</p>}
+        </div>
+        {badge !== undefined && badge > 0 && (
+          <span className="bg-current text-white font-black text-xs min-w-[24px] h-6 px-1.5 rounded-full flex items-center justify-center">
+            {badge}
+          </span>
+        )}
+        <ChevronRight className="opacity-40 flex-shrink-0 rotate-180" size={16} />
+      </div>
+    </button>
+  )
+}
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -21,30 +122,38 @@ export default function AdminPage() {
   const totalOrders = allOrders.length
   const totalSuppliers = getAllSuppliers().length
   const [pendingCount, setPendingCount] = useState(0)
+  const [sending, setSending] = useState(false)
+  const [progress, setProgress] = useState({ current: 0, total: 0, supplier: '' })
+  const [showVideo, setShowVideo] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default')
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+  // ברירת מחדל — "פעולות יומיות" פתוח
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['daily']))
 
-  // טוען ספירת הזמנות ממתינות מהענן (כולל הזמנות מכל הסניפים)
+  const toggleSection = (id: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   useEffect(() => {
     getOrdersFromCloud().then(orders => {
       setPendingCount(orders.filter(o => o.status === 'pending').length)
     })
   }, [])
-  const [sending, setSending] = useState(false)
-  const [progress, setProgress] = useState({ current: 0, total: 0, supplier: '' })
-  const [showVideo, setShowVideo] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState('')
-  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default')
-  const [pushSubscribed, setPushSubscribed] = useState(false)
-  const [pushLoading, setPushLoading] = useState(false)
 
   useEffect(() => {
     if (isNotificationSupported()) {
       setPushPermission(Notification.permission)
-      // בדוק אם יש מנוי קיים
       navigator.serviceWorker.ready.then(reg =>
         reg.pushManager.getSubscription().then(sub => {
           setPushSubscribed(!!sub)
-          if (sub) ensurePushSubscription() // שמור מחדש בשרת
+          if (sub) ensurePushSubscription()
         })
       ).catch(() => {})
     }
@@ -78,20 +187,17 @@ export default function AdminPage() {
     const { suppliers, products } = useSuppliersStore.getState()
     const suppliersWithSchedules = suppliers.filter(s => s.schedules && s.schedules.length > 0)
     if (suppliersWithSchedules.length === 0) {
-      alert('במכשיר זה אין ספקים עם לוחות זמנים — לא ניתן לסנכרן. השתמש במחשב שבו הוגדרו הספקים.')
+      toast.warning('אין ספקים עם לוחות זמנים', 'השתמש במחשב שבו הוגדרו הספקים.')
       return
     }
     const ok = confirm(`מכשיר זה יעלה ${suppliers.length} ספקים לענן ויחליף את כל הנתונים הקיימים שם.\nלהמשיך?`)
     if (!ok) return
     setSyncing(true)
-    setSyncMsg('')
     try {
       await saveSuppliersToCloud({ suppliers, products })
-      setSyncMsg(`✓ ${suppliers.length} ספקים ו-${products.length} מוצרים נשמרו בענן`)
-      setTimeout(() => setSyncMsg(''), 4000)
+      toast.success('הסנכרון הסתיים', `${suppliers.length} ספקים ו-${products.length} מוצרים נשמרו בענן`)
     } catch (e: any) {
-      setSyncMsg(`✗ שגיאה: ${e?.message || 'לא ידוע'}`)
-      setTimeout(() => setSyncMsg(''), 8000)
+      toast.error('הסנכרון נכשל', e?.message || 'שגיאה לא ידועה')
     } finally {
       setSyncing(false)
     }
@@ -100,28 +206,22 @@ export default function AdminPage() {
   const handleSendInvoiceRequests = async () => {
     const suppliers = getAllSuppliers()
     const suppliersWithEmail = suppliers.filter(s => s.email)
-    
     if (suppliersWithEmail.length === 0) {
-      alert('אין ספקים עם כתובת מייל. נא להגדיר מיילים בדף "פרטי קשר ספקים"')
+      toast.warning('אין ספקים עם מייל', 'נא להגדיר מיילים בדף "פרטי קשר ספקים"')
       return
     }
-
     const confirmed = confirm(`האם לשלוח בקשה לחשבוניות ל-${suppliersWithEmail.length} ספקים?`)
     if (!confirmed) return
-
     setSending(true)
-    
     const now = new Date()
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const month = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`
-    
     const emailData = suppliersWithEmail.map(s => ({
       name: s.name,
       email: s.email!,
       contactPerson: s.contactPerson || s.name,
-      branches: BRANCH_NAMES
+      branches: BRANCH_NAMES,
     }))
-
     const result = await sendBulkInvoiceRequests(
       emailData,
       month,
@@ -130,15 +230,21 @@ export default function AdminPage() {
         setProgress({ current, total, supplier: supplierName })
       }
     )
-
     setSending(false)
-    alert(`נשלחו ${result.success} בקשות בהצלחה, ${result.failed} נכשלו`)
+    if (result.failed === 0) {
+      toast.success(`נשלחו ${result.success} בקשות`, 'כל הבקשות נשלחו בהצלחה')
+    } else if (result.success === 0) {
+      toast.error('שליחת המיילים נכשלה', `${result.failed} מיילים לא נשלחו — בדוק הגדרות EmailJS`)
+    } else {
+      toast.warning(`${result.success} נשלחו, ${result.failed} נכשלו`, 'בדוק את התוצאות')
+    }
   }
 
   return (
     <div className="min-h-screen bg-primary pb-20">
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <header className="bg-secondary rounded-3xl p-5 mb-6 shadow-xl">
+        {/* Header */}
+        <header className="bg-secondary rounded-3xl p-5 mb-4 shadow-xl">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
@@ -148,92 +254,166 @@ export default function AdminPage() {
             </button>
             <div className="flex-1 text-center">
               <h2 className="font-black text-primary text-xl mb-1">פאנל אדמין</h2>
-              <p className="text-primary/60 text-xs font-bold">{totalOrders} הזמנות • {totalSuppliers} ספקים</p>
+              <p className="text-primary/60 text-xs font-bold">{totalOrders} הזמנות · {totalSuppliers} ספקים</p>
             </div>
             <div className="w-8" />
           </div>
         </header>
 
+        {/* כפתור-על: שליחה לספקים — תמיד גלוי כי הוא הקריטי ביומי */}
+        <button
+          onClick={() => navigate('/admin/dispatch')}
+          className="w-full bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-3xl shadow-lg active:scale-[0.98] transition-transform touch-manipulation overflow-hidden mb-4"
+        >
+          <div className="flex items-center gap-4 p-5">
+            <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
+              <Send className="text-white" size={26} />
+            </div>
+            <div className="flex-1 text-right">
+              <h3 className="font-black text-white text-lg mb-1">שליחה לספקים</h3>
+              <p className="text-white/85 text-sm font-bold">
+                {pendingCount > 0
+                  ? `${pendingCount} הזמנות ממתינות לשליחה`
+                  : 'אין הזמנות ממתינות'}
+              </p>
+            </div>
+            {pendingCount > 0 && (
+              <div className="bg-white text-emerald-700 font-black text-lg w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+                {pendingCount}
+              </div>
+            )}
+          </div>
+        </button>
+
         <div className="space-y-3">
-          {/* סנכרון ספקים לענן */}
-          <button
-            onClick={handleSyncToCloud}
-            disabled={syncing}
-            className="w-full bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden disabled:opacity-70"
+          {/* קטגוריה 1: פעולות יומיות */}
+          <AdminSection
+            id="daily"
+            title="פעולות יומיות"
+            description="מבט-על, לוח שבועי, דשבורד"
+            icon={Briefcase}
+            expanded={expanded.has('daily')}
+            onToggle={toggleSection}
           >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Cloud className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">סנכרן ספקים לענן</h3>
-                <p className="text-white/80 text-xs font-bold">
-                  {syncMsg || (syncing ? 'שומר...' : 'לחץ כדי שכל המכשירים יראו את הנתונים העדכניים')}
-                </p>
-              </div>
-            </div>
-          </button>
+            <AdminTile
+              icon={Eye}
+              title="מבט-על סניפים"
+              subtitle="מי הזמין היום · הוצאות · זיכויים"
+              onClick={() => navigate('/admin/branch-overview')}
+              variant="primary"
+            />
+            <AdminTile
+              icon={Calendar}
+              title="לוח שבועי"
+              subtitle="מי מזמין מי בכל יום בשבוע"
+              onClick={() => navigate('/admin/weekly-schedule')}
+              variant="violet"
+            />
+            <AdminTile
+              icon={Calendar}
+              title="לוח שנה — הזמנות"
+              subtitle="פירוט לפי יום + סיכום חודשי"
+              onClick={() => navigate('/calendar')}
+              variant="sky"
+            />
+            <AdminTile
+              icon={BarChart3}
+              title="דשבורד אנליטי מתקדם"
+              subtitle="גרפים אינטראקטיביים וסטטיסטיקות"
+              onClick={() => navigate('/admin/dashboard')}
+              variant="amber"
+            />
+          </AdminSection>
 
-          {/* שליחה לספקים */}
-          <button
-            onClick={() => navigate('/admin/dispatch')}
-            className="w-full bg-gradient-to-br from-green-600 to-green-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          {/* קטגוריה 2: ספקים ומחירים */}
+          <AdminSection
+            id="suppliers"
+            title="ספקים ומחירים"
+            description="הוספה, עדכון, סנכרון לענן"
+            icon={Package}
+            expanded={expanded.has('suppliers')}
+            onToggle={toggleSection}
           >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Send className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">שליחה לספקים</h3>
-                <p className="text-white/80 text-xs font-bold">
-                  {pendingCount > 0
-                    ? `${pendingCount} הזמנות ממתינות לשליחה`
-                    : 'אין הזמנות ממתינות כרגע'}
-                </p>
-              </div>
-              {pendingCount > 0 && (
-                <div className="bg-white text-green-700 font-black text-lg w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0">
-                  {pendingCount}
-                </div>
-              )}
-            </div>
-          </button>
+            <AdminTile
+              icon={Plus}
+              title="הוספת ספק חדש"
+              subtitle="ספק + מוצרים + ימי הזמנה"
+              onClick={() => navigate('/admin/add-supplier')}
+              variant="emerald"
+            />
+            <AdminTile
+              icon={DollarSign}
+              title="ניהול מחירים"
+              subtitle="עדכון מחירי מוצרים"
+              onClick={() => navigate('/admin/prices')}
+              variant="primary"
+            />
+            <AdminTile
+              icon={TrendingUp}
+              title="מעקב מחירים לאורך זמן"
+              subtitle="מגמות מחיר לפי מוצר"
+              onClick={() => navigate('/admin/price-history')}
+              variant="primary"
+            />
+            <AdminTile
+              icon={Mail}
+              title="פרטי קשר ספקים"
+              subtitle="מיילים, אנשי קשר, טלפונים"
+              onClick={() => navigate('/admin/suppliers-contact')}
+              variant="primary"
+            />
+            <AdminTile
+              icon={Cloud}
+              title={syncing ? 'מסנכרן...' : 'סנכרון ספקים לענן'}
+              subtitle="גורם לכל המכשירים לראות את הנתונים העדכניים"
+              onClick={handleSyncToCloud}
+              variant="indigo"
+              disabled={syncing}
+            />
+          </AdminSection>
 
-          {/* התראות Push לאדמין */}
-          {isNotificationSupported() && (
-            <div className={`w-full rounded-3xl shadow-lg overflow-hidden ${
-              pushPermission === 'granted' && pushSubscribed
-                ? 'bg-gradient-to-br from-emerald-600 to-emerald-800'
-                : pushPermission === 'denied'
-                  ? 'bg-gradient-to-br from-gray-500 to-gray-700'
-                  : 'bg-gradient-to-br from-amber-500 to-amber-700'
-            }`}>
-              <div className="flex items-center gap-4 p-5">
-                <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                  {pushPermission === 'granted' && pushSubscribed
-                    ? <Bell className="text-white" size={24} />
-                    : pushPermission === 'denied'
-                      ? <BellOff className="text-white" size={24} />
-                      : <BellRing className="text-white" size={24} />
-                  }
-                </div>
-                <div className="flex-1 text-right">
-                  <h3 className="font-black text-white text-base mb-1">
+          {/* קטגוריה 3: התראות ותזכורות */}
+          <AdminSection
+            id="notifications"
+            title="התראות ותזכורות"
+            description="Push, תזכורות לסניפים, הודעות"
+            icon={Bell}
+            expanded={expanded.has('notifications')}
+            onToggle={toggleSection}
+          >
+            {/* Push notifications card */}
+            {isNotificationSupported() && (
+              <div className={`w-full rounded-2xl shadow-md overflow-hidden ${
+                pushPermission === 'granted' && pushSubscribed
+                  ? 'bg-gradient-to-br from-emerald-600 to-emerald-700'
+                  : pushPermission === 'denied'
+                    ? 'bg-gradient-to-br from-gray-500 to-gray-700'
+                    : 'bg-gradient-to-br from-amber-500 to-amber-600'
+              }`}>
+                <div className="flex items-center gap-3 p-3.5">
+                  <div className="flex-shrink-0 bg-white/20 p-2 rounded-xl">
                     {pushPermission === 'granted' && pushSubscribed
-                      ? 'התראות Push פעילות'
+                      ? <Bell className="text-white" size={18} />
                       : pushPermission === 'denied'
-                        ? 'התראות חסומות בדפדפן'
-                        : 'הפעל התראות Push'}
-                  </h3>
-                  <p className="text-white/80 text-xs font-bold">
-                    {pushPermission === 'granted' && pushSubscribed
-                      ? 'תקבל התראה על כל הזמנה חדשה'
-                      : pushPermission === 'denied'
-                        ? 'יש לאפשר בהגדרות הדפדפן'
-                        : 'לקבל התראה כשמגיעה הזמנה חדשה'}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1.5">
+                        ? <BellOff className="text-white" size={18} />
+                        : <BellRing className="text-white" size={18} />}
+                  </div>
+                  <div className="flex-1 text-right min-w-0">
+                    <h3 className="font-black text-white text-sm">
+                      {pushPermission === 'granted' && pushSubscribed
+                        ? 'התראות Push פעילות'
+                        : pushPermission === 'denied'
+                          ? 'התראות חסומות'
+                          : 'הפעל התראות Push'}
+                    </h3>
+                    <p className="text-white/80 text-xs font-bold">
+                      {pushPermission === 'granted' && pushSubscribed
+                        ? 'תקבל התראה על כל הזמנה חדשה'
+                        : pushPermission === 'denied'
+                          ? 'יש לאפשר בהגדרות הדפדפן'
+                          : 'התראה על כל הזמנה חדשה'}
+                    </p>
+                  </div>
                   {pushPermission === 'granted' && pushSubscribed ? (
                     <button
                       onClick={handleTestPush}
@@ -252,267 +432,101 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
-            </div>
-          )}
+            )}
+            <AdminTile
+              icon={Bell}
+              title="תזכורות Push לסניפים"
+              subtitle="Google Calendar · Push אמיתי לטלפון"
+              onClick={() => navigate('/admin/calendar-reminders')}
+              variant="sky"
+            />
+            <AdminTile
+              icon={MessageCircle}
+              title="התראות לסניפים"
+              subtitle="שליחת הודעות לסניפים ספציפיים"
+              onClick={() => navigate('/admin/notifications')}
+              variant="primary"
+            />
+          </AdminSection>
 
-          {/* מדריך וידאו */}
-          <button
-            onClick={() => setShowVideo(true)}
-            className="w-full bg-gradient-to-br from-teal-600 to-teal-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          {/* קטגוריה 4: חשבוניות וכספים */}
+          <AdminSection
+            id="finance"
+            title="חשבוניות וכספים"
+            description="דוחות, אוטומציה, זיכויים, חשבוניות"
+            icon={Receipt}
+            expanded={expanded.has('finance')}
+            onToggle={toggleSection}
           >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <PlayCircle className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">מדריך וידאו לאדמין</h3>
-                <p className="text-white/80 text-xs font-bold">סרטון הסבר על כל פיצ'רי המערכת</p>
-              </div>
-            </div>
-          </button>
+            <AdminTile
+              icon={FileText}
+              title="דוחות כלכליים"
+              subtitle="דוחות לפי סניף וספק"
+              onClick={() => navigate('/admin/reports')}
+              variant="primary"
+            />
+            <AdminTile
+              icon={CreditCard}
+              title="מעקב זיכויים"
+              subtitle="פריטים שלא סופקו · זיכויים פתוחים"
+              onClick={() => navigate('/admin/credits')}
+              variant="amber"
+            />
+            <AdminTile
+              icon={Zap}
+              title="אוטומציית חשבוניות"
+              subtitle="שליחה אוטומטית + תזכורות לספקים"
+              onClick={() => navigate('/admin/automation')}
+              variant="indigo"
+            />
+            <AdminTile
+              icon={Mail}
+              title={sending ? `שולח... (${progress.current}/${progress.total})` : 'בקש חשבוניות חודשיות'}
+              subtitle={sending ? progress.supplier : 'שליחת בקשה אוטומטית לכל הספקים'}
+              onClick={handleSendInvoiceRequests}
+              variant="violet"
+              disabled={sending}
+            />
+            <AdminTile
+              icon={Mail}
+              title="Gmail — משיכה אוטומטית"
+              subtitle="חיבור ל-Gmail למשיכת חשבוניות"
+              onClick={() => navigate('/admin/gmail-settings')}
+              variant="sky"
+            />
+            <AdminTile
+              icon={Upload}
+              title="העלאת חשבוניות"
+              subtitle="ניהול חשבוניות שהתקבלו"
+              onClick={() => navigate('/admin/invoices')}
+              variant="primary"
+            />
+            <AdminTile
+              icon={TrendingUp}
+              title="ניתוח חשבוניות"
+              subtitle="השוואת מחירים והפרשים"
+              onClick={() => navigate('/admin/invoice-analysis')}
+              variant="primary"
+            />
+          </AdminSection>
 
-          {/* תזכורות ביומן גוגל */}
-          <button
-            onClick={() => navigate('/admin/calendar-reminders')}
-            className="w-full bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          {/* קטגוריה 5: עזרה */}
+          <AdminSection
+            id="help"
+            title="עזרה"
+            description="מדריכים והדרכה"
+            icon={HelpCircle}
+            expanded={expanded.has('help')}
+            onToggle={toggleSection}
           >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Bell className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">תזכורות Push לסניפים</h3>
-                <p className="text-white/80 text-xs font-bold">Google Calendar • Push אמיתי לטלפון</p>
-              </div>
-            </div>
-          </button>
-
-          {/* מבט-על סניפים */}
-          <button
-            onClick={() => navigate('/admin/branch-overview')}
-            className="w-full bg-gradient-to-br from-primary to-[#7a2f2f] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Eye className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">מבט-על סניפים</h3>
-                <p className="text-white/80 text-xs font-bold">מי הזמין היום • הוצאות • זיכויים</p>
-              </div>
-            </div>
-          </button>
-
-          {/* לוח שבועי */}
-          <button
-            onClick={() => navigate('/admin/weekly-schedule')}
-            className="w-full bg-gradient-to-br from-violet-600 to-violet-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Calendar className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">לוח שבועי</h3>
-                <p className="text-white/80 text-xs font-bold">מי מזמין מי בכל יום בשבוע</p>
-              </div>
-            </div>
-          </button>
-
-          {/* מעקב זיכויים */}
-          <button
-            onClick={() => navigate('/admin/credits')}
-            className="w-full bg-gradient-to-br from-amber-500 to-amber-700 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <CreditCard className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">מעקב זיכויים</h3>
-                <p className="text-white/80 text-xs font-bold">פריטים שלא סופקו • זיכויים פתוחים</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/admin/dashboard')}
-            className="w-full bg-gradient-to-br from-accent to-[#7a6348] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <BarChart3 className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">דשבורד אנליטי מתקדם</h3>
-                <p className="text-white/80 text-xs font-bold">גרפים אינטראקטיביים וסטטיסטיקות</p>
-              </div>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => navigate('/admin/add-supplier')}
-            className="w-full bg-gradient-to-br from-bot to-[#96a556] rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Plus className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">הוספת ספק חדש</h3>
-                <p className="text-white/80 text-xs font-bold">ספק + מוצרים + ימי הזמנה</p>
-              </div>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => navigate('/admin/prices')}
-            className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
-                <DollarSign className="text-primary" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-primary text-lg mb-1">ניהול מחירים</h3>
-                <p className="text-primary/60 text-xs font-bold">עדכון מחירי מוצרים</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/admin/reports')}
-            className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
-                <FileText className="text-primary" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-primary text-lg mb-1">דוחות כלכליים</h3>
-                <p className="text-primary/60 text-xs font-bold">דוחות לפי סניף וספק</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/admin/notifications')}
-            className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
-                <Bell className="text-primary" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-primary text-lg mb-1">התראות לסניפים</h3>
-                <p className="text-primary/60 text-xs font-bold">שליחת הודעות לסניפים ספציפיים</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/admin/automation')}
-            className="w-full bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
-          >
-            <div className="flex items-center gap-4 p-5">
-              <div className="flex-shrink-0 bg-white/20 p-3 rounded-2xl">
-                <Zap className="text-white" size={24} />
-              </div>
-              <div className="flex-1 text-right">
-                <h3 className="font-black text-white text-lg mb-1">אוטומציית חשבוניות</h3>
-                <p className="text-white/80 text-xs font-bold">שליחה אוטומטית + תזכורות לספקים</p>
-              </div>
-            </div>
-          </button>
-
-          <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-3xl p-5 shadow-xl mt-6">
-            <h3 className="font-black text-white text-lg mb-3">ניהול חשבוניות</h3>
-            
-            <div className="space-y-2">
-              <button 
-                onClick={() => navigate('/admin/gmail-settings')}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation shadow-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <Mail className="text-white" size={20} />
-                  <div className="flex-1 text-right">
-                    <h4 className="font-bold text-white text-sm">🔥 Gmail - משיכה אוטומטית</h4>
-                    <p className="text-white/90 text-xs">חיבור ל-Gmail למשיכת חשבוניות</p>
-                  </div>
-                </div>
-              </button>
-
-              <button 
-                onClick={() => navigate('/admin/suppliers-contact')}
-                className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
-              >
-                <div className="flex items-center gap-3">
-                  <Mail className="text-white" size={20} />
-                  <div className="flex-1 text-right">
-                    <h4 className="font-bold text-white text-sm">פרטי קשר ספקים</h4>
-                    <p className="text-white/70 text-xs">ניהול מיילים ואנשי קשר</p>
-                  </div>
-                </div>
-              </button>
-
-              <button 
-                onClick={handleSendInvoiceRequests}
-                disabled={sending}
-                className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation disabled:opacity-50"
-              >
-                <div className="flex items-center gap-3">
-                  <Mail className="text-white" size={20} />
-                  <div className="flex-1 text-right">
-                    <h4 className="font-bold text-white text-sm">
-                      {sending ? `שולח... (${progress.current}/${progress.total})` : '📧 בקש חשבוניות חודשיות'}
-                    </h4>
-                    <p className="text-white/70 text-xs">
-                      {sending ? progress.supplier : 'שליחת בקשה אוטומטית לכל הספקים'}
-                    </p>
-                  </div>
-                </div>
-              </button>
-
-              <button 
-                onClick={() => navigate('/admin/invoices')}
-                className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
-              >
-                <div className="flex items-center gap-3">
-                  <Upload className="text-white" size={20} />
-                  <div className="flex-1 text-right">
-                    <h4 className="font-bold text-white text-sm">העלאת חשבוניות</h4>
-                    <p className="text-white/70 text-xs">ניהול חשבוניות שהתקבלו</p>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => navigate('/admin/invoice-analysis')}
-                className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
-              >
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="text-white" size={20} />
-                  <div className="flex-1 text-right">
-                    <h4 className="font-bold text-white text-sm">ניתוח חשבוניות</h4>
-                    <p className="text-white/70 text-xs">השוואת מחירים והפרשים</p>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => navigate('/admin/price-history')}
-                className="w-full bg-white/20 hover:bg-white/30 rounded-2xl p-4 transition-all active:scale-[0.98] touch-manipulation"
-              >
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="text-white" size={20} />
-                  <div className="flex-1 text-right">
-                    <h4 className="font-bold text-white text-sm">מעקב מחירים לאורך זמן</h4>
-                    <p className="text-white/70 text-xs">מגמות מחיר לפי מוצר</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
+            <AdminTile
+              icon={PlayCircle}
+              title="מדריך וידאו לאדמין"
+              subtitle="סרטון הסבר על כל פיצ'רי המערכת"
+              onClick={() => setShowVideo(true)}
+              variant="teal"
+            />
+          </AdminSection>
         </div>
       </div>
 

@@ -357,6 +357,24 @@ export default function DashboardPage() {
             </div>
           </button>
 
+          {/* לוח שנה */}
+          <button
+            onClick={() => navigate('/calendar')}
+            className="w-full bg-secondary rounded-3xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98] touch-manipulation overflow-hidden"
+          >
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex-shrink-0 bg-primary/10 p-3 rounded-2xl">
+                <Calendar className="text-primary" size={24} />
+              </div>
+              <div className="flex-1 text-right">
+                <h3 className="font-black text-primary text-lg mb-1">לוח שנה</h3>
+                <p className="text-primary/60 text-xs font-bold">
+                  {user?.isAdmin ? 'הזמנות מכל הסניפים לפי יום' : 'ההזמנות שלך לפי יום'}
+                </p>
+              </div>
+            </div>
+          </button>
+
           {/* שליחה לספקים — לאדמין בלבד */}
           {user?.isAdmin && (
             <button

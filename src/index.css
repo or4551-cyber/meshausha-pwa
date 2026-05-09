@@ -104,3 +104,100 @@
     min-width: 44px;
   }
 }
+
+/* ─── react-day-picker theme override (maroon/cream RTL) ─── */
+.calendar-container {
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-accent-background-color: hsl(var(--primary) / 0.1);
+  --rdp-day-height: 44px;
+  --rdp-day-width: 44px;
+  --rdp-day_button-height: 40px;
+  --rdp-day_button-width: 40px;
+  --rdp-day_button-border-radius: 12px;
+  --rdp-selected-border: 2px solid hsl(var(--primary));
+  --rdp-today-color: hsl(var(--primary));
+  --rdp-range_middle-color: hsl(var(--primary));
+  --rdp-range_middle-background-color: hsl(var(--primary) / 0.15);
+  font-family: inherit;
+}
+
+.calendar-container .rdp-root {
+  --rdp-accent-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+  margin: 0;
+}
+
+.calendar-container .rdp-month_caption {
+  color: hsl(var(--primary));
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+.calendar-container .rdp-weekday {
+  color: hsl(var(--primary) / 0.5);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.calendar-container .rdp-day_button {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: hsl(var(--primary));
+  min-height: 0;
+  min-width: 0;
+  transition: all 0.12s;
+}
+
+.calendar-container .rdp-day_button:hover:not([disabled]) {
+  background-color: hsl(var(--primary) / 0.08);
+}
+
+.calendar-container .rdp-day_button:active:not([disabled]) {
+  transform: scale(0.95);
+}
+
+.calendar-container .rdp-day.rdp-today:not(.rdp-selected) .rdp-day_button {
+  outline: 2px solid hsl(var(--primary) / 0.4);
+  outline-offset: -2px;
+}
+
+.calendar-container .rdp-day.rdp-selected .rdp-day_button {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--secondary)) !important;
+}
+
+.calendar-container .rdp-day.rdp-outside .rdp-day_button {
+  color: hsl(var(--primary) / 0.3);
+}
+
+.calendar-container .rdp-day-has-orders .rdp-day_button {
+  position: relative;
+  background-color: hsl(var(--primary) / 0.08);
+}
+
+.calendar-container .rdp-day-has-orders .rdp-day_button::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: hsl(var(--primary));
+}
+
+.calendar-container .rdp-day.rdp-selected.rdp-day-has-orders .rdp-day_button::after {
+  background-color: hsl(var(--secondary));
+}
+
+.calendar-container .rdp-button_previous,
+.calendar-container .rdp-button_next {
+  color: hsl(var(--primary));
+  border-radius: 8px;
+}
+
+.calendar-container .rdp-button_previous:hover,
+.calendar-container .rdp-button_next:hover {
+  background-color: hsl(var(--primary) / 0.08);
+}

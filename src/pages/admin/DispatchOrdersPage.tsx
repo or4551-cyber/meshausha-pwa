@@ -9,6 +9,7 @@ import { useSuppliersStore } from '../../stores/suppliersStore'
 import { isActiveOrder } from '../../stores/ordersStore'
 import type { Order } from '../../stores/ordersStore'
 import type { CartItem } from '../../stores/cartStore'
+import { toast } from '../../lib/toast'
 import {
   getOrdersFromCloud, markOrdersDispatchedInCloud,
   getAdminPhoneFromCloud, saveAdminPhoneToCloud,
@@ -288,7 +289,7 @@ export default function DispatchOrdersPage() {
     const itemsToMerge = order.items.filter(i => i.supplier === supplier)
     const ok = await mergeIntoOrder(earlier.id, itemsToMerge, order.notes || '', order.branch)
     if (!ok) {
-      alert('המיזוג נכשל. נסי שוב.')
+      toast.error('המיזוג נכשל', 'נסה שוב — אם הבעיה ממשיכה, בדוק חיבור לאינטרנט')
       return
     }
     // עדכון הענן — סמן את הצעירה כממוזגת

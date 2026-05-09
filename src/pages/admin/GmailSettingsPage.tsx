@@ -4,6 +4,7 @@ import { ChevronRight, Mail, CheckCircle, XCircle, RefreshCw, Download } from 'l
 import { getGmailAuthUrl, checkGmailForInvoices, isGmailConnected, getGmailTokens, clearGmailTokens } from '../../lib/gmailService'
 import { useInvoicesStore } from '../../stores/invoicesStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
+import { toast } from '../../lib/toast'
 
 export default function GmailSettingsPage() {
   const navigate = useNavigate()
@@ -23,7 +24,7 @@ export default function GmailSettingsPage() {
       const authUrl = await getGmailAuthUrl()
       window.location.href = authUrl
     } catch (error) {
-      alert('שגיאה בחיבור ל-Gmail')
+      toast.error('שגיאה בחיבור ל-Gmail', 'בדוק שה-OAuth credentials מוגדרים נכון')
       console.error(error)
     }
   }
@@ -36,7 +37,7 @@ export default function GmailSettingsPage() {
   const handleCheckInvoices = async () => {
     const tokens = getGmailTokens()
     if (!tokens) {
-      alert('נא להתחבר ל-Gmail תחילה')
+      toast.warning('לא מחובר ל-Gmail', 'יש להתחבר תחילה לפני בדיקת חשבוניות')
       return
     }
 
@@ -87,9 +88,13 @@ export default function GmailSettingsPage() {
 
       setFoundInvoices(invoices.length)
       setLastCheck(new Date())
-      alert(`נמצאו ${invoices.length} חשבוניות!`)
+      if (invoices.length === 0) {
+        toast.info('הסתיימה הבדיקה', 'לא נמצאו חשבוניות חדשות')
+      } else {
+        toast.success(`נמצאו ${invoices.length} חשבוניות`, 'נוספו לרשימת חשבוניות')
+      }
     } catch (error) {
-      alert('שגיאה בבדיקת מיילים')
+      toast.error('שגיאה בבדיקת מיילים', 'בדוק את החיבור ל-Gmail ונסה שוב')
       console.error(error)
     } finally {
       setChecking(false)

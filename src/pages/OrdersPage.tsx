@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Search, Star, ShoppingCart } from 'lucide-react'
+import { ChevronRight, Search, Star, ShoppingCart, Package } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
 import ProductCard from '../components/ProductCard'
+import EmptyState from '../components/ui/EmptyState'
 
 export default function OrdersPage() {
   const navigate = useNavigate()
@@ -144,9 +145,17 @@ export default function OrdersPage() {
         </div>
 
         {filteredProducts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-secondary/60 font-bold">לא נמצאו מוצרים</p>
-          </div>
+          <EmptyState
+            icon={Package}
+            title="לא נמצאו מוצרים"
+            description={
+              searchTerm
+                ? `אין תוצאות עבור "${searchTerm}"`
+                : showFavoritesOnly
+                  ? 'אין מוצרים מועדפים אצל הספק הזה'
+                  : 'אין מוצרים אצל הספק הזה'
+            }
+          />
         )}
       </div>
 

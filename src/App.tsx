@@ -14,6 +14,7 @@ import DeliveryConfirmPage from './pages/DeliveryConfirmPage'
 import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
 import ErrorBoundary from './components/ErrorBoundary'
+import ToastContainer from './components/Toast'
 
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const PriceManagementPage = lazy(() => import('./pages/admin/PriceManagementPage'))
@@ -34,6 +35,7 @@ const BranchOverviewPage = lazy(() => import('./pages/admin/BranchOverviewPage')
 const PriceHistoryPage = lazy(() => import('./pages/admin/PriceHistoryPage'))
 const CalendarRemindersPage = lazy(() => import('./pages/admin/CalendarRemindersPage'))
 const DispatchOrdersPage = lazy(() => import('./pages/admin/DispatchOrdersPage'))
+const OrdersCalendarPage = lazy(() => import('./pages/OrdersCalendarPage'))
 const ChatBot = lazy(() => import('./components/ChatBot'))
 
 function PageFallback() {
@@ -75,6 +77,7 @@ function App() {
   return (
     <Router>
       <ErrorBoundary>
+      <ToastContainer />
       <div className="min-h-screen bg-primary">
         {isAuthenticated && (
           <>
@@ -107,9 +110,13 @@ function App() {
             path="/history" 
             element={isAuthenticated ? <HistoryPage /> : <Navigate to="/login" />} 
           />
-          <Route 
-            path="/reminders" 
-            element={isAuthenticated ? <RemindersPage /> : <Navigate to="/login" />} 
+          <Route
+            path="/reminders"
+            element={isAuthenticated ? <RemindersPage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/calendar"
+            element={isAuthenticated ? <OrdersCalendarPage /> : <Navigate to="/login" />}
           />
           <Route 
             path="/admin" 

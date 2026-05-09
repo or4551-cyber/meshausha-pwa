@@ -6,6 +6,7 @@ import { useSuppliersStore } from '../../stores/suppliersStore'
 import { useAuthStore } from '../../stores/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BRANCHES as branches } from '../../data/branches'
+import { toast } from '../../lib/toast'
 
 export default function InvoicesPage() {
   const navigate = useNavigate()
@@ -23,7 +24,7 @@ export default function InvoicesPage() {
 
   const handleUpload = () => {
     if (!uploadForm.supplierId || !uploadForm.branchCode || !uploadForm.month) {
-      alert('נא למלא את כל השדות הנדרשים')
+      toast.warning('שדות חסרים', 'מלא ספק, סניף וחודש')
       return
     }
 

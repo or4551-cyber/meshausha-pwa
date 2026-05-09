@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Calendar, Plus, Trash2, Share2, RefreshCw, Bell, X, AlertCircle } from 'lucide-react'
-
-const BRANCHES = [
-  { code: '1001', name: 'עין המפרץ' },
-  { code: '1002', name: 'ביאליק קרן היסוד' },
-  { code: '1003', name: 'מוצקין הילדים' },
-  { code: '1004', name: 'צור שלום' },
-  { code: '1005', name: 'גושן 60' },
-  { code: '1006', name: 'נהריה הגעתון' },
-  { code: '1007', name: 'ההסתדרות' },
-  { code: '1008', name: 'משכנות האומנים' },
-  { code: '1009', name: 'רון קריית ביאליק' },
-]
+import { BRANCHES } from '../../data/branches'
+import { toast } from '../../lib/toast'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -91,7 +81,7 @@ export default function CalendarRemindersPage() {
         }
       }))
     } catch (e: any) {
-      alert(`שגיאה ביצירת יומן: ${e.message}`)
+      toast.error('שגיאה ביצירת יומן', e?.message)
     } finally {
       setWorking(null)
     }
@@ -143,7 +133,7 @@ export default function CalendarRemindersPage() {
       setShowForm(false)
       setForm({ title: '', description: '', recurrence: 'weekly', dayOfWeek: 0, dayOfMonth: 1, time: '08:00', date: '' })
     } catch (e: any) {
-      alert(`שגיאה בהוספת תזכורת: ${e.message}`)
+      toast.error('שגיאה בהוספת תזכורת', e?.message)
     } finally {
       setWorking(null)
     }
@@ -169,7 +159,7 @@ export default function CalendarRemindersPage() {
         }
       }))
     } catch (e: any) {
-      alert(`שגיאה במחיקת תזכורת: ${e.message}`)
+      toast.error('שגיאה במחיקת תזכורת', e?.message)
     } finally {
       setWorking(null)
     }
