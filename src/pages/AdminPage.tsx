@@ -3,6 +3,7 @@ import {
   ChevronRight, ChevronDown, DollarSign, FileText, BarChart3, Plus, Mail,
   Upload, TrendingUp, Bell, BellOff, BellRing, Zap, Eye, Calendar, CreditCard,
   PlayCircle, Send, Cloud, Briefcase, Package, MessageCircle, Receipt, HelpCircle,
+  Search, Trophy,
   type LucideIcon,
 } from 'lucide-react'
 import { VideoModal, ADMIN_VIDEO_URL } from '../components/VideoModal'
@@ -300,11 +301,25 @@ export default function AdminPage() {
           <AdminSection
             id="daily"
             title="פעולות יומיות"
-            description="מבט-על, לוח שבועי, דשבורד"
+            description="מבט-על, דירוג סניפים, חיפוש"
             icon={Briefcase}
             expanded={expanded.has('daily')}
             onToggle={toggleSection}
           >
+            <AdminTile
+              icon={Trophy}
+              title="דשבורד הנהלה"
+              subtitle="מבט תפעולי על הרשת · דירוג סניפים · ספקים מובילים"
+              onClick={() => navigate('/admin/executive')}
+              variant="rose"
+            />
+            <AdminTile
+              icon={Search}
+              title="חיפוש בהזמנות"
+              subtitle="מצא הזמנה / מוצר בכל הסניפים"
+              onClick={() => navigate('/admin/search')}
+              variant="emerald"
+            />
             <AdminTile
               icon={Eye}
               title="מבט-על סניפים"

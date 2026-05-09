@@ -4,18 +4,7 @@ import { useSuppliersStore } from '../../stores/suppliersStore'
 import { useDeliveriesStore } from '../../stores/deliveriesStore'
 import { useAdminOrders } from '../../hooks/useAdminOrders'
 import { formatPrice } from '../../lib/utils'
-
-const BRANCHES = [
-  { code: '1001', name: 'עין המפרץ' },
-  { code: '1002', name: 'ביאליק קרן היסוד' },
-  { code: '1003', name: 'מוצקין הילדים' },
-  { code: '1004', name: 'צור שלום' },
-  { code: '1005', name: 'גושן 60' },
-  { code: '1006', name: 'נהריה הגעתון' },
-  { code: '1007', name: 'ההסתדרות' },
-  { code: '1008', name: 'משכנות האומנים' },
-  { code: '1009', name: 'רון קריית ביאליק' },
-]
+import { BRANCHES } from '../../data/branches'
 
 const today = new Date()
 const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`

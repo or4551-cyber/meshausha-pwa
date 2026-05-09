@@ -37,6 +37,8 @@ const BranchOverviewPage = lazy(() => import('./pages/admin/BranchOverviewPage')
 const PriceHistoryPage = lazy(() => import('./pages/admin/PriceHistoryPage'))
 const CalendarRemindersPage = lazy(() => import('./pages/admin/CalendarRemindersPage'))
 const DispatchOrdersPage = lazy(() => import('./pages/admin/DispatchOrdersPage'))
+const OrdersSearchPage = lazy(() => import('./pages/admin/OrdersSearchPage'))
+const ExecutiveDashboardPage = lazy(() => import('./pages/admin/ExecutiveDashboardPage'))
 const OrdersCalendarPage = lazy(() => import('./pages/OrdersCalendarPage'))
 const ChatBot = lazy(() => import('./components/ChatBot'))
 
@@ -200,6 +202,14 @@ function App() {
           <Route
             path="/admin/dispatch"
             element={isAuthenticated && user?.isAdmin ? <DispatchOrdersPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/search"
+            element={isAuthenticated && user?.isAdmin ? <OrdersSearchPage /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/executive"
+            element={isAuthenticated && user?.isAdmin ? <ExecutiveDashboardPage /> : <Navigate to="/" />}
           />
         </Routes>
         </Suspense>
