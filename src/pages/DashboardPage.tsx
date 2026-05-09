@@ -15,6 +15,7 @@ import { useAdminNotificationsStore } from '../stores/adminNotificationsStore'
 import type { NotificationPriority } from '../stores/adminNotificationsStore'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showConfirm } from '../lib/confirm'
 
 const PRIORITY_STYLE: Record<NotificationPriority, { bg: string; border: string; icon: typeof Bell; iconColor: string }> = {
   info:    { bg: 'bg-blue-900/30',   border: 'border-blue-500/40',   icon: Info,          iconColor: 'text-blue-400' },
@@ -103,9 +104,10 @@ export default function DashboardPage() {
     navigate('/summary')
   }
 
-  const handleDeleteTemplate = (e: React.MouseEvent, templateId: string) => {
+  const handleDeleteTemplate = async (e: React.MouseEvent, templateId: string) => {
     e.stopPropagation()
-    if (confirm('למחוק את התבנית?')) deleteTemplate(templateId)
+    const ok = await showConfirm({ title: 'למחוק את התבנית?', destructive: true })
+    if (ok) deleteTemplate(templateId)
   }
 
   const getTemplateSuppliers = (items: { supplier: string }[]) =>

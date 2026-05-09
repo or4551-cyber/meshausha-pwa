@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAutomationStore, type AutomationConfig, type SupplierEmailConfig } from '../../stores/automationStore'
 import { useSuppliersStore } from '../../stores/suppliersStore'
+import { showConfirm } from '../../lib/confirm'
 
 const HEBREW_MONTHS = [
   'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
@@ -110,7 +111,12 @@ export default function AutomationPage() {
       showToast('אין ספקים עם מייל לשליחה', false)
       return
     }
-    if (!confirm(`שלח ${isFollowup ? 'תזכורות' : 'בקשות חשבוניות'} ל-${toSend.length} ספקים?`)) return
+    const ok = await showConfirm({
+      title: `שליחת ${isFollowup ? 'תזכורות' : 'בקשות חשבוניות'}`,
+      description: `יישלחו ל-${toSend.length} ספקים`,
+      confirmLabel: 'שלח',
+    })
+    if (!ok) return
 
     setSending(true)
     try {

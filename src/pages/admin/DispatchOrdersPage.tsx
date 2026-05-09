@@ -10,6 +10,7 @@ import { isActiveOrder } from '../../stores/ordersStore'
 import type { Order } from '../../stores/ordersStore'
 import type { CartItem } from '../../stores/cartStore'
 import { toast } from '../../lib/toast'
+import { showConfirm } from '../../lib/confirm'
 import {
   getOrdersFromCloud, markOrdersDispatchedInCloud,
   getAdminPhoneFromCloud, saveAdminPhoneToCloud,
@@ -263,8 +264,13 @@ export default function DispatchOrdersPage() {
   }
 
   // מחיקה רכה של הזמנה — מסיר מ-pending, נשאר בהיסטוריה כ-deleted
-  const handleDeleteOrder = (orderId: string) => {
-    if (!confirm('למחוק לחלוטין את ההזמנה? ההזמנה תוסר מהמסך וגם מהמנהלת.')) return
+  const handleDeleteOrder = async (orderId: string) => {
+    const ok = await showConfirm({
+      title: 'למחוק את ההזמנה?',
+      description: 'ההזמנה תוסר מהמסך וגם מהמנהלת',
+      destructive: true,
+    })
+    if (!ok) return
     deleteOrderInCloud(orderId)
     markOrderDeleted(orderId)
     setCloudOrders(prev => prev.map(o =>
@@ -284,7 +290,12 @@ export default function DispatchOrdersPage() {
 
   // מיזוג ידני באדמין — מאחד תוספת לתוך הזמנה מוקדמת באותו ספק+סניף
   const handleMergeWithEarlier = async (order: Order, earlier: Order, supplier: string) => {
-    if (!confirm(`לאחד תוספת מ-${order.branch} לתוך ההזמנה הקודמת? ההזמנה הזו תיסגר.`)) return
+    const ok2 = await showConfirm({
+      title: 'איחוד תוספת',
+      description: `לאחד תוספת מ-${order.branch} לתוך ההזמנה הקודמת?\nההזמנה הזו תיסגר.`,
+      confirmLabel: 'אחד',
+    })
+    if (!ok2) return
     // ניקח רק פריטים מהספק הזה (מהזמנה צעירה יותר) ומעביר ל-earlier
     const itemsToMerge = order.items.filter(i => i.supplier === supplier)
     const ok = await mergeIntoOrder(earlier.id, itemsToMerge, order.notes || '', order.branch)

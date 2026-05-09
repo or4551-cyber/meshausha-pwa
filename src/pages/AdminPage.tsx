@@ -14,6 +14,7 @@ import { useAdminOrders } from '../hooks/useAdminOrders'
 import { BRANCH_NAMES } from '../data/branches'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '../lib/toast'
+import { showConfirm } from '../lib/confirm'
 import {
   isNotificationSupported,
   subscribeToPushNotifications,
@@ -190,7 +191,12 @@ export default function AdminPage() {
       toast.warning('אין ספקים עם לוחות זמנים', 'השתמש במחשב שבו הוגדרו הספקים.')
       return
     }
-    const ok = confirm(`מכשיר זה יעלה ${suppliers.length} ספקים לענן ויחליף את כל הנתונים הקיימים שם.\nלהמשיך?`)
+    const ok = await showConfirm({
+      title: 'סנכרון ספקים לענן',
+      description: `${suppliers.length} ספקים יועלו לענן ויחליפו את כל הנתונים הקיימים שם.\nלהמשיך?`,
+      confirmLabel: 'סנכרן',
+      destructive: true,
+    })
     if (!ok) return
     setSyncing(true)
     try {
@@ -210,7 +216,11 @@ export default function AdminPage() {
       toast.warning('אין ספקים עם מייל', 'נא להגדיר מיילים בדף "פרטי קשר ספקים"')
       return
     }
-    const confirmed = confirm(`האם לשלוח בקשה לחשבוניות ל-${suppliersWithEmail.length} ספקים?`)
+    const confirmed = await showConfirm({
+      title: 'שליחת בקשת חשבוניות',
+      description: `תישלח בקשה לחשבוניות ל-${suppliersWithEmail.length} ספקים`,
+      confirmLabel: 'שלח',
+    })
     if (!confirmed) return
     setSending(true)
     const now = new Date()

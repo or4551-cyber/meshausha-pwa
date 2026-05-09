@@ -15,6 +15,7 @@ import NotificationManager from './components/NotificationManager'
 import NotificationScheduler from './components/NotificationScheduler'
 import ErrorBoundary from './components/ErrorBoundary'
 import ToastContainer from './components/Toast'
+import ConfirmDialog from './components/ConfirmDialog'
 
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const PriceManagementPage = lazy(() => import('./pages/admin/PriceManagementPage'))
@@ -78,6 +79,7 @@ function App() {
     <Router>
       <ErrorBoundary>
       <ToastContainer />
+      <ConfirmDialog />
       <div className="min-h-screen bg-primary">
         {isAuthenticated && (
           <>

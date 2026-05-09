@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { formatPrice } from '../../lib/utils'
+import { showConfirm } from '../../lib/confirm'
 
 export default function PriceManagementPage() {
   const navigate = useNavigate()
@@ -52,10 +53,12 @@ export default function PriceManagementPage() {
     setEditPrice(currentPrice.toString())
   }
 
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(`למחוק את "${name}"?`)) {
-      deleteProduct(id)
-    }
+  const handleDelete = async (id: string, name: string) => {
+    const ok = await showConfirm({
+      title: `למחוק את "${name}"?`,
+      destructive: true,
+    })
+    if (ok) deleteProduct(id)
   }
 
   const handleAdd = (supplier: string) => {

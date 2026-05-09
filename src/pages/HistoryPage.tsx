@@ -10,6 +10,8 @@ import { useDeliveriesStore } from '../stores/deliveriesStore'
 import { formatPrice } from '../lib/utils'
 import { printSavedOrderAsPDF } from '../lib/pdfExport'
 import { motion, AnimatePresence } from 'framer-motion'
+import { CardSkeleton } from '../components/ui/Skeleton'
+import EmptyState from '../components/ui/EmptyState'
 
 const HEBREW_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
 const DAY_NAMES = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
@@ -310,13 +312,18 @@ export default function HistoryPage() {
         )}
 
         {/* תצוגת רשימה */}
+        {viewMode === 'list' && isLoadingCloud && filteredOrders.length === 0 && (
+          <CardSkeleton count={3} />
+        )}
+
         {viewMode === 'list' && !isLoadingCloud && (
           <div className="space-y-3">
             {filteredOrders.length === 0 && (
-              <div className="text-center py-12">
-                <Package className="mx-auto text-secondary/30 mb-4" size={64} />
-                <p className="text-secondary/60 font-bold text-lg">אין הזמנות עדיין</p>
-              </div>
+              <EmptyState
+                icon={Package}
+                title="אין הזמנות עדיין"
+                description={searchTerm ? `אין תוצאות עבור "${searchTerm}"` : undefined}
+              />
             )}
             {filteredOrders.map((order) => (
               <motion.div

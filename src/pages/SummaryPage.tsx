@@ -14,6 +14,7 @@ import { formatAdditionOrder } from '../lib/orderFormat'
 import SendOrderModal from '../components/SendOrderModal'
 import DuplicateOrderModal from '../components/DuplicateOrderModal'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showConfirm } from '../lib/confirm'
 
 function toWaNumber(raw: string): string {
   const digits = raw.replace(/\D/g, '')
@@ -318,8 +319,13 @@ export default function SummaryPage() {
               <span>PDF</span>
             </button>
             <button
-              onClick={() => {
-                if (confirm('האם למחוק את כל ההזמנה?')) {
+              onClick={async () => {
+                const ok = await showConfirm({
+                  title: 'למחוק את כל ההזמנה?',
+                  description: 'הסל יתרוקן לחלוטין',
+                  destructive: true,
+                })
+                if (ok) {
                   clearCart()
                   navigate('/orders')
                 }

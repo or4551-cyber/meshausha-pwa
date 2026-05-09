@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, TrendingUp, Package, DollarSign, ShoppingCart } from 'lucide-react'
-import { useAdminOrders } from '../../hooks/useAdminOrders'
+import { useAdminOrdersWithLoading } from '../../hooks/useAdminOrders'
 import { formatPrice } from '../../lib/utils'
 import { motion } from 'framer-motion'
+import { CardSkeleton } from '../../components/ui/Skeleton'
 import {
   LineChart,
   Line,
@@ -24,7 +25,7 @@ const COLORS = ['#9d4444', '#8b7355', '#a8b968', '#96a556', '#7a6348']
 
 export default function AnalyticsDashboard() {
   const navigate = useNavigate()
-  const orders = useAdminOrders()
+  const { orders, isLoading } = useAdminOrdersWithLoading()
 
   const analytics = useMemo(() => {
     const now = new Date()
@@ -125,6 +126,19 @@ export default function AnalyticsDashboard() {
         </div>
       </div>
 
+      {isLoading && orders.length === 0 ? (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-5 shadow-md">
+                <div className="animate-pulse bg-secondary/20 rounded-xl h-6 w-24 mb-3" />
+                <div className="animate-pulse bg-secondary/20 rounded-xl h-8 w-32" />
+              </div>
+            ))}
+          </div>
+          <CardSkeleton count={2} />
+        </div>
+      ) : (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-4">
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -299,6 +313,7 @@ export default function AnalyticsDashboard() {
           </motion.div>
         </div>
       </div>
+      )}
     </div>
   )
 }
