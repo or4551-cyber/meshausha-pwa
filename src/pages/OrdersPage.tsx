@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Search, Star, ShoppingCart, Package } from 'lucide-react'
 import { useCartStore } from '../stores/cartStore'
 import { useSuppliersStore } from '../stores/suppliersStore'
-import { useOrdersStore } from '../stores/ordersStore'
+import { useOrdersStore, type Order } from '../stores/ordersStore'
 import { useAuthStore } from '../stores/authStore'
+import { getOrdersFromCloud } from '../lib/cloudApi'
 import ProductCard from '../components/ProductCard'
 import EmptyState from '../components/ui/EmptyState'
 import { buildProductHistoryMap } from '../lib/utils'
@@ -14,18 +15,30 @@ export default function OrdersPage() {
   const [searchParams] = useSearchParams()
   const { favorites, getTotalItems } = useCartStore()
   const { user } = useAuthStore()
-  const allOrders = useOrdersStore(s => s.orders)
+  const localOrders = useOrdersStore(s => s.orders)
+  const [cloudOrders, setCloudOrders] = useState<Order[]>([])
   // סלקטור ריאקטיבי — מתרענן אוטומטית כשהסטור משתנה (זריעה, עדכון מחיר, הוספה/מחיקה)
   const storeProducts = useSuppliersStore(s => s.products)
   const allProducts = useMemo(() => storeProducts.filter(p => !p.adminOnly), [storeProducts])
 
-  // היסטוריית הזמנה ל-6 חודשים אחרונים (לsparkline בכרטיס מוצר)
+  // טוען הזמנות מהענן פעם אחת — לסניף רק שלו, לאדמין הכל
+  useEffect(() => {
+    if (!user) return
+    getOrdersFromCloud().then(orders => {
+      setCloudOrders(user.isAdmin ? orders : orders.filter(o => o.branchCode === user.branchCode))
+    }).catch(() => {})
+  }, [user?.isAdmin, user?.branchCode])
+
+  // היסטוריית הזמנה ל-6 חודשים אחרונים (לsparkline בכרטיס מוצר) — מיזוג ענן+מקומי
   const productHistory = useMemo(() => {
-    const relevant = user?.isAdmin
-      ? allOrders
-      : allOrders.filter(o => o.branchCode === user?.branchCode)
-    return buildProductHistoryMap(relevant, 6)
-  }, [allOrders, user])
+    const localFiltered = user?.isAdmin
+      ? localOrders
+      : localOrders.filter(o => o.branchCode === user?.branchCode)
+    const merged = new Map<string, Order>()
+    cloudOrders.forEach(o => merged.set(o.id, o))
+    localFiltered.forEach(o => { if (!merged.has(o.id)) merged.set(o.id, o) })
+    return buildProductHistoryMap(Array.from(merged.values()), 6)
+  }, [localOrders, cloudOrders, user])
   const [searchTerm, setSearchTerm] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<string>(
