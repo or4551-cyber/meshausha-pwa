@@ -32,6 +32,7 @@ export interface Supplier {
 interface SuppliersState {
   suppliers: Supplier[]
   products: Product[]
+  catalogVersion: number
   adminPhone: string
   setAdminPhone: (phone: string) => void
   addSupplier: (supplier: Omit<Supplier, 'id' | 'createdAt'>) => void
@@ -43,6 +44,7 @@ interface SuppliersState {
   updateProduct: (id: string, updates: Partial<Product>) => void
   deleteProduct: (id: string) => void
   loadCloudData: (suppliers: Supplier[], products: Product[]) => void
+  migrateCatalog: (version: number, transform: (products: Product[]) => Product[]) => void
   getSupplierById: (id: string) => Supplier | undefined
   getProductsBySupplier: (supplierName: string) => Product[]
   getAllSuppliers: () => Supplier[]
@@ -54,6 +56,7 @@ export const useSuppliersStore = create<SuppliersState>()(
     (set, get) => ({
       suppliers: [],
       products: [],
+      catalogVersion: 0,
       adminPhone: '',
 
       setAdminPhone: (phone) => {
@@ -152,6 +155,18 @@ export const useSuppliersStore = create<SuppliersState>()(
           })
           return { suppliers, products: merged, adminPhone: state.adminPhone }
         })
+      },
+
+      // הגירת קטלוג לפי גרסה: כשגרסת הקטלוג עולה, מריץ transform (אידמפוטנטי) על רשימת המוצרים
+      // ומסנכרן לענן. הגרסה נקבעת *רק אחרי שמירה מוצלחת לענן* — כך שכשל שמירה (offline)
+      // יגרום לניסיון חוזר בטעינה הבאה במקום להשאיר ענן לא מסונכרן. רץ פעם אחת לכל מכשיר.
+      migrateCatalog: (version, transform) => {
+        if (get().catalogVersion >= version) return
+        set((state) => ({ products: transform(state.products) }))
+        const s = get()
+        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products })
+          .then(() => set({ catalogVersion: version }))
+          .catch(console.error)
       },
 
       getSupplierById: (id) => {

@@ -6,62 +6,139 @@ export interface Product {
   category?: string
 }
 
+// גרסת קטלוג — הגדל ב-1 בכל עדכון מחירון שצריך להגיע גם למכשירים קיימים.
+// applyCatalogMigration (suppliersStore) מחליף את כל מוצרי הספק כשהגרסה עולה.
+export const CATALOG_VERSION = 1
+
+export const TERRA_PLAST_SUPPLIER = 'טרה פלסט (משאוושה)'
+
+// מחירון טרה פלסט יוני 2026 (89 פריטים, מקור: "מחירון טרה פלסט יוני 2026-1.xlsx").
+// ids tp1–tp41 נשמרו למוצרים שממשיכים (לשימור היסטוריית מחירים); tp4, tp26 הוסרו (לא במחירון);
+// tp42–tp91 פריטים חדשים. הסדר תואם לסדר המחירון לצורך אימות מול המקור.
+export const TERRA_PLAST_PRODUCTS: Product[] = [
+  { id: 'tp42', name: 'מגבונים רפיל מילוי לדליים 4 יח\' לניקוי 400 מטליות', supplier: TERRA_PLAST_SUPPLIER, price: 51.8 },
+  { id: 'tp21', name: 'פלסמנט 1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 36.0 },
+  { id: 'tp15', name: 'קערה ירושלמית שחורה 500 מ"ל (ארוז 350 יח\')', supplier: TERRA_PLAST_SUPPLIER, price: 176.42 },
+  { id: 'tp17', name: 'מכסה לקערה ירושלמית שחורה 750-500 מ"ל (ארוז 350 יח\')', supplier: TERRA_PLAST_SUPPLIER, price: 127.4 },
+  { id: 'tp1', name: 'גביע 1000 סמ"ק - רחב (174) ל-500 יח\' (מחיר לקרטון)', supplier: TERRA_PLAST_SUPPLIER, price: 150.0 },
+  { id: 'tp18', name: 'מזלגות קשיחים M שקוף/קרם 50 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 3.2 },
+  { id: 'tp43', name: 'סכינים קשיחים M שקוף/קרם 50 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 3.2 },
+  { id: 'tp19', name: 'כפות פלסטיק קשיחות 50 יח\' M', supplier: TERRA_PLAST_SUPPLIER, price: 3.3 },
+  { id: 'tp28', name: 'אשפתון 75/90LD 25 יח\' בגליל / 20 גלילים 900', supplier: TERRA_PLAST_SUPPLIER, price: 125.0 },
+  { id: 'tp22', name: 'קש ברד חד פעמי 400 יח\' - ארומה', supplier: TERRA_PLAST_SUPPLIER, price: 9.8 },
+  { id: 'tp11', name: 'כוס יהלום 1000 יח\' (25 חב\'/40 יח\')', supplier: TERRA_PLAST_SUPPLIER, price: 100.0 },
+  { id: 'tp44', name: 'כתר 55 כיפתי (0.9) 250 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 170.0 },
+  { id: 'tp45', name: 'נייר קופה טרמי מוגן 80 מ"מ (50 יח\' בקרטון)', supplier: TERRA_PLAST_SUPPLIER, price: 232.5 },
+  { id: 'tp46', name: 'שקיות גופייה קטן צבעוני 24 ק"ג', supplier: TERRA_PLAST_SUPPLIER, price: 195.0 },
+  { id: 'tp47', name: 'כפיות פלסטיק קשיחות 50 יח\' M', supplier: TERRA_PLAST_SUPPLIER, price: 3.0 },
+  { id: 'tp27', name: 'תבנית אלומיניום 5 (ארוז 1000 יח\') ליח\' - R25', supplier: TERRA_PLAST_SUPPLIER, price: 0.33 },
+  { id: 'tp48', name: 'מכסה לתבנית 5 ליח\'', supplier: TERRA_PLAST_SUPPLIER, price: 0.09 },
+  { id: 'tp14', name: 'כוס קרטון 2oz ל-1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 40.0 },
+  { id: 'tp49', name: 'כפיות ח.פ 100 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 2.8 },
+  { id: 'tp50', name: 'גביע 270 סמ"ק רחב (165PP) ליח\'', supplier: TERRA_PLAST_SUPPLIER, price: 150.0 },
+  { id: 'tp51', name: 'כוס פלסטיק 180 סמ"ק - 3000 יח\' שקוף', supplier: TERRA_PLAST_SUPPLIER, price: 75.0 },
+  { id: 'tp30', name: 'מגבונים בדלי לניקוי 400 מגבות (מא/גו/דן)', supplier: TERRA_PLAST_SUPPLIER, price: 15.0 },
+  { id: 'tp20', name: 'סכו"ם קשיח ארוז 5 פריטים 500 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 100.0 },
+  { id: 'tp12', name: 'כוס/גביע 97 - כוס 1/3 (1000 יח\') (כוס 633)', supplier: TERRA_PLAST_SUPPLIER, price: 180.0 },
+  { id: 'tp38', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' S', supplier: TERRA_PLAST_SUPPLIER, price: 125.0 },
+  { id: 'tp39', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' M', supplier: TERRA_PLAST_SUPPLIER, price: 125.0 },
+  { id: 'tp40', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' L', supplier: TERRA_PLAST_SUPPLIER, price: 125.0 },
+  { id: 'tp41', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' XL', supplier: TERRA_PLAST_SUPPLIER, price: 125.0 },
+  { id: 'tp52', name: 'שקיות נייר דליה לופ תורכית חום 28/16/28 450 יח\' (ידית חיצונית)', supplier: TERRA_PLAST_SUPPLIER, price: 202.5 },
+  { id: 'tp6', name: 'קסרול פלסט - לבן - רגיל - 20 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 1.8 },
+  { id: 'tp53', name: 'כתר 55 שטוח 250 [0.9] יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 170.0 },
+  { id: 'tp54', name: 'קערה ירושלמית שחורה 750 מ"ל (ארוז 350 יח\')', supplier: TERRA_PLAST_SUPPLIER, price: 193.42 },
+  { id: 'tp9', name: 'גביע 120 סמ"ק גנוב - צר ל-2000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 240.0 },
+  { id: 'tp55', name: 'מכסה לגביע רחב (30A/117) נטורל PS ל-1000 יח\' (פלזית)', supplier: TERRA_PLAST_SUPPLIER, price: 152.0 },
+  { id: 'tp56', name: 'שקיות גופייה גדול דק כ-2500 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 250.0 },
+  { id: 'tp57', name: 'שקיות גופייה 4000 יח\' - יוני', supplier: TERRA_PLAST_SUPPLIER, price: 235.0 },
+  { id: 'tp58', name: 'שקיות שקילה 20/30LD לק"ג (30 ק"ג)', supplier: TERRA_PLAST_SUPPLIER, price: 11.0 },
+  { id: 'tp7', name: 'גביע רוטב 1.5 אוז 2500 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 120.0 },
+  { id: 'tp8', name: 'מכסה לגביע רוטב 1.5-2oz שקוף 2500 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 120.0 },
+  { id: 'tp3', name: 'מכסה לגביע רחב מודפס 1000 יח\' 30A', supplier: TERRA_PLAST_SUPPLIER, price: 219.35 },
+  { id: 'tp2', name: 'גביע 500 רחב מודפס 1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 287.17 },
+  { id: 'tp59', name: 'סינר ניילון ח.פ. דק 100 יח\' בשקית/בקרטון', supplier: TERRA_PLAST_SUPPLIER, price: 15.9 },
+  { id: 'tp60', name: 'שקיות גופייה גדול 24 ק"ג לבן', supplier: TERRA_PLAST_SUPPLIER, price: 195.0 },
+  { id: 'tp61', name: 'נייר קופה טרמי מוגן 80 מ"מ (60 יח\' בקרטון)', supplier: TERRA_PLAST_SUPPLIER, price: 279.0 },
+  { id: 'tp62', name: 'מתקן לנייר ניגוב תעשייתי מתכת עומד ליח\'', supplier: TERRA_PLAST_SUPPLIER, price: 50.0 },
+  { id: 'tp24', name: 'שקיות גופייה מודפסות גדולות 2500 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 287.5 },
+  { id: 'tp25', name: 'שקיות גופייה מודפסות קטנות 4000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 280.0 },
+  { id: 'tp35', name: 'משחת כלים 18 ל\' (15 ק"ג)', supplier: TERRA_PLAST_SUPPLIER, price: 68.0 },
+  { id: 'tp13', name: 'מכסה לכוס (95) כיפתי 1/3 1/2 (97+98) ל-1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 100.0 },
+  { id: 'tp63', name: 'סמרטוטי רצפה 50/70 ל-60 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 81.0 },
+  { id: 'tp64', name: 'כוס פלסטיק 180 סמ"ק 2400 יח\' ייבוא', supplier: TERRA_PLAST_SUPPLIER, price: 60.0 },
+  { id: 'tp65', name: 'צלחת פלסט 9 קשיח 20 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 3.58 },
+  { id: 'tp66', name: 'סבון קצף בשקית מילוי 1 ליטר 12 יח\' ZD', supplier: TERRA_PLAST_SUPPLIER, price: 295.0 },
+  { id: 'tp68', name: 'שקיות נייר פיתה 2000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 102.0 },
+  { id: 'tp69', name: 'נייר ניגוב מגבת אירפלקס סלים רול 6 גלילים = 900 מ\'', supplier: TERRA_PLAST_SUPPLIER, price: 85.0 },
+  { id: 'tp70', name: 'נוזל ניקוי חלונות 4 ליטר X4', supplier: TERRA_PLAST_SUPPLIER, price: 42.0 },
+  { id: 'tp33', name: 'כלור תקני - גלון 4 ליטר X4', supplier: TERRA_PLAST_SUPPLIER, price: 27.6 },
+  { id: 'tp37', name: 'כרית יפנית איכותית עבה (שיין/טיטן) 36 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 28.8 },
+  { id: 'tp31', name: 'נוזל ניקוי רצפות 4 ליטר 100 SA PRO / ברקת X4', supplier: TERRA_PLAST_SUPPLIER, price: 34.0 },
+  { id: 'tp71', name: 'נייר תעשייתי 6 ק"ג - פרינס', supplier: TERRA_PLAST_SUPPLIER, price: 55.0 },
+  { id: 'tp72', name: 'צץ רץ שירותים תאית 9000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 80.0 },
+  { id: 'tp73', name: 'נייר ניגוב מירב/שירה 100 מ\' בגליל / 6 יח\' 4K/pro 423', supplier: TERRA_PLAST_SUPPLIER, price: 32.0 },
+  { id: 'tp74', name: 'נוזל ניקוי כלים 4 ליטר X4 12%', supplier: TERRA_PLAST_SUPPLIER, price: 46.0 },
+  { id: 'tp32', name: 'מסיר שומנים 4 ליטר X4', supplier: TERRA_PLAST_SUPPLIER, price: 60.0 },
+  { id: 'tp75', name: 'מטליות מיקרופייבר חמישייה 30/30 רוחמה/שייני', supplier: TERRA_PLAST_SUPPLIER, price: 6.9 },
+  { id: 'tp76', name: 'סמרטוטי רצפה מיקרופייבר 50/80 ארוז 3 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 9.9 },
+  { id: 'tp77', name: 'סבון למדיח כלים 20 ק"ג ZD', supplier: TERRA_PLAST_SUPPLIER, price: 180.0 },
+  { id: 'tp78', name: 'נוזל הברקה למדיח כלים SA/ZD תעשייתי 10 ק"ג', supplier: TERRA_PLAST_SUPPLIER, price: 145.0 },
+  { id: 'tp79', name: 'דלי מטליות לחות לניקוי רצפה 50 יח\' (50/70) SA', supplier: TERRA_PLAST_SUPPLIER, price: 30.24 },
+  { id: 'tp80', name: 'גביע רוטב + מכסה מחובר 50CC ארוז 1000 יח\' (2OZ)', supplier: TERRA_PLAST_SUPPLIER, price: 82.0 },
+  { id: 'tp81', name: 'תרסיס מבריק נירוסטה MAGIC SA', supplier: TERRA_PLAST_SUPPLIER, price: 18.9 },
+  { id: 'tp82', name: 'מגב פלסטיק 40 ס"מ רגיל', supplier: TERRA_PLAST_SUPPLIER, price: 4.2 },
+  { id: 'tp83', name: 'ממרקות ברזל 50 גר\' 12 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 21.6 },
+  { id: 'tp84', name: 'מתז ריק רגיל + ראש מתז ליח\'', supplier: TERRA_PLAST_SUPPLIER, price: 5.53 },
+  { id: 'tp23', name: 'שקיות נייר פיתה מודפסות 2000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 178.0 },
+  { id: 'tp85', name: 'נייר טואלט ויולט/טישו 32 גליל', supplier: TERRA_PLAST_SUPPLIER, price: 27.0 },
+  { id: 'tp34', name: 'סבון נוזלי 500 מ"ל + משאבה - שלשות', supplier: TERRA_PLAST_SUPPLIER, price: 11.46 },
+  { id: 'tp86', name: 'מטאטא פלסטיק רגיל (ג\'וליה) ליח\'', supplier: TERRA_PLAST_SUPPLIER, price: 4.2 },
+  { id: 'tp29', name: 'נייר ניגוב תעשייתי 400 מטר - חוגלה', supplier: TERRA_PLAST_SUPPLIER, price: 70.0 },
+  { id: 'tp16', name: 'קערה ירושלמית שחורה 1000 מ"ל (ארוז 200 יח\')', supplier: TERRA_PLAST_SUPPLIER, price: 153.0 },
+  { id: 'tp87', name: 'שקיות גופייה קטן צבעוני 15 ק"ג', supplier: TERRA_PLAST_SUPPLIER, price: 121.88 },
+  { id: 'tp10', name: 'גביע אמריקאי 500 אור 300 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 180.0 },
+  { id: 'tp88', name: 'מכסה לגביע אמריקאי 500 אור 300 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 90.0 },
+  { id: 'tp89', name: 'קיסם במבוק עטוף נייר/ניילון 1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 7.5 },
+  { id: 'tp36', name: 'ממרקות ברזל 30 גר\' 12 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 14.9 },
+  { id: 'tp90', name: 'קערה 680 קנה סוכר ל-1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 440.0 },
+  { id: 'tp91', name: 'שקיות נייר דליה לופ תורכית חום 28/16/28 500 יח\' (ידית חיצונית)', supplier: TERRA_PLAST_SUPPLIER, price: 225.0 },
+  { id: 'tp5', name: 'מכסה לגביע צר מודפס 239 לבן 1600 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 294.4 },
+]
+
+export const SALATIM_SUPPLIER = 'סלטים משאוושה'
+
+// פריטי הכפפות הכפולים תחת 'סלטים משאוושה' — היחידים שמחירם השתנה ביוני 2026 (22→125, יחידת 10/100).
+// רשימה סמכותית: ההגירה מסירה+מוסיפה (לא רק מתקנת מחיר) כדי למנוע כפילויות מ-seedStaticProducts
+// (שמזהה לפי supplier+name, ולכן שינוי שם היה מוסיף רשומות במקום לעדכן).
+const SALATIM_GLOVES: Product[] = [
+  { id: 'sm102', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' S', supplier: SALATIM_SUPPLIER, price: 125.0 },
+  { id: 'sm103', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' M', supplier: SALATIM_SUPPLIER, price: 125.0 },
+  { id: 'sm104', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' L', supplier: SALATIM_SUPPLIER, price: 125.0 },
+  { id: 'sm105', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' XL', supplier: SALATIM_SUPPLIER, price: 125.0 },
+]
+const SALATIM_GLOVE_IDS = new Set(SALATIM_GLOVES.map(g => g.id))
+
+// טרנספורם קטלוג לגרסה CATALOG_VERSION (אידמפוטנטי):
+// (1) מסיר את כל מוצרי טרה פלסט ומוסיף את הרשימה הסמכותית (מנקה כפולים/ישנים שה-seed יצר);
+// (2) מסיר את כפפות סלטים לפי id+ספק ומוסיף את הרשימה הסמכותית (מונע כפילויות + תחום לספק).
+// נקרא דרך migrateCatalog (suppliersStore).
+export function applyCatalogV1(products: Product[]): Product[] {
+  const kept = products.filter(p =>
+    p.supplier !== TERRA_PLAST_SUPPLIER &&
+    !(p.supplier === SALATIM_SUPPLIER && SALATIM_GLOVE_IDS.has(p.id))
+  )
+  return [...kept, ...TERRA_PLAST_PRODUCTS, ...SALATIM_GLOVES]
+}
+
 export const PRODUCTS: Product[] = [
   { id: 'ea1', name: 'קובה במילוי צמחי מטוגן בד"צ', supplier: 'חטיפי אלקיים', price: 82.5 },
   { id: 'ea2', name: 'קובה אמיתי 100 גרם במילוי בשר בד"צ', supplier: 'חטיפי אלקיים', price: 82.5 },
   
   { id: 'mf1', name: 'דלי 18 ק"ג טחינה גולמית', supplier: 'מוטיפוד בע"מ', price: 238.45 },
   
-  // גביעים ומכסים
-  { id: 'tp1', name: 'גביע 1000מ"ק - רחב (174) ל500 יח\' (מחיר לקרטון)', supplier: 'טרה פלסט (משאוושה)', price: 150.0 },
-  { id: 'tp2', name: 'גביע 500 רחב מודפס 1000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 287.17 },
-  { id: 'tp3', name: 'מכסה לגביע רחב מודפס 1000 יח\' A30', supplier: 'טרה פלסט (משאוושה)', price: 219.35 },
-  { id: 'tp4', name: 'גביע 250מ"ק - צר (247) (ארוז 2000 יח\')', supplier: 'טרה פלסט (משאוושה)', price: 230.0 },
-  { id: 'tp5', name: 'מכסה לגביע צר מודפס 239 לבן 1000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 294.4 },
-  { id: 'tp6', name: 'קסרל פלסט-לבן-רגיל 20 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 1.8 },
-  { id: 'tp7', name: 'גביע רוטב 1.5 אוז 2500 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 120.0 },
-  { id: 'tp8', name: 'מכסה לגביע רוטב oz1.5-2 שקוף 2500 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 120.0 },
-  { id: 'tp9', name: 'גביע 120 גנוב 2000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 240.0 },
-  { id: 'tp10', name: 'גביע אמריקאי 500 אור 300 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 180.0 },
-  // כוסות
-  { id: 'tp11', name: 'כוס יהלום 1000 יח\' (25חב\'*40יח\')', supplier: 'טרה פלסט (משאוושה)', price: 100.0 },
-  { id: 'tp12', name: 'כוס/גביע 97 כוס 1/3 (1000n) (כוס 533)', supplier: 'טרה פלסט (משאוושה)', price: 180.0 },
-  { id: 'tp13', name: 'מכסה לכוס (95) כיפתי 1/3 1/2 (97+98) ל1000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 100.0 },
-  { id: 'tp14', name: 'כוס קרטון oz2 ל1000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 40.0 },
-  // קערות ירושלמיות
-  { id: 'tp15', name: 'קערה ירושלמית שחורה 500 מ"ל (ארוז 350 יח\')', supplier: 'טרה פלסט (משאוושה)', price: 176.42 },
-  { id: 'tp16', name: 'קערה ירושלמית שחורה 1000 מ"ל (ארוז 200 יח\')', supplier: 'טרה פלסט (משאוושה)', price: 153.0 },
-  { id: 'tp17', name: 'מכסה לקערה ירושלמית שחורה 750-500 מ"ל (ארוז 350 יח\')', supplier: 'טרה פלסט (משאוושה)', price: 127.4 },
-  // סכו"ם ופריטי שולחן
-  { id: 'tp18', name: 'מזלגות קשיחים M שקוף/קרם 50 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 3.2 },
-  { id: 'tp19', name: 'כפות פלסטיק קשיחות 50 יח\' M', supplier: 'טרה פלסט (משאוושה)', price: 3.3 },
-  { id: 'tp20', name: 'סכום קשיח ארוז 5 פריטים 500 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 100.0 },
-  { id: 'tp21', name: 'פלסמנט 1000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 36.0 },
-  { id: 'tp22', name: 'קש בודד חד פעמי 400 יח\' ארומה', supplier: 'טרה פלסט (משאוושה)', price: 9.8 },
-  // שקיות
-  { id: 'tp23', name: 'שקית נייר פיתה מודפסת 2000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 178.0 },
-  { id: 'tp24', name: 'שקית גופיה מודפסת גדולה 2500 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 287.5 },
-  { id: 'tp25', name: 'שקית גופיה מודפסת קטנה 4000 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 280.0 },
-  { id: 'tp26', name: 'שקיות למשלוחים נייר דליה+ידית מלבנית 32/16/38 (גיילורד) 200 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 134.0 },
-  // תבניות אלומיניום
-  { id: 'tp27', name: 'תבנית אלומיניום 5 (ארוז 1000 יח\') ל-ח\'', supplier: 'טרה פלסט (משאוושה)', price: 0.33 },
-  // אשפה
-  { id: 'tp28', name: 'אשפתון שחור 75 יח\' בגליל כ-20 גלילים', supplier: 'טרה פלסט (משאוושה)', price: 125.0 },
-  // ניקיון
-  { id: 'tp29', name: 'נייר ניגוב תעשייתי 400מטר-חצלה', supplier: 'טרה פלסט (משאוושה)', price: 70.0 },
-  { id: 'tp30', name: 'מגבונים בודד לניקוי 400 מגבות (פז/גומץ)', supplier: 'טרה פלסט (משאוושה)', price: 15.0 },
-  { id: 'tp31', name: 'נוזל ניקוי רצפות 4 ליטר PRO SA 100 / בריצת X4', supplier: 'טרה פלסט (משאוושה)', price: 34.0 },
-  { id: 'tp32', name: 'מסיר שומנים 4 ליטר X4', supplier: 'טרה פלסט (משאוושה)', price: 60.0 },
-  { id: 'tp33', name: 'כלור תקני גלון 4 ליטר X4', supplier: 'טרה פלסט (משאוושה)', price: 27.6 },
-  { id: 'tp34', name: 'סבון נוזלי 500 מ"ל+משאבה (פאל/שחת)', supplier: 'טרה פלסט (משאוושה)', price: 11.46 },
-  { id: 'tp35', name: 'משחת כלים 18 ל\' (15 ק"ג)', supplier: 'טרה פלסט (משאוושה)', price: 68.0 },
-  { id: 'tp36', name: 'מטליות ברזל 30 גר\' 12 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 14.9 },
-  { id: 'tp37', name: 'כרית ענקית איכותית עבה (שיין/טייפון) 36 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 28.8 },
-  // כפפות
-  { id: 'tp38', name: 'כפפות ניטרל מידה S מארז 100 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 22.0 },
-  { id: 'tp39', name: 'כפפות ניטרל מידה M מארז 100 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 22.0 },
-  { id: 'tp40', name: 'כפפות ניטרל מידה L מארז 100 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 22.0 },
-  { id: 'tp41', name: 'כפפות ניטרל מידה XL מארז 100 יח\'', supplier: 'טרה פלסט (משאוושה)', price: 22.0 },
+  // טרה פלסט (משאוושה) — מחירון יוני 2026. ראה TERRA_PLAST_PRODUCTS למעלה.
+  ...TERRA_PLAST_PRODUCTS,
   
   // יבולי שדה תמרה — מחירון מעודכן
   { id: 'ys1',  name: 'חומוס מקומי 25 קג בר',            supplier: 'יבולי שדה תמרה', price: 150.0 },
@@ -245,10 +322,10 @@ export const PRODUCTS: Product[] = [
   { id: 'sm99', name: 'אשפתון שחור 75 יח\' בגליל כ-20 גלילים', supplier: 'סלטים משאוושה', price: 125 },
   { id: 'sm100', name: 'גביע 120 גנוב 2000 יח\'',       supplier: 'סלטים משאוושה', price: 240 },
   { id: 'sm101', name: 'גביע אמריקאי 500 אור 300 יח\'', supplier: 'סלטים משאוושה', price: 180 },
-  { id: 'sm102', name: 'כפפות ניטרל מידה S מארז 100 יח\'', supplier: 'סלטים משאוושה', price: 22 },
-  { id: 'sm103', name: 'כפפות ניטרל מידה M מארז 100 יח\'', supplier: 'סלטים משאוושה', price: 22 },
-  { id: 'sm104', name: 'כפפות ניטרל מידה L מארז 100 יח\'', supplier: 'סלטים משאוושה', price: 22 },
-  { id: 'sm105', name: 'כפפות ניטרל מידה XL מארז 100 יח\'', supplier: 'סלטים משאוושה', price: 22 },
+  { id: 'sm102', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' S', supplier: 'סלטים משאוושה', price: 125 },
+  { id: 'sm103', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' M', supplier: 'סלטים משאוושה', price: 125 },
+  { id: 'sm104', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' L', supplier: 'סלטים משאוושה', price: 125 },
+  { id: 'sm105', name: 'כפפות ניטריל שחור/כחול 10/100 יח\' XL', supplier: 'סלטים משאוושה', price: 125 },
 
   // נט פארם- מתקלות
   { id: 'nf1', name: 'צלחת לחומוס',      supplier: 'נט פארם- מתקלות', price: 300 },

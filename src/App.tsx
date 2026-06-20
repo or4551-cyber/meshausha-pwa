@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, lazy, Suspense } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useSuppliersStore } from './stores/suppliersStore'
-import { PRODUCTS, INITIAL_SUPPLIERS } from './data/products'
+import { PRODUCTS, INITIAL_SUPPLIERS, CATALOG_VERSION, applyCatalogV1 } from './data/products'
 import { getAdminPhoneFromCloud, getSuppliersFromCloud } from './lib/cloudApi'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -52,7 +52,7 @@ function PageFallback() {
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
-  const { seedStaticSuppliers, seedStaticProducts, setAdminPhone, adminPhone, loadCloudData } = useSuppliersStore()
+  const { seedStaticSuppliers, seedStaticProducts, setAdminPhone, adminPhone, loadCloudData, migrateCatalog } = useSuppliersStore()
 
   // זריעת ספקים ומוצרים + טעינת נתוני אדמין מהענן
   useEffect(() => {
@@ -75,6 +75,11 @@ function App() {
         // הוסף רק מוצרים סטטיים חדשים שעדיין אינם בענן (לא דורס עדכונים)
         seedStaticProducts(PRODUCTS)
       }
+    }).catch(() => {}).finally(() => {
+      // צעד אחרון (גם אחרי מיזוג הענן): הגירת קטלוג לפי גרסה — מחליפה את קטלוג טרה פלסט
+      // לרשימה הסמכותית + מעדכנת כפפות כפולות תחת סלטים, ומנקה פריטים ישנים שהענן עלול להחזיר.
+      // רצה פעם אחת למכשיר.
+      migrateCatalog(CATALOG_VERSION, applyCatalogV1)
     })
   }, [])
 
