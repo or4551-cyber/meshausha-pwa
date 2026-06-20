@@ -35,3 +35,6 @@ public-old/
 # (product data lives in code; track a specific .xlsx with `git add -f` if needed)
 ~$*
 *.xlsx
+
+# Local npm cache (sandbox workaround artifact — never commit)
+.npm-cache/
