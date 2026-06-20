@@ -30,3 +30,8 @@ dist-ssr
 
 # Old code
 public-old/
+
+# Local working files — Office lock files + working spreadsheets
+# (product data lives in code; track a specific .xlsx with `git add -f` if needed)
+~$*
+*.xlsx
