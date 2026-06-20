@@ -21,7 +21,7 @@
 - **שיתוף סוכנים:** ברירת מחדל SEQUENTIAL (טוקן אחד, OR מעביר); חלוקת עבודה Relay (claude מתכנן/מבקר/פורס, codex מממש); רק claude עושה deploy. כללים מלאים: `docs/sync/PROTOCOL.md`.
 
 ## מה נשאר לעשות / חסמים
-- **אימות חי של הסנכרון:** שיחזרו של Codex ב-`docs/sync/CHANNEL.md` (קוד-סודי 4242) — מאשר שהתקשורת הדו-כיוונית עובדת. תלוי ב-OR שיפעיל Codex בפרויקט.
+- ✅ **אימות end-to-end הושלם (2026-06-20):** Codex השיב ב-`docs/sync/CHANNEL.md` עם קוד-סודי 4242 — התקשורת הדו-כיוונית עובדת (Codex קורא protocol+BOARD+shared-brain וכותב חזרה לערוץ).
 - משימות מוצר עתידיות: OR יוסיף ל-`docs/sync/BOARD.md` תחת `Next`.
 - מגבלה ידועה: ה-hardlink של `~/.codex/shared-brain.md` עלול להישבר אם JARVIS ימחק-וייצור-מחדש את המקור (ולא יערוך-במקום).
 
