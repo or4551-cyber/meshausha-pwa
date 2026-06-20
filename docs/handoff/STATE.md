@@ -3,37 +3,39 @@
 > **כל סוכן שמצטרף: התחל כאן.** הקובץ הזה הוא תמונת המצב העדכנית; ההיסטוריה המלאה — כולל כישלונות וכיוונים שננטשו — נמצאת ב-[JOURNAL/](JOURNAL/).
 > **עובדים פה שניים:** Claude ו-Codex. לפני נגיעה בקוד קרא גם את `docs/sync/BOARD.md` ו-`docs/sync/PROTOCOL.md`.
 
-- **עודכן:** 2026-06-20 | **שלב נוכחי:** הקמת פרוטוקול שיתוף v1 | **סטטוס:** הושלם
+- **עודכן:** 2026-06-20 | **שלב נוכחי:** עדכון מחירון טרה פלסט יוני 2026 | **סטטוס:** הושלם ונדחף (Netlify deploy)
 
 ## מה הפרויקט
-מערכת ניהול הזמנות רכש (PWA) לרשת מסעדות חומוס בצפון (9 סניפים). כניסה ב-PIN לכל סניף + אדמין, ניהול הזמנות מספקים, חיפוש, היסטוריה ותבניות, זיהוי כפילויות, שליחה ב-WhatsApp/Email, התראות Push, ייצוא PDF/Excel, ועבודה offline.
-**טכנולוגיה:** React 18 + TypeScript (strict) + Vite + Tailwind + Zustand + Dexie/IndexedDB + 13 פונקציות Netlify (serverless) + Web Push. ~8,500 שורות.
+מערכת ניהול הזמנות רכש (PWA) לרשת מסעדות חומוס בצפון (9 סניפים). כניסה ב-PIN לכל סניף + אדמין, ניהול הזמנות מספקים, חיפוש, היסטוריה ותבניות, התראות Push, ייצוא PDF/Excel, ועבודה offline.
+**טכנולוגיה:** React 18 + TypeScript (strict) + Vite + Tailwind + Zustand + Dexie/IndexedDB + 13 פונקציות Netlify + Web Push.
 
 ## איפה עומדים עכשיו
-- האפליקציה עובדת ומפותחת לאורך Phases 1–3 (יציבות/אבטחה → UX → כלי הנהלה). הקומיט האחרון: `c88e7d1`.
-- **השלב הנוכחי הוסיף תשתית שיתוף-פעולה** בין Claude ל-Codex (ראה JOURNAL מ-2026-06-20). אין שינוי בקוד האפליקציה עצמו.
-- שכבת התיאום פעילה: `docs/sync/` (לוח + צ'אט + פרוטוקול), `CLAUDE.md`/`AGENTS.md` בשורש.
+- האפליקציה חיה ומפותחת (Phases 1–3). deploy דרך GitHub→Netlify (push ל-`main` מפעיל בנייה).
+- **השלב האחרון:** קטלוג טרה פלסט עודכן למחירון יוני 2026 (88 פריטים) + הכפפות הכפולות תחת 'סלטים משאוושה'.
+  נדחף ב-`356f083`; Netlify אמור לבנות ולפרוס לכל הסניפים (יקבלו ברענון הבא דרך מנגנון ההגירה).
+- שכבת שיתוף-פעולה פעילה: `docs/sync/` (BOARD+CHANNEL+PROTOCOL), `CLAUDE.md`/`AGENTS.md` בשורש.
 
 ## ארכיטקטורה והחלטות בתוקף
-- **mobile-first:** בדיקה ב-375px, בלי overflow-x, כפתורים 48px, RTL/עברית מלא.
-- **State:** 10 stores ב-Zustand עם persistence ל-localStorage; נתונים בענן דרך Netlify Blobs + Dexie offline.
-- **Backend:** פונקציות Netlify ב-`netlify/functions/` עם middleware אימות `_auth.ts` (shared-secret).
-- **שיתוף סוכנים:** ברירת מחדל SEQUENTIAL (טוקן אחד, OR מעביר); חלוקת עבודה Relay (claude מתכנן/מבקר/פורס, codex מממש); רק claude עושה deploy. כללים מלאים: `docs/sync/PROTOCOL.md`.
+- **mobile-first:** בדיקה ב-375px, בלי overflow-x, RTL/עברית מלא.
+- **נתוני ספקים/מוצרים:** seed סטטי ב-`src/data/products.ts` → Zustand store (`meshausha-suppliers` ב-localStorage) → ענן (Netlify Blobs, `settings-api`). **`seedStaticProducts` לעולם לא דורס מחיר קיים** (דדופ לפי `supplier|name`).
+- **עדכון קטלוג שמגיע למכשירים קיימים:** דרך `CATALOG_VERSION` + `migrateCatalog(version, transform)` ([suppliersStore.ts](../../src/stores/suppliersStore.ts)). הטרנספורם (`applyCatalogV1` ב-[products.ts](../../src/data/products.ts)) חייב להיות **אידמפוטנטי** (remove+add, לא patch) כדי לא ליצור כפילויות מה-seed. הגרסה נקבעת רק אחרי שמירת ענן מוצלחת. נקרא כצעד אחרון ב-`App.tsx` (אחרי מיזוג הענן).
+- **שיתוף סוכנים:** ברירת מחדל SEQUENTIAL; Relay (claude מתכנן/מבקר/פורס, codex מממש/מבקר); רק claude עושה deploy. כללים: `docs/sync/PROTOCOL.md`.
 
 ## מה נשאר לעשות / חסמים
-- ✅ **אימות end-to-end הושלם (2026-06-20):** Codex השיב ב-`docs/sync/CHANNEL.md` עם קוד-סודי 4242 — התקשורת הדו-כיוונית עובדת (Codex קורא protocol+BOARD+shared-brain וכותב חזרה לערוץ).
-- משימות מוצר עתידיות: OR יוסיף ל-`docs/sync/BOARD.md` תחת `Next`.
-- מגבלה ידועה: ה-hardlink של `~/.codex/shared-brain.md` עלול להישבר אם JARVIS ימחק-וייצור-מחדש את המקור (ולא יערוך-במקום).
+- **לאמת את ה-deploy ב-Netlify** (שהבנייה עברה) ולבדוק בפרודקשן (אדמין 9999 → `/admin/prices`) שמוצר טרה פלסט מדגם מציג מחיר חדש.
+- מועמד עתידי (נדחה): מסך אדמין לייבוא מחירון (`fileParser.ts` קיים) — לעדכונים חוזרים בלי קוד.
+- 'סלטים משאוושה' מכיל עותק של פריטי האריזה של טרה פלסט (sm65–sm105); הפעם עודכנו שם רק הכפפות.
 
 ## איך מריצים ובודקים
 - פיתוח: `npm run dev` (→ http://localhost:5173/). קודי כניסה: 1001–1009 (סניפים), 9999 (אדמין).
-- אימות לפני "Done": `npm run build` (ו/או `tsc --noEmit`, `npm run lint`).
-- Deploy: דרך Netlify (claude בלבד). remote: `github.com/or4551-cyber/meshausha-pwa`.
-- בדיקת ה-hook (Claude): פתיחת סשן חדש בפרויקט אמורה להזריק אוטומטית את STATE.md + BOARD.md + זנב CHANNEL.
+- אימות לפני "Done": `npm run build` + `npx tsc --noEmit`.
+- Deploy: `git push origin main` → Netlify (claude בלבד). remote: `github.com/or4551-cyber/meshausha-pwa`.
+- בדיקת קטלוג טרה פלסט: ב-store, `getProductsBySupplier('טרה פלסט (משאוושה)')` אמור להחזיר 88 פריטים בדיוק, בלי כפולים.
 
 ## מצב גיט
-- ענף: `main`. קומיט אחרון של קוד: `c88e7d1`. השלב הזה מתווסף כ-`[claude] chore: collab protocol v1`.
-- remote `origin` מחובר ל-GitHub. `safe.directory` מוגדר.
+- ענף: `main`. קומיט אחרון: `356f083` ([claude] feat: עדכון מחירון טרה פלסט יוני 2026), נדחף ל-origin.
+- remote `origin` מחובר ל-GitHub + Netlify. `safe.directory` מוגדר.
 
 ## יומן שלבים (מהחדש לישן)
+- [2026-06-20 — עדכון מחירון טרה פלסט יוני 2026](JOURNAL/2026-06-20-terraplast-price-update.md) — קטלוג 88 פריטים + מנגנון catalog-version migration; review של codex תפס באג כפילות שתוקן ואומת.
 - [2026-06-20 — הקמת פרוטוקול שיתוף-פעולה Claude × Codex × OR (v1)](JOURNAL/2026-06-20-collab-protocol-v1.md) — שכבת תיאום מבוססת-קבצים (docs/sync) + תיקוני תשתית גלובליים + תבנית לשימוש חוזר.
