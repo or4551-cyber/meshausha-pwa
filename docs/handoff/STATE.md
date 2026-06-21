@@ -68,7 +68,7 @@
 ## מצב גיט
 - ענף: `main`. קומיט אחרון: `e7e3776` ([claude] fix(plan2): apply LIGHT response) + עדכון handoff זה.
 - פרודקשן מסונכרן: deploy אחרון `6a382d3f` (כולל תיקון ה-apply הקל). אומת חי (פטל v4=2).
-- **עדיין לא נדחף ל-remote** — לדחוף `git push origin main` (אחרי GO).
+- **נדחף ל-remote** (`origin/main` מסונכרן עד `9404ec6`).
 
 ## יומן שלבים (מהחדש לישן)
 - [2026-06-21 — Plan 2: חיבור GPT פרטי לקטלוג](JOURNAL/2026-06-21-plan2-gpt-integration.md) — GPT Actions (read+preview/apply); סאגת הקמה ב-ChatGPT (3.1+300char+dup-domain); באג apply 130KB שנתפס בבדיקה חיה → תשובה קלה לפי role; אומת פטל 3→2 גרסה 4.
