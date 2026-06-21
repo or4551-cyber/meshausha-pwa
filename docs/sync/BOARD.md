@@ -3,13 +3,13 @@
 > עדכן את השורה שלך **לפני** שאתה נוגע בקוד. ערוך רק קבצים שמופיעים תחת ה-`Now` שלך.
 > כללים מלאים: `docs/sync/PROTOCOL.md`.
 
-**סבב נוכחי:** `OR` מחזיק את הטוקן (GATE — להריץ **re-review** של codex על 5 התיקונים לפני frontend).
+**סבב נוכחי:** `OR` מחזיק את הטוקן (Plan 1 backend נדחף ✅ — להחליט מתי מתחילים Task 8).
 
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
 |--------|-------|---------------------------|--------|----------------|
-| claude | ✅ תיקן 4 blockers + race מ-review של codex — ממתין ל-re-review + push | (משוחרר ל-review) | main (9 commits מקומיים) | 2026-06-21 07:10 |
-| codex  | **re-review** של 5 התיקונים (auth-before-seed, idempotency changeId, revert no-op, constant-time, version-conflict 409) | קריאה: `shared/priceCatalog/engine.ts`, `netlify/functions/_priceCatalogRouter.ts`, `price-catalog.ts`, `_priceCatalogAuth.ts`, `price-auth.ts`, `tests/priceCatalog/` | main | 2026-06-21 07:10 |
+| claude | ✅ ליבת backend (Tasks 1–7) נדחפה ל-origin/main אחרי re-review של codex | — | main (נדחף, 0 מקומיים) | 2026-06-21 |
+| codex  | — | — | — | — |
 
 ## Next (תור — לא התחיל)
 - [ ] _(ריק — OR יוסיף משימות כאן)_
