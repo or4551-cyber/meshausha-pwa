@@ -3,13 +3,13 @@
 > עדכן את השורה שלך **לפני** שאתה נוגע בקוד. ערוך רק קבצים שמופיעים תחת ה-`Now` שלך.
 > כללים מלאים: `docs/sync/PROTOCOL.md`.
 
-**סבב נוכחי:** `OR` מחזיק את הטוקן.
+**סבב נוכחי:** `OR` מחזיק את הטוקן (GATE — להריץ review של codex לפני frontend).
 
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
 |--------|-------|---------------------------|--------|----------------|
-| claude | —     | —                         | —      | —              |
-| codex  | —     | —                         | —      | —              |
+| claude | ✅ סיים backend (Tasks 1–7) — ממתין ל-review + push | (משוחרר ל-review) | main (8 commits מקומיים) | 2026-06-21 06:10 |
+| codex  | review של הליבה (Tasks 1–7) לפני Task 8 | קריאה: `shared/priceCatalog/`, `netlify/functions/_priceCatalog*`, `price-*.ts`, `tests/priceCatalog/` | main | 2026-06-21 06:10 |
 
 ## Next (תור — לא התחיל)
 - [ ] _(ריק — OR יוסיף משימות כאן)_
