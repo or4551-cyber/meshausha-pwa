@@ -1,0 +1,345 @@
+openapi: 3.0.3
+info:
+  title: Meshausha Price Catalog API
+  description: >
+    מקור-האמת המרכזי למחירוני ספקי רשת משאוושה. ה-GPT הפרטי קורא מחירים חיים, מציע שינויים,
+    ומבצע עדכון רק אחרי אישור מפורש של המשתמש (preview ואז apply). כל שינוי מגורסן והפיך.
+    מחירים הם לפני מע"מ.
+  version: "1.0.0"
+servers:
+  - url: https://meshaushapp.netlify.app
+    description: Production
+security:
+  - GptApiKey: []
+paths:
+  /api/prices/catalog/version:
+    get:
+      operationId: getCatalogVersion
+      summary: גרסת הקטלוג הפעילה
+      description: מחזיר את מספר הגרסה הפעילה + checksum. השתמש בערך version כ-baseVersion ל-preview.
+      responses:
+        "200":
+          description: הגרסה הפעילה
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: integer }
+                  checksum: { type: string }
+                  createdAt: { type: string, format: date-time }
+
+  /api/prices/suppliers:
+    get:
+      operationId: listSuppliers
+      summary: רשימת הספקים
+      description: כל הספקים הפעילים בקטלוג (id + שם). שמור id לשימוש בחיפוש מוצרים לפי ספק.
+      responses:
+        "200":
+          description: ספקים
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: integer }
+                  suppliers:
+                    type: array
+                    items: { $ref: "#/components/schemas/Supplier" }
+
+  /api/prices/products:
+    get:
+      operationId: searchProducts
+      summary: חיפוש מוצרים
+      description: >
+        חיפוש לפי טקסט חופשי (q, כולל איות חלקי/חלופי), ספק (supplierId), קטגוריה (category).
+        עימוד עם limit (מקס' 200) + offset. אם נמצאו כמה התאמות — הצג למשתמש ובקש לבחור, אל תנחש.
+      parameters:
+        - name: q
+          in: query
+          description: טקסט חיפוש (שם מוצר, מנורמל אוטומטית)
+          schema: { type: string }
+        - name: supplierId
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: includeInactive
+          in: query
+          description: כלול מוצרים מושבתים (ברירת מחדל false)
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: תוצאות חיפוש
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: integer }
+                  total: { type: integer }
+                  offset: { type: integer }
+                  products:
+                    type: array
+                    items: { $ref: "#/components/schemas/Product" }
+
+  /api/prices/products/{id}:
+    get:
+      operationId: getProduct
+      summary: מוצר יחיד
+      description: המוצר והמחיר הפעיל לפי id.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: מוצר
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "404":
+          description: לא נמצא
+
+  /api/prices/products/{id}/history:
+    get:
+      operationId: getProductHistory
+      summary: היסטוריית מחיר
+      description: שינויי המחיר של המוצר לאורך גרסאות (מחיר אריזה, כמות, מחיר ליחידה).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: היסטוריה
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  productId: { type: string }
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        version: { type: integer }
+                        packagePrice: { type: number }
+                        packageQuantity: { type: number, nullable: true }
+                        unitPrice: { type: number, nullable: true }
+                        createdAt: { type: string, format: date-time }
+
+  /api/prices/changes/preview:
+    post:
+      operationId: previewChanges
+      summary: תצוגה מקדימה של שינוי (לא שומר)
+      description: >
+        יוצר הצעת שינוי (ChangeSet) מול baseVersion, בלי לשנות דבר. מחזיר id, אזהרות (warnings,
+        למשל שינוי מחיר חריג מעל 20%), וסיכום הפעולות. השתמש ב-id שחזר כדי לבצע apply לאחר אישור.
+        baseVersion = ה-version מ-getCatalogVersion. אם הגרסה השתנתה בינתיים — תקבל 409 stale_version,
+        אז קרא getCatalogVersion שוב ובצע preview מחדש.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseVersion, operations]
+              properties:
+                baseVersion:
+                  type: integer
+                  description: גרסת הבסיס (מ-getCatalogVersion)
+                operations:
+                  type: array
+                  minItems: 1
+                  items: { $ref: "#/components/schemas/ChangeOperation" }
+      responses:
+        "201":
+          description: ChangeSet שנוצר (טיוטה, לא שמור עדיין)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeSet" }
+        "409":
+          description: התנגשות גרסה (stale_version) — קרא version שוב ועשה preview מחדש
+
+  /api/prices/changes/{id}/apply:
+    post:
+      operationId: applyChange
+      summary: אישור וביצוע שינוי (כותב גרסה חדשה)
+      description: >
+        מבצע ChangeSet שנוצר ב-preview — פעולה בעלת השפעה. קרא אותה רק אחרי שהמשתמש אישר במפורש
+        בשיחה. גוף הבקשה חייב confirmation="APPROVE". כותרת Idempotency-Key חובה: ערך ייחודי
+        חד-פעמי לכל apply (כדי שניסיון-חוזר לא יבצע פעמיים). מחזיר את הגרסה החדשה.
+      x-openai-isConsequential: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ה-id של ה-ChangeSet שחזר מ-preview
+          schema: { type: string }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: ערך ייחודי חד-פעמי לפעולה הזו (מחרוזת אקראית/UUID)
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmation]
+              properties:
+                confirmation:
+                  type: string
+                  enum: ["APPROVE"]
+                  description: חייב להיות בדיוק "APPROVE" — אישור מפורש לביצוע
+      responses:
+        "200":
+          description: הגרסה החדשה (CatalogSnapshot)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogSnapshot" }
+        "409":
+          description: התנגשות/כבר-טופל (stale_version / version_conflict / not_pending)
+        "410":
+          description: ההצעה פגה — צור preview חדש
+
+  /api/prices/changes/{id}/revert-preview:
+    post:
+      operationId: revertPreview
+      summary: תצוגה מקדימה של ביטול שינוי
+      description: >
+        יוצר הצעת-ביטול (ChangeSet הפוך) שמחזירה את הקטלוג למצב גרסת-הבסיס של שינוי שכבר בוצע.
+        לא משנה דבר — כמו preview. כדי לבצע את הביטול, קרא apply עם ה-id שחזר (אחרי אישור המשתמש).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ה-id של ה-ChangeSet שבוצע ושרוצים לבטל
+          schema: { type: string }
+      responses:
+        "201":
+          description: ChangeSet של ביטול (טיוטה)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeSet" }
+        "409":
+          description: אין מה לבטל (nothing_to_revert)
+
+  /api/prices/export-link:
+    post:
+      operationId: createExportLink
+      summary: קישור הורדה ל-Excel
+      description: מחזיר קישור קצר-מועד (5 דק') להורדת קובץ ה-Excel המרכזי של הגרסה הפעילה.
+      responses:
+        "200":
+          description: קישור הורדה
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+                  expiresAt: { type: string, format: date-time }
+
+components:
+  securitySchemes:
+    GptApiKey:
+      type: http
+      scheme: bearer
+      description: PRICE_GPT_TOKEN — טוקן הכתיבה הייעודי של ה-GPT (Bearer)
+  schemas:
+    Supplier:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        aliases: { type: array, items: { type: string } }
+        active: { type: boolean }
+        pricesExcludeVat: { type: boolean }
+        lastPriceListAt: { type: string, nullable: true }
+    Product:
+      type: object
+      description: מוצר בקטלוג. מחירים לפני מע"מ.
+      properties:
+        id: { type: string }
+        supplierId: { type: string }
+        supplierSku: { type: string, nullable: true }
+        name: { type: string }
+        normalizedName: { type: string }
+        category: { type: string, nullable: true }
+        packagePrice: { type: number, description: מחיר האריזה לפני מע"מ }
+        packageQuantity: { type: number, nullable: true, description: כמות יחידות באריזה }
+        unit: { type: string, nullable: true, enum: [unit, kg, liter, roll, pack] }
+        unitPrice: { type: number, nullable: true, description: packagePrice/packageQuantity }
+        effectiveFrom: { type: string, nullable: true }
+        active: { type: boolean }
+        adminOnly: { type: boolean, description: מוסתר מהסניפים }
+        updatedAt: { type: string }
+    ProductPatch:
+      type: object
+      description: השדות לעדכון במוצר (חלקי). לשינוי מחיר — packagePrice בלבד.
+      properties:
+        packagePrice: { type: number }
+        packageQuantity: { type: number, nullable: true }
+        unit: { type: string, nullable: true, enum: [unit, kg, liter, roll, pack] }
+        name: { type: string }
+        category: { type: string, nullable: true }
+        active: { type: boolean }
+        adminOnly: { type: boolean }
+        effectiveFrom: { type: string, nullable: true }
+    ChangeOperation:
+      type: object
+      description: >
+        פעולת-שינוי אחת. הסוג הנפוץ הוא updateProduct (שינוי מחיר). deactivateProduct מסיר מוצר
+        מהפעילים (במקום מחיקה). addProduct/addSupplier להוספה.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [updateProduct, deactivateProduct, addProduct, addSupplier]
+        productId:
+          type: string
+          description: ל-updateProduct/deactivateProduct
+        patch:
+          $ref: "#/components/schemas/ProductPatch"
+        product:
+          type: object
+          description: ל-addProduct — CatalogProduct מלא
+        supplier:
+          type: object
+          description: ל-addSupplier — CatalogSupplier מלא
+    ChangeSet:
+      type: object
+      properties:
+        id: { type: string }
+        baseVersion: { type: integer }
+        source: { type: string }
+        operations: { type: array, items: { $ref: "#/components/schemas/ChangeOperation" } }
+        warnings:
+          type: array
+          items: { type: string }
+          description: אזהרות (למשל שינוי מחיר חריג). הצג למשתמש לפני apply.
+        status: { type: string }
+        expiresAt: { type: string, format: date-time }
+    CatalogSnapshot:
+      type: object
+      properties:
+        version: { type: integer }
+        previousVersion: { type: integer, nullable: true }
+        changeSetId: { type: string }
+        createdAt: { type: string, format: date-time }
+        checksum: { type: string }
+        suppliers: { type: array, items: { $ref: "#/components/schemas/Supplier" } }
+        products: { type: array, items: { $ref: "#/components/schemas/Product" } }
