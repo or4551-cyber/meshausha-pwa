@@ -1,10 +1,7 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Meshausha Price Catalog API
-  description: >
-    מקור-האמת המרכזי למחירוני ספקי רשת משאוושה. ה-GPT הפרטי קורא מחירים חיים, מציע שינויים,
-    ומבצע עדכון רק אחרי אישור מפורש של המשתמש (preview ואז apply). כל שינוי מגורסן והפיך.
-    מחירים הם לפני מע"מ.
+  description: 'מקור-האמת המרכזי למחירוני ספקי רשת משאוושה. ה-GPT הפרטי קורא מחירים חיים, מציע שינויים, ומבצע עדכון רק אחרי אישור מפורש של המשתמש (preview ואז apply). כל שינוי מגורסן והפיך. מחירים לפני מע"מ.'
   version: "1.0.0"
 servers:
   - url: https://meshaushapp.netlify.app
@@ -16,7 +13,7 @@ paths:
     get:
       operationId: getCatalogVersion
       summary: גרסת הקטלוג הפעילה
-      description: מחזיר את מספר הגרסה הפעילה + checksum. השתמש בערך version כ-baseVersion ל-preview.
+      description: מחזיר את מספר הגרסה הפעילה (version) + checksum. השתמש ב-version כ-baseVersion ל-preview.
       responses:
         "200":
           description: הגרסה הפעילה
@@ -51,9 +48,7 @@ paths:
     get:
       operationId: searchProducts
       summary: חיפוש מוצרים
-      description: >
-        חיפוש לפי טקסט חופשי (q, כולל איות חלקי/חלופי), ספק (supplierId), קטגוריה (category).
-        עימוד עם limit (מקס' 200) + offset. אם נמצאו כמה התאמות — הצג למשתמש ובקש לבחור, אל תנחש.
+      description: 'חיפוש מוצרים לפי טקסט חופשי (q), ספק (supplierId) או קטגוריה (category), עם עימוד (limit מקס 200, offset). אם יש כמה התאמות — הצג למשתמש ובקש לבחור, אל תנחש.'
       parameters:
         - name: q
           in: query
@@ -113,7 +108,7 @@ paths:
     get:
       operationId: getProductHistory
       summary: היסטוריית מחיר
-      description: שינויי המחיר של המוצר לאורך גרסאות (מחיר אריזה, כמות, מחיר ליחידה).
+      description: היסטוריית שינויי המחיר של המוצר לאורך גרסאות (מחיר אריזה, כמות, מחיר ליחידה).
       parameters:
         - name: id
           in: path
@@ -135,19 +130,15 @@ paths:
                       properties:
                         version: { type: integer }
                         packagePrice: { type: number }
-                        packageQuantity: { type: number, nullable: true }
-                        unitPrice: { type: number, nullable: true }
+                        packageQuantity: { type: number }
+                        unitPrice: { type: number }
                         createdAt: { type: string, format: date-time }
 
   /api/prices/changes/preview:
     post:
       operationId: previewChanges
       summary: תצוגה מקדימה של שינוי (לא שומר)
-      description: >
-        יוצר הצעת שינוי (ChangeSet) מול baseVersion, בלי לשנות דבר. מחזיר id, אזהרות (warnings,
-        למשל שינוי מחיר חריג מעל 20%), וסיכום הפעולות. השתמש ב-id שחזר כדי לבצע apply לאחר אישור.
-        baseVersion = ה-version מ-getCatalogVersion. אם הגרסה השתנתה בינתיים — תקבל 409 stale_version,
-        אז קרא getCatalogVersion שוב ובצע preview מחדש.
+      description: 'יוצר טיוטת שינוי (ChangeSet) מול baseVersion — לא שומר. מחזיר id, warnings (שינוי חריג מעל 20%) וסיכום הפעולות. baseVersion מ-getCatalogVersion. אם חזר 409 stale_version — קרא version שוב ועשה preview מחדש. השתמש ב-id ל-apply.'
       requestBody:
         required: true
         content:
@@ -176,10 +167,7 @@ paths:
     post:
       operationId: applyChange
       summary: אישור וביצוע שינוי (כותב גרסה חדשה)
-      description: >
-        מבצע ChangeSet שנוצר ב-preview — פעולה בעלת השפעה. קרא אותה רק אחרי שהמשתמש אישר במפורש
-        בשיחה. גוף הבקשה חייב confirmation="APPROVE". כותרת Idempotency-Key חובה: ערך ייחודי
-        חד-פעמי לכל apply (כדי שניסיון-חוזר לא יבצע פעמיים). מחזיר את הגרסה החדשה.
+      description: 'מבצע ChangeSet שנוצר ב-preview (פעולה בעלת השפעה). קרא רק אחרי אישור מפורש של המשתמש בשיחה. גוף הבקשה: confirmation="APPROVE". כותרת Idempotency-Key חובה — ערך ייחודי חד-פעמי לכל apply. מחזיר את הגרסה החדשה.'
       x-openai-isConsequential: true
       parameters:
         - name: id
@@ -203,7 +191,7 @@ paths:
                 confirmation:
                   type: string
                   enum: ["APPROVE"]
-                  description: חייב להיות בדיוק "APPROVE" — אישור מפורש לביצוע
+                  description: חייב להיות בדיוק APPROVE — אישור מפורש לביצוע
       responses:
         "200":
           description: הגרסה החדשה (CatalogSnapshot)
@@ -219,9 +207,7 @@ paths:
     post:
       operationId: revertPreview
       summary: תצוגה מקדימה של ביטול שינוי
-      description: >
-        יוצר הצעת-ביטול (ChangeSet הפוך) שמחזירה את הקטלוג למצב גרסת-הבסיס של שינוי שכבר בוצע.
-        לא משנה דבר — כמו preview. כדי לבצע את הביטול, קרא apply עם ה-id שחזר (אחרי אישור המשתמש).
+      description: 'יוצר טיוטת-ביטול (ChangeSet הפוך) שמחזירה את הקטלוג לגרסת-הבסיס של שינוי שכבר בוצע. לא משנה דבר — כמו preview. לביצוע הביטול קרא apply עם ה-id שחזר (אחרי אישור המשתמש).'
       parameters:
         - name: id
           in: path
@@ -268,22 +254,22 @@ components:
         aliases: { type: array, items: { type: string } }
         active: { type: boolean }
         pricesExcludeVat: { type: boolean }
-        lastPriceListAt: { type: string, nullable: true }
+        lastPriceListAt: { type: string }
     Product:
       type: object
-      description: מוצר בקטלוג. מחירים לפני מע"מ.
+      description: 'מוצר בקטלוג. מחירים לפני מע"מ.'
       properties:
         id: { type: string }
         supplierId: { type: string }
-        supplierSku: { type: string, nullable: true }
+        supplierSku: { type: string }
         name: { type: string }
         normalizedName: { type: string }
-        category: { type: string, nullable: true }
-        packagePrice: { type: number, description: מחיר האריזה לפני מע"מ }
-        packageQuantity: { type: number, nullable: true, description: כמות יחידות באריזה }
-        unit: { type: string, nullable: true, enum: [unit, kg, liter, roll, pack] }
-        unitPrice: { type: number, nullable: true, description: packagePrice/packageQuantity }
-        effectiveFrom: { type: string, nullable: true }
+        category: { type: string }
+        packagePrice: { type: number, description: 'מחיר האריזה לפני מע"מ' }
+        packageQuantity: { type: number, description: כמות יחידות באריזה }
+        unit: { type: string, enum: [unit, kg, liter, roll, pack] }
+        unitPrice: { type: number, description: packagePrice/packageQuantity }
+        effectiveFrom: { type: string }
         active: { type: boolean }
         adminOnly: { type: boolean, description: מוסתר מהסניפים }
         updatedAt: { type: string }
@@ -292,18 +278,16 @@ components:
       description: השדות לעדכון במוצר (חלקי). לשינוי מחיר — packagePrice בלבד.
       properties:
         packagePrice: { type: number }
-        packageQuantity: { type: number, nullable: true }
-        unit: { type: string, nullable: true, enum: [unit, kg, liter, roll, pack] }
+        packageQuantity: { type: number }
+        unit: { type: string, enum: [unit, kg, liter, roll, pack] }
         name: { type: string }
-        category: { type: string, nullable: true }
+        category: { type: string }
         active: { type: boolean }
         adminOnly: { type: boolean }
-        effectiveFrom: { type: string, nullable: true }
+        effectiveFrom: { type: string }
     ChangeOperation:
       type: object
-      description: >
-        פעולת-שינוי אחת. הסוג הנפוץ הוא updateProduct (שינוי מחיר). deactivateProduct מסיר מוצר
-        מהפעילים (במקום מחיקה). addProduct/addSupplier להוספה.
+      description: 'פעולת-שינוי אחת. הנפוץ: updateProduct (שינוי מחיר). deactivateProduct מסיר מוצר מהפעילים (במקום מחיקה). addProduct/addSupplier להוספה.'
       required: [type]
       properties:
         type:
@@ -337,7 +321,7 @@ components:
       type: object
       properties:
         version: { type: integer }
-        previousVersion: { type: integer, nullable: true }
+        previousVersion: { type: integer }
         changeSetId: { type: string }
         createdAt: { type: string, format: date-time }
         checksum: { type: string }
