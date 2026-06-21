@@ -3,7 +3,7 @@
 > עדכן את השורה שלך **לפני** שאתה נוגע בקוד. ערוך רק קבצים שמופיעים תחת ה-`Now` שלך.
 > כללים מלאים: `docs/sync/PROTOCOL.md`.
 
-**סבב נוכחי:** פנוי — אף סוכן לא מחזיק את הטוקן. Plan 2 backend פרוס+אומת; ממתין ל-OR שיבנה את ה-GPT ב-ChatGPT (אין משימת-קוד פתוחה).
+**סבב נוכחי:** פנוי — אף סוכן לא מחזיק את הטוקן. **Plan 2 הושלם ואומת חי** (ה-GPT הפרטי מחובר ועובד). אין משימת-קוד פתוחה; הבא Plan 3 (ייבוא מחירונים) כש-OR יחליט.
 
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
@@ -12,11 +12,12 @@
 | codex  | — | — | — | — |
 
 ## Next (תור — לא התחיל)
-- [ ] בדיקת קבלה Plan 2 (OR בשיחה עם ה-GPT: שאלת מחיר → שינוי מאושר → ביטול) → claude מאמת מהצד של השרת
+- [ ] Plan 3 — ייבוא מחירונים (xlsx → ChangeSet → preview/apply)
 - [ ] _(OR יוסיף משימות נוספות כאן)_
 
 ## Done (הושלם ואומת — החדש למעלה)
-- [x] 2026-06-21 — Plan 2 backend: חבילת GPT Actions (`docs/gpt/openapi.yaml`+`gpt-instructions.md`+`SETUP.md`) + `PRICE_GPT_TOKEN` ב-Netlify + redeploy (`6a38212d`) — `claude` — אומת חי מול ה-API: version/suppliers/search עם הטוקן OK, טוקן-שגוי→401, preview→201 (write-role). נשאר: OR בונה את ה-GPT ב-ChatGPT.
+- [x] 2026-06-21 — **Plan 2 — GPT פרטי מחובר לקטלוג (הושלם ואומת חי)** — `claude` — GPT Actions (9 פעולות, OpenAPI 3.1) + `PRICE_GPT_TOKEN` + 2 deploys (`6a38212d`, `6a382d3f`). באג חי שנתפס: `apply` החזיר snapshot מלא (~130KB) → ChatGPT "תקלה בקבלת התשובה" למרות הצלחה → תוקן (תשובה קלה לפי role, `e7e3776`). אומת מקצה-לקצה: OR ביקש מה-GPT "פטל→2" → version 4, פטל=2, history v1→v4. 73/73 tests.
+- [x] 2026-06-21 — Plan 2 backend: חבילת GPT Actions + `PRICE_GPT_TOKEN` + redeploy (`6a38212d`) — `claude` — אומת מול ה-API: version/suppliers/search OK, טוקן-שגוי→401, preview→201 (write-role).
 - [x] 2026-06-21 — מערכת מחירוני ספקים Task 9a (מסך אדמין כותב לקטלוג דרך preview/apply; session ממיחזור PIN 9999) — `claude` — review של `codex` תפס BLOCKER ב-idempotency → תוקן (resume מ-changeSet) + אישר. אומת בפרודקשן: auth 9999→token, bad→401, preview-write OK. 71/71 tests
 - [x] 2026-06-20 — איתור+ייבוא התוכנית המאושרת המלאה (spec+roadmap+plan-1, 1696 שורות) מ-`GPT מחירונים` ל-`docs/sdd/` — `claude`
 - [x] 2026-06-20 — מערכת מחירוני ספקים Task 2 (Pure Catalog Change Engine: normalization + engine preview/apply/revert) — `claude` — אומת: 8/8 טסטים, tsc+shared typecheck נקי
