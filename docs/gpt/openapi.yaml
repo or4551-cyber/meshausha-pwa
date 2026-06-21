@@ -194,10 +194,10 @@ paths:
                   description: חייב להיות בדיוק APPROVE — אישור מפורש לביצוע
       responses:
         "200":
-          description: הגרסה החדשה (CatalogSnapshot)
+          description: בוצע — מטא-נתוני הגרסה החדשה + המוצרים שהשתנו
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/CatalogSnapshot" }
+              schema: { $ref: "#/components/schemas/ApplyResult" }
         "409":
           description: התנגשות/כבר-טופל (stale_version / version_conflict / not_pending)
         "410":
@@ -317,13 +317,23 @@ components:
           description: אזהרות (למשל שינוי מחיר חריג). הצג למשתמש לפני apply.
         status: { type: string }
         expiresAt: { type: string, format: date-time }
-    CatalogSnapshot:
+    ApplyResult:
       type: object
+      description: תוצאת apply (קלה) — הגרסה החדשה והמוצרים שהשתנו בלבד (לא כל הקטלוג).
       properties:
-        version: { type: integer }
+        version: { type: integer, description: מספר הגרסה החדשה שנוצרה }
         previousVersion: { type: integer }
         changeSetId: { type: string }
         createdAt: { type: string, format: date-time }
         checksum: { type: string }
-        suppliers: { type: array, items: { $ref: "#/components/schemas/Supplier" } }
-        products: { type: array, items: { $ref: "#/components/schemas/Product" } }
+        changed:
+          type: array
+          description: המוצרים שהושפעו מהשינוי
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              supplierId: { type: string }
+              packagePrice: { type: number }
+              active: { type: boolean }

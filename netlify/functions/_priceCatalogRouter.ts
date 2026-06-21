@@ -10,6 +10,7 @@ import { normalizeCatalogName } from '../../shared/priceCatalog/normalization'
 import {
   ChangeOperationSchema,
   type CatalogSnapshot,
+  type ChangeSet,
 } from '../../shared/priceCatalog/types'
 
 export interface PriceApiRequest {
@@ -44,6 +45,39 @@ const json = (statusCode: number, payload: unknown): PriceApiResponse => ({
   body: JSON.stringify(payload),
 })
 const fail = (statusCode: number, code: string): PriceApiResponse => json(statusCode, { error: code })
+
+// תשובת apply: אדמין (האפליקציה) מקבל snapshot מלא — הוא מעדכן את החנות המקומית מ-result.products.
+// GPT מקבל תשובה קלה בלבד: snapshot מלא (~130KB / 291 מוצרים) חורג מגבול התשובה של ChatGPT Actions
+// וגורם ל-"תקלה בקבלת התשובה" אף שהכתיבה הצליחה. הקל מחזיר רק מטא-נתוני הגרסה + המוצרים שהשתנו.
+function buildApplyResponse(
+  role: PriceRole,
+  snapshot: CatalogSnapshot,
+  change: ChangeSet | null,
+): PriceApiResponse {
+  if (role !== 'gpt') return json(200, snapshot)
+  const changedIds = new Set<string>()
+  for (const op of change?.operations ?? []) {
+    if (op.type === 'updateProduct' || op.type === 'deactivateProduct') changedIds.add(op.productId)
+    else if (op.type === 'addProduct') changedIds.add(op.product.id)
+  }
+  const changed = snapshot.products
+    .filter(product => changedIds.has(product.id))
+    .map(product => ({
+      id: product.id,
+      name: product.name,
+      supplierId: product.supplierId,
+      packagePrice: product.packagePrice,
+      active: product.active,
+    }))
+  return json(200, {
+    version: snapshot.version,
+    previousVersion: snapshot.previousVersion,
+    changeSetId: snapshot.changeSetId,
+    createdAt: snapshot.createdAt,
+    checksum: snapshot.checksum,
+    changed,
+  })
+}
 
 const PreviewBodySchema = z.object({
   baseVersion: z.number().int().positive(),
@@ -174,7 +208,9 @@ export async function routePriceCatalog(
       // המפתח חייב להיות שייך ל-change המבוקש; שימוש חוזר על change אחר = התנגשות.
       if (replay.changeSetId !== changeId) return fail(409, 'idempotency_key_conflict')
       const snapshot = await deps.repo.getVersion(replay.version)
-      return snapshot ? json(200, snapshot) : fail(500, 'internal_error')
+      if (!snapshot) return fail(500, 'internal_error')
+      const replayedChange = await deps.repo.getChangeSet(changeId)
+      return buildApplyResponse(req.auth.role, snapshot, replayedChange)
     }
 
     const applyBody = ApplyBodySchema.safeParse(parseJson(req.body))
@@ -189,7 +225,7 @@ export async function routePriceCatalog(
     // התאוששות: אם הגרסה הפעילה כבר נוצרה מה-change הזה — החזר אותה ושמור idempotency חסר.
     if (active.changeSetId === change.id) {
       await deps.repo.saveIdempotencyResult(idempotencyKey, { changeSetId: change.id, version: active.version })
-      return json(200, active)
+      return buildApplyResponse(req.auth.role, active, change)
     }
 
     let next: CatalogSnapshot
@@ -214,7 +250,7 @@ export async function routePriceCatalog(
     }
     await deps.repo.saveChangeSet({ ...change, status: 'applied', appliedVersion: next.version })
     await deps.repo.saveIdempotencyResult(idempotencyKey, { changeSetId: change.id, version: next.version })
-    return json(200, next)
+    return buildApplyResponse(req.auth.role, next, change)
   }
 
   async function handleRevertPreview(

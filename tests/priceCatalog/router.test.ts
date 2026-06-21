@@ -166,4 +166,53 @@ describe('price catalog router', () => {
     }, { repo, now: () => now, id: () => 'unused' })
     expect(forbidden.statusCode).toBe(403)
   })
+
+  it('returns a LIGHT apply response for gpt role (no full catalog — ChatGPT Actions cannot process ~130KB)', async () => {
+    await routePriceCatalog({
+      method: 'POST', path: '/api/prices/changes/preview', query: {}, headers: {},
+      body: JSON.stringify({ baseVersion: 1, operations: [{ type: 'updateProduct', productId: 'tp1', patch: { packagePrice: 160 } }] }),
+      auth: { role: 'gpt' },
+    }, { repo, now: () => now, id: () => 'gpt-change-1' })
+    const request = {
+      method: 'POST' as const, path: '/api/prices/changes/gpt-change-1/apply', query: {},
+      headers: { 'idempotency-key': 'gpt-key-1' }, body: JSON.stringify({ confirmation: 'APPROVE' }),
+      auth: { role: 'gpt' as const },
+    }
+    const res = await routePriceCatalog(request, { repo, now: () => now, id: () => 'unused' })
+    const body = JSON.parse(res.body)
+    expect(res.statusCode).toBe(200)
+    expect(body.version).toBe(2)
+    expect(body.previousVersion).toBe(1)
+    expect(body.products).toBeUndefined()
+    expect(body.suppliers).toBeUndefined()
+    expect(body.changed).toHaveLength(1)
+    expect(body.changed[0]).toMatchObject({ id: 'tp1', packagePrice: 160 })
+    // התשובה הקלה קטנה בסדרי גודל מ-snapshot מלא (~130KB)
+    expect(res.body.length).toBeLessThan(2000)
+
+    // גם מסלול ה-replay (idempotency) חייב להחזיר תשובה קלה
+    const replay = await routePriceCatalog(request, { repo, now: () => now, id: () => 'unused' })
+    const replayBody = JSON.parse(replay.body)
+    expect(replayBody.version).toBe(2)
+    expect(replayBody.products).toBeUndefined()
+    expect(replayBody.changed).toHaveLength(1)
+  })
+
+  it('still returns the FULL snapshot for admin role (frontend needs result.products)', async () => {
+    await routePriceCatalog({
+      method: 'POST', path: '/api/prices/changes/preview', query: {}, headers: {},
+      body: JSON.stringify({ baseVersion: 1, operations: [{ type: 'updateProduct', productId: 'tp1', patch: { packagePrice: 160 } }] }),
+      auth: { role: 'admin' },
+    }, { repo, now: () => now, id: () => 'admin-change-1' })
+    const res = await routePriceCatalog({
+      method: 'POST', path: '/api/prices/changes/admin-change-1/apply', query: {},
+      headers: { 'idempotency-key': 'admin-key-1' }, body: JSON.stringify({ confirmation: 'APPROVE' }),
+      auth: { role: 'admin' },
+    }, { repo, now: () => now, id: () => 'unused' })
+    const body = JSON.parse(res.body)
+    expect(body.version).toBe(2)
+    expect(Array.isArray(body.products)).toBe(true)
+    expect(body.products.length).toBe(291)
+    expect(Array.isArray(body.suppliers)).toBe(true)
+  })
 })
