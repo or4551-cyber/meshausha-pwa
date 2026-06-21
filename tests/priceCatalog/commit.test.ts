@@ -147,6 +147,23 @@ describe('commitCatalogOperations', () => {
     expect(attempt.changeSetId).toBe('cs-new')
   })
 
+  it('does not re-preview a resumed apply that reports the change already landed (not_pending)', async () => {
+    let previewCalls = 0
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.includes('/api/price-auth')) return { ok: true, status: 200, json: async () => ({ token: 'sess-tok', expiresAt: future() }) } as Response
+      if (u.includes('/catalog/version')) return { ok: true, status: 200, json: async () => ({ version: 1, checksum: 'c', createdAt: NOW }) } as Response
+      if (u.includes('/changes/preview')) { previewCalls += 1; return { ok: true, status: 201, json: async () => ({ id: 'cs-x', warnings: [] }) } as Response }
+      if (u.includes('/apply')) return { ok: false, status: 409, json: async () => ({ error: 'not_pending' }) } as Response
+      return { ok: false, status: 404, json: async () => ({}) } as Response
+    }))
+    await authenticateWithPin('9999')
+    const attempt: { idempotencyKey: string; changeSetId?: string } = { idempotencyKey: 'K1', changeSetId: 'cs-landed' }
+    const result = await commitCatalogOperations([buildPriceUpdate('tp1', 200, NOW)], attempt)
+    expect(result).toEqual({ ok: false, error: 'not_pending' }) // לא re-preview — מונע duplicate-id על שינוי שכבר נחת
+    expect(previewCalls).toBe(0)
+  })
+
   it('surfaces an apply failure (version_conflict)', async () => {
     stub({
       version: { version: 1 },

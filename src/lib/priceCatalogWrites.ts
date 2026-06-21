@@ -92,10 +92,15 @@ function adaptResult(snapshot: CatalogSnapshot, warnings: string[]): CommitResul
   return { ok: true, version: snapshot.version, products: adaptCatalogSnapshot(snapshot), snapshot, warnings }
 }
 
-// סטטוסים שבהם ה-changeSet השמור כבר אינו ישים (פג/נעלם/בסיס-ישן/כבר-טופל) → נכון לבצע
-// preview חדש. network/401/500 — שומרים את ה-changeSet ומחזירים שגיאה לניסיון-חוזר עתידי.
-function changeSetUnusable(status: number): boolean {
-  return status === 404 || status === 410 || status === 409
+// האם ה-changeSet השמור כבר אינו ישים ונכון לבצע preview חדש (בלי סיכון כפילות).
+// re-preview מותר רק כשהשינוי **בוודאות לא נחת**: changeSet נעלם/פג (404/410), או בסיס/חריץ-
+// גרסה נתפס ע"י כתיבה אחרת (stale_version/version_conflict). על not_pending/idempotency_key_conflict
+// השינוי **כבר טופל** — re-preview עם אותם ids עלול ליפול על duplicate-id; מחזירים שגיאה ('כבר נשמר').
+// network/401/500 — שומרים את ה-changeSet ומחזירים שגיאה לניסיון-חוזר עתידי.
+function changeSetUnusable(status: number, error: string): boolean {
+  if (status === 404 || status === 410) return true
+  if (status === 409) return error === 'stale_version' || error === 'version_conflict'
+  return false
 }
 
 // תזמור כתיבה מלא: session → (resume או preview) → apply → snapshot מותאם.
@@ -111,7 +116,7 @@ export async function commitCatalogOperations(
   if (attempt.changeSetId) {
     const resumed = await applyChange(attempt.changeSetId, token, attempt.idempotencyKey)
     if (resumed.ok) return adaptResult(resumed.snapshot, [])
-    if (!changeSetUnusable(resumed.status)) return { ok: false, error: resumed.error }
+    if (!changeSetUnusable(resumed.status, resumed.error)) return { ok: false, error: resumed.error }
     attempt.changeSetId = undefined // לא-ישים → ניצור preview חדש למטה
   }
 
