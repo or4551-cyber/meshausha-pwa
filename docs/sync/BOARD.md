@@ -16,6 +16,7 @@
 - [ ] _(OR יוסיף משימות נוספות כאן)_
 
 ## Done (הושלם ואומת — החדש למעלה)
+- [x] 2026-06-21 — **פרוטוקול v2** (`docs/sync/PROTOCOL.md`) — 4 שערים מלקחי הפרויקט: Claude=שער-אימות-סמכותי (§2/§7), runbook ל-deploy/env (§9), שער בדיקה-חיה לכסף/auth/קטלוג (§2 שלב 10ב), טריגרים מפורשים ל-review של Codex (§7) + היגיינת-BOM (§5). הוחל גם על התבנית הגלובלית `~/.claude/templates/collab/` (+ CODEX-PLAYBOOK סטאב + init). אומת: init dry-run 6 קבצים ללא BOM. — `claude` (לבקשת OR).
 - [x] 2026-06-21 — **`docs/sync/CODEX-PLAYBOOK.md`** — לקחים ל-Codex מהפרויקט (sandbox=דפוס-הכשל; review סטטי=החוזקה; דפוסי-נכונות לכסף/קטלוג) + הפנייה מ-`AGENTS.md` (שלב 5 בטעינת-הפעלה) — `claude` (לבקשת OR).
 - [x] 2026-06-21 — **Plan 2 — GPT פרטי מחובר לקטלוג (הושלם ואומת חי)** — `claude` — GPT Actions (9 פעולות, OpenAPI 3.1) + `PRICE_GPT_TOKEN` + 2 deploys (`6a38212d`, `6a382d3f`). באג חי שנתפס: `apply` החזיר snapshot מלא (~130KB) → ChatGPT "תקלה בקבלת התשובה" למרות הצלחה → תוקן (תשובה קלה לפי role, `e7e3776`). אומת מקצה-לקצה: OR ביקש מה-GPT "פטל→2" → version 4, פטל=2, history v1→v4. 73/73 tests.
 - [x] 2026-06-21 — Plan 2 backend: חבילת GPT Actions + `PRICE_GPT_TOKEN` + redeploy (`6a38212d`) — `claude` — אומת מול ה-API: version/suppliers/search OK, טוקן-שגוי→401, preview→201 (write-role).

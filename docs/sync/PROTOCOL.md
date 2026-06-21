@@ -44,6 +44,12 @@
 
 ### END (סיום יחידת עבודה)
 10. **אמת**: הרץ `npm run build` (ו/או `tsc --noEmit` / בדיקות). חובה לפני שמסמנים "Done".
+    - **Codex:** אם ה-sandbox חוסם את ה-runner הרגיל — הרץ דרך ה-fallback (Vitest/Vite עם **config inline**;
+      ראה `docs/sync/CODEX-PLAYBOOK.md` §1) ודווח ב-CHANNEL `X/X (fallback, סביבתי)`. זה אימות **ארעי**, ואל תשנה קוד כדי לעקוף את ה-sandbox.
+    - **Claude = שער אימות סמכותי:** ריצת `npm test` + `npm run build` הנייטיב שלך (מחוץ ל-sandbox) היא הקובעת לפני כל deploy.
+10ב. **שער בדיקה-חיה (חובה לכסף/auth/קטלוג/אינטגרציה חיצונית; מומלץ לשאר):** מיילסטון כזה אינו "Done" עד
+    **smoke-test חי** — **OR מבצע את הכתיבה** (UI/GPT), **Claude מאמת בקריאה** (API/MCP: version/ערך/היסטוריה).
+    **הסוכנים לא מבצעים כתיבות-כסף בפרודקשן בעצמם.** (למה: באג ה-130KB ב-`apply` חמק מ-73 יוניט-טסטים ונתפס רק חי.)
 11. **Commit** עם קידומת מחבר: `[claude] <type>: <תיאור>` או `[codex] <type>: <תיאור>`.
 12. הזז את המשימה ב-`BOARD.md` מ-`Now` ל-`Done` (עם hash + פקודת האימות שעברה). נקה את ה-`Now` שלך ל-`—`.
 13. פוסט סיום ב-`CHANNEL.md`: `[ts] <author> → <other>: סיימתי, commit <hash>, build ירוק. הטוקן שלך.`
@@ -77,12 +83,15 @@
 - בדיקת עבודת הסוכן השני: `git log --grep='\[codex\]'`.
 - git כבר מוגדר נכון בתחנה הזו (`safe.directory` + זהות). בשיבוט חדש:
   `git config --global --add safe.directory "C:/Users/OR/קודקס/משאוושה/Meshausha"`.
+- **היגיינת-קידוד:** ב-Windows/PowerShell הימנע מ-BOM בהודעות קומיט — השתמש בדגלי `-m` (אחד לכל שורה),
+  או בקובץ UTF-8-ללא-BOM (`git commit -F file`). הצינור `$msg | git commit -F -` עם here-string מוסיף `﻿` בראש ההודעה.
 
 ---
 
 ## 6. אסקלציה ל-OR
 
 עצור ופנה ב-`CHANNEL.md` (`→ OR`) כשיש: שאלה חוסמת, החלטת ארכיטקטורה, או לפני כל **deploy**.
+- **כתיבת-כסף בפרודקשן** (שינוי מחיר/קטלוג חי וכו') — **OR מבצע**, לא הסוכן. הסוכן מכין, OR מאשר ומבצע, Claude מאמת בקריאה (ראה §2 שלב 10ב).
 
 ---
 
@@ -96,6 +105,11 @@
 זרימה: claude מתכנן ומכתיב משימה → codex מממש → claude מבקר diff → claude עושה deploy.
 **רק claude עושה deploy** (בעלות יחידה מונעת double-deploy).
 
+**טריגרים ל-review של Codex — חובה** כשהשינוי נוגע ב: **כסף/תמחור, idempotency, auth/סודות, נתיב-הכתיבה של
+הקטלוג, או concurrency**. אחרת — אופציונלי (לפי שיקול). כשמבקרים קוד כזה (שני הסוכנים) — עברו על
+**צ'קליסט הנכונות המשותף** ב-`docs/sync/CODEX-PLAYBOOK.md` §4 (idempotency-resume, auth-first, constant-time,
+409-not-500, מגבלות-פלטפורמה-חיה, PWA-cache).
+
 ---
 
 ## 8. היגיינה
@@ -103,3 +117,15 @@
 - `docs/sync/` ו-`docs/handoff/` נכנסים ל-git (האמת המשותפת נוסעת עם הריפו + remote).
 - קבצי עבודה מקומיים (`*.xlsx`, `~$*`) מתעלמים ב-`.gitignore`.
 - כש-`CHANNEL.md` עובר ~400 שורות — מעבירים את הראש ל-`docs/sync/archive/CHANNEL-<date>.md` ב-handoff הבא.
+
+---
+
+## 9. Runbook ל-deploy ו-env (מלכודות שחזרו)
+
+> הפקודות המדויקות (siteId, טוקנים, פקודת ה-CLI) ב-`docs/handoff/STATE.md`. כאן — **הכללים והמלכודות**:
+
+- **build דורש `VITE_API_TOKEN`** ב-env לפני `npm run build` — אחרת ה-auth של האפליקציה נשבר בפרודקשן.
+- **functions קולטים env רק בזמן deploy** (snapshot, לא runtime) → כל שינוי env-var מחייב **redeploy** כדי שייקלט.
+- **secret-masked לא נשמר דרך MCP** (חוזר "upserted" אך נעדר) → **OR מגדיר ידנית בדאשבורד** (All scopes), ואז מבקש מ-Claude redeploy.
+- **רק Claude עושה deploy**, ורק אחרי **GO מפורש** של OR לכל פריסה ("GO" / "מאשר deploy"). "הוספתי env" אינו GO — ה-classifier אוכף זאת.
+- אחרי deploy נוגע-כסף/אינטגרציה — הפעל את **שער בדיקה-חיה** (§2 שלב 10ב) לפני "Done".
