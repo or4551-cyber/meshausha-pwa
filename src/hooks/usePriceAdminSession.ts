@@ -2,9 +2,9 @@
 // מנהל מצב committing/error/warnings, ומחיל את ה-snapshot החדש על ה-store בהצלחה (full-replace
 // סמכותי — הקטלוג הוא מקור-האמת). ה-session עצמו (PIN→token) מנוהל ב-priceAdminSession.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ChangeOperation } from '../../shared/priceCatalog/types'
-import { commitCatalogOperations } from '../lib/priceCatalogWrites'
+import { commitCatalogOperations, type CommitOptions } from '../lib/priceCatalogWrites'
 import { useSuppliersStore } from '../stores/suppliersStore'
 
 // קודי שגיאה מהשרת/הלקוח → עברית ידידותית.
@@ -16,8 +16,10 @@ const ERROR_HE: Record<string, string> = {
   expired: 'תוקף הפעולה פג — נסה שוב',
   not_found: 'המוצר לא קיים בקטלוג המרכזי',
   not_pending: 'הפעולה כבר טופלה — רענן ונסה שוב',
+  idempotency_key_conflict: 'השינוי כבר נשמר — רענן את המסך',
   forbidden: 'אין הרשאת כתיבה',
   invalid_request: 'בקשה שגויה — נסה שוב',
+  unauthorized: 'פג תוקף הרשאת האדמין — היכנס מחדש עם 9999',
   network_error: 'תקלת רשת — נסה שוב',
 }
 
@@ -29,7 +31,7 @@ export interface PriceAdminSession {
   committing: boolean
   error: string | null
   warnings: string[]
-  commit: (operations: ChangeOperation[]) => Promise<boolean>
+  commit: (operations: ChangeOperation[], opts?: CommitOptions) => Promise<boolean>
   clearError: () => void
 }
 
@@ -37,13 +39,18 @@ export function usePriceAdminSession(): PriceAdminSession {
   const [committing, setCommitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
+  // נעילת re-entrancy סינכרונית — committing (state) מתעדכן אסינכרונית, כך ש-Enter כפול/לחיצה
+  // כפולה יכלו להריץ שני commits במקביל. ה-ref חוסם זאת מיד, ומכסה את כל הקוראים.
+  const inFlight = useRef(false)
 
-  const commit = useCallback(async (operations: ChangeOperation[]): Promise<boolean> => {
+  const commit = useCallback(async (operations: ChangeOperation[], opts?: CommitOptions): Promise<boolean> => {
+    if (inFlight.current) return false
+    inFlight.current = true
     setCommitting(true)
     setError(null)
     setWarnings([])
     try {
-      const result = await commitCatalogOperations(operations)
+      const result = await commitCatalogOperations(operations, opts ?? {})
       if (!result.ok) {
         setError(toHebrew(result.error))
         return false
@@ -53,6 +60,7 @@ export function usePriceAdminSession(): PriceAdminSession {
       setWarnings(result.warnings)
       return true
     } finally {
+      inFlight.current = false
       setCommitting(false)
     }
   }, [])

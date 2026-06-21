@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { ADMIN_BRANCH } from '../data/branches'
-import { primeAdminPin, authenticateWithPin } from '../lib/priceAdminSession'
+import { primeAdminPin, authenticateWithPin, setSessionPersistence } from '../lib/priceAdminSession'
 import { motion } from 'framer-motion'
 
 export default function LoginPage() {
@@ -22,8 +22,10 @@ export default function LoginPage() {
           const success = login(newPin, rememberMe)
           if (success) {
             // כניסת אדמין (9999): ממירים את ה-PIN ל"רישיון כתיבה" למחירון. primeAdminPin
-            // זוכר סינכרונית כדי שהכתיבה הראשונה לא תתחרה בהנפקה ברקע.
+            // זוכר סינכרונית כדי שהכתיבה הראשונה לא תתחרה בהנפקה ברקע. הטוקן נשמר ל-localStorage
+            // רק כש"זכור אותי" דולק — אחרת בזיכרון בלבד, בהתאמה למצב ההתחברות של authStore.
             if (newPin === ADMIN_BRANCH.code) {
+              setSessionPersistence(rememberMe)
               primeAdminPin(newPin)
               void authenticateWithPin(newPin)
             }

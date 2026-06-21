@@ -44,7 +44,7 @@ interface SuppliersState {
   catalogVersion: number
   adminPhone: string
   setAdminPhone: (phone: string) => void
-  addSupplier: (supplier: Omit<Supplier, 'id' | 'createdAt'>) => void
+  addSupplier: (supplier: Omit<Supplier, 'id' | 'createdAt'>) => Promise<void>
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void
   deleteSupplier: (id: string) => void
   seedStaticProducts: (products: Product[]) => void
@@ -70,6 +70,8 @@ export const useSuppliersStore = create<SuppliersState>()(
         set({ adminPhone: phone })
       },
 
+      // מחזיר את ה-promise של שמירת-הענן כדי שהקורא (AddSupplierPage) יוכל להמתין ולחשוף
+      // כשל שמירה (לוחות-זמנים) במקום לבלוע אותו. אם אין צורך בהמתנה — אפשר להתעלם מה-promise.
       addSupplier: (supplier) => {
         const newSupplier: Supplier = {
           ...supplier,
@@ -78,7 +80,7 @@ export const useSuppliersStore = create<SuppliersState>()(
         }
         set((state) => ({ suppliers: [...state.suppliers, newSupplier] }))
         const s = get()
-        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
+        return saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products })
       },
 
       updateSupplier: (id, updates) => {
@@ -160,8 +162,13 @@ export const useSuppliersStore = create<SuppliersState>()(
       // לכן החלפה מלאה (full-replace) בטוחה — הקטלוג כולל את כל המצב הנכון. מכשירים
       // ישנים מתכנסים לקטלוג בעדכון הגרסה הבא. (לוחות-זמנים/סניפים של ספקים עדיין
       // ב-settings-api ואינם מושפעים — replaceCatalogProducts נוגע ב-products בלבד.)
+      //
+      // מונוטוני: מחליף **רק** אם הגרסה הנכנסת חדשה ממש מהמקומית. שני כותבים (commit אדמין
+      // ו-syncCatalog ברקע) יכולים להסתיים מחוץ-לסדר; שמירה לא-מונוטונית הייתה מחזירה
+      // snapshot ישן ומדרדרת מחיר שזה-עתה נשמר. apply תמיד מפיק version+1, כך שעדכון
+      // לגיטימי לעולם לא נדחה.
       replaceCatalogProducts: (products, version) => {
-        set({ products, catalogVersion: version })
+        set((state) => (version > state.catalogVersion ? { products, catalogVersion: version } : state))
       },
 
       getSupplierById: (id) => {

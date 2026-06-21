@@ -78,10 +78,20 @@ export type CommitResult =
   | { ok: true; version: number; products: LegacyCatalogProduct[]; snapshot: CatalogSnapshot; warnings: string[] }
   | { ok: false; error: string }
 
+export interface CommitOptions {
+  // מפתח-אידמפוטנטיות יציב לפעולה לוגית. לפעולות-הוספה (שמייצרות id אקראי) חובה לספק מפתח יציב
+  // שנשמר על-פני ניסיונות-חוזרים של המשתמש — אחרת ניסיון-חוזר אחרי כשל-רשת שבו השרת כן החיל
+  // ייצור כפילות. לעדכון/השבתה (ערך-אידמפוטנטיים) אפשר להשמיט ולקבל מפתח חדש בכל קריאה.
+  idempotencyKey?: string
+}
+
 // תזמור כתיבה מלא: session → גרסה → preview → apply → snapshot מותאם.
 // אופטימי-בטוח: על 409 stale_version (גרסה התקדמה בין הקריאות) מרענן גרסה ומנסה preview שוב פעם אחת.
 // ה-Idempotency-Key מבטיח שניסיון-חוזר של apply לא יחיל פעמיים.
-export async function commitCatalogOperations(operations: ChangeOperation[]): Promise<CommitResult> {
+export async function commitCatalogOperations(
+  operations: ChangeOperation[],
+  opts: CommitOptions = {},
+): Promise<CommitResult> {
   const token = await getSessionToken()
   if (!token) return { ok: false, error: 'no_session' }
 
@@ -96,7 +106,7 @@ export async function commitCatalogOperations(operations: ChangeOperation[]): Pr
   }
   if (!preview.ok) return { ok: false, error: preview.error }
 
-  const applied = await applyChange(preview.changeSet.id, token, newId())
+  const applied = await applyChange(preview.changeSet.id, token, opts.idempotencyKey ?? newId())
   if (!applied.ok) return { ok: false, error: applied.error }
 
   return {

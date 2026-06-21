@@ -12,6 +12,7 @@ interface CachedToken { token: string; expiresAtMs: number }
 let cachedToken: CachedToken | null = null
 let cachedPin: string | null = null // זיכרון בלבד — מאפשר re-mint שקט בלי מודל. לא מתמיד.
 let hydrated = false
+let persistEnabled = false // האם להתמיד את הטוקן ב-localStorage — נקבע לפי "זכור אותי".
 
 function safeLocalStorage(): Storage | null {
   try {
@@ -19,6 +20,13 @@ function safeLocalStorage(): Storage | null {
   } catch {
     return null
   }
+}
+
+// נקבע בכניסה לפי ה-checkbox "זכור אותי": off → הטוקן בזיכרון בלבד (לא נשאר ב-localStorage
+// אחרי סגירת הלשונית), בהתאמה ל-authStore שלא משמר את מצב ההתחברות כש-rememberMe כבוי.
+export function setSessionPersistence(enabled: boolean): void {
+  persistEnabled = enabled
+  persist() // אם כיבוי — מסיר מיד טוקן שאולי נשמר בעבר תחת "זכור אותי" דולק.
 }
 
 // טעינה עצלה של טוקן מתמיד (אם קיים ותקין) — פעם אחת.
@@ -43,7 +51,8 @@ function persist(): void {
   const ls = safeLocalStorage()
   if (!ls) return
   try {
-    if (cachedToken) ls.setItem(STORAGE_KEY, JSON.stringify(cachedToken))
+    // כותב ל-localStorage רק כש"זכור אותי" דולק; אחרת מבטיח שאין טוקן שמור (מסיר).
+    if (persistEnabled && cachedToken) ls.setItem(STORAGE_KEY, JSON.stringify(cachedToken))
     else ls.removeItem(STORAGE_KEY)
   } catch {
     /* התעלם */
@@ -77,10 +86,11 @@ export async function authenticateWithPin(pin: string): Promise<boolean> {
   }
 }
 
-// קריאה טרייה של הטוקן הנוכחי (בלי narrowing שיורי מה-guard הקודם). מחזיר את הטוקן שזה
-// עתה הונפק כמות-שהוא — ה-SKEW הוא לרענון מקדים, לא לפסילת טוקן טרי.
-function currentToken(): string | null {
-  return cachedToken ? cachedToken.token : null
+// קריאה טרייה (בלי narrowing שיורי). מחזיר טוקן שעדיין תקף-לשרת (לא פג-ממש): בתוך SKEW
+// עדיין מותר להשתמש, אבל re-mint כושל שמשאיר טוקן פג-ממש → null, כדי שלא נשלח טוקן ידוע-כפסול
+// (וה-UI ינחה לכניסה-מחדש במקום שגיאת 401 מבלבלת).
+function freshToken(): string | null {
+  return cachedToken && Date.now() < cachedToken.expiresAtMs ? cachedToken.token : null
 }
 
 // מחזיר טוקן תקף, מנפיק מחדש בשקט אם פג וה-PIN זכור. null אם אין session ואין דרך להנפיק.
@@ -89,7 +99,7 @@ export async function getSessionToken(): Promise<string | null> {
   if (isValid(cachedToken)) return cachedToken.token
   if (cachedPin) {
     await authenticateWithPin(cachedPin)
-    return currentToken()
+    return freshToken()
   }
   return null
 }
@@ -112,4 +122,15 @@ export function clearPriceSession(): void {
   cachedPin = null
   hydrated = true
   persist()
+}
+
+// סנכרון cross-tab: התנתקות בלשונית אחת (הסרת המפתח מ-localStorage) מפילה את ה-session
+// גם בלשוניות הפתוחות האחרות — אחרת cachedToken/cachedPin בזיכרון-המודול היו ממשיכים לאשר כתיבה.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY && e.newValue === null) {
+      cachedToken = null
+      cachedPin = null
+    }
+  })
 }

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Upload, Download, Check, X, Plus, Loader2, AlertTriangle } from 'lucide-react'
 import { useSuppliersStore, DaySchedule } from '../../stores/suppliersStore'
 import { parseFile, validateProducts, downloadSampleCSV, ParsedProduct } from '../../lib/fileParser'
 import { usePriceAdminSession } from '../../hooks/usePriceAdminSession'
 import { buildAddSupplier, buildAddProduct, newId } from '../../lib/priceCatalogWrites'
+import { getCatalogSuppliers } from '../../lib/priceCatalogApi'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const BRANCHES = [
@@ -31,6 +32,12 @@ export default function AddSupplierPage() {
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+  // מצב-ניסיון יציב להגשה: מפתח+ids נשמרים על-פני ניסיונות-חוזרים (מונע ספק/מוצרים כפולים),
+  // ו-catalogDone מבטיח שאחרי כתיבת-קטלוג מוצלחת ניסיון-חוזר יקדם רק את שמירת לוח-הזמנים.
+  const submitRef = useRef<{ key: string; supplierId: string; productIds: string[]; catalogDone: boolean } | null>(null)
+
+  const resetSubmit = () => { submitRef.current = null; setScheduleError(null) }
 
   const days = [
     { value: 0, label: 'ראשון' },
@@ -86,6 +93,7 @@ export default function AddSupplierPage() {
 
     setIsProcessing(true)
     setErrors([])
+    resetSubmit() // קובץ חדש = קבוצת-מוצרים חדשה → מבטל מצב-ניסיון ישן (ids/מפתח)
 
     try {
       const products = await parseFile(file)
@@ -106,29 +114,57 @@ export default function AddSupplierPage() {
 
   const handleSubmit = async () => {
     if (committing) return
-    // 1) כותבים את הספק + מוצריו לקטלוג המרכזי (preview/apply). ספק חדש = id חדש;
-    //    כל מוצר = addProduct תחת אותו supplierId. הקטלוג הוא מקור-האמת למוצרים.
-    const supplierId = newId()
+    setScheduleError(null)
+
+    // מגן שם-כפול: הקטלוג מאפשר שמות-ספק כפולים, אך כל ה-frontend עושה join לפי שם —
+    // ספק שני באותו שם ישבור את resolveSupplierId. בודקים לפני יצירה (פעם אחת, לפני catalogDone).
+    if (!submitRef.current?.catalogDone) {
+      const existing = await getCatalogSuppliers()
+      if (existing && existing.some(s => s.active && s.name.trim() === supplierName.trim())) {
+        setScheduleError('כבר קיים ספק בשם הזה בקטלוג — בחר שם אחר.')
+        return
+      }
+    }
+
+    // מצב-ניסיון יציב: id-ים ומפתח נשמרים על-פני ניסיונות-חוזרים כדי שכשל-רשת אחרי החלה
+    // לא ייצור ספק/מוצרים כפולים.
+    if (!submitRef.current) {
+      submitRef.current = {
+        key: newId(),
+        supplierId: newId(),
+        productIds: parsedProducts.map(() => newId()),
+        catalogDone: false,
+      }
+    }
+    const attempt = submitRef.current
     const now = new Date().toISOString()
-    const ops = [
-      buildAddSupplier(supplierName.trim(), { id: supplierId }),
-      ...parsedProducts.map(p =>
-        buildAddProduct(
-          { supplierId, name: p.name, packagePrice: p.price, category: p.category ?? null },
-          { id: newId(), now },
+
+    // 1) כותבים את הספק + מוצריו לקטלוג המרכזי (preview/apply). הקטלוג הוא מקור-האמת למוצרים.
+    if (!attempt.catalogDone) {
+      const ops = [
+        buildAddSupplier(supplierName.trim(), { id: attempt.supplierId }),
+        ...parsedProducts.map((p, i) =>
+          buildAddProduct(
+            { supplierId: attempt.supplierId, name: p.name, packagePrice: p.price, category: p.category ?? null },
+            { id: attempt.productIds[i], now },
+          ),
         ),
-      ),
-    ]
-    const success = await commit(ops)
-    if (!success) return // שגיאה מוצגת דרך ה-hook; נשארים בדף, לא יוצרים ספק יתום
+      ]
+      const ok = await commit(ops, { idempotencyKey: attempt.key })
+      if (!ok) return // קטלוג נכשל; שגיאה מוצגת דרך ה-hook. retry ישתמש באותם ids/key (בטוח)
+      attempt.catalogDone = true
+    }
 
-    // 2) רק אחרי הצלחה: רושמים את הספק (לוחות-זמנים/סניפים) ל-settings-api (אינו חלק מהקטלוג).
-    addSupplier({
-      name: supplierName.trim(),
-      description,
-      schedules: daySchedules,
-    })
+    // 2) הקטלוג נשמר — עכשיו לוחות-זמנים/סניפים ל-settings-api (אינם חלק מהקטלוג). כשל כאן
+    //    אינו יוצר כפילות-קטלוג (catalogDone), נחשף למשתמש, ולא מנווט החוצה בשקט.
+    try {
+      await addSupplier({ name: supplierName.trim(), description, schedules: daySchedules })
+    } catch {
+      setScheduleError('הספק והמוצרים נשמרו לקטלוג, אך לוח-הזמנים לא נשמר — נסה שוב')
+      return
+    }
 
+    resetSubmit()
     navigate('/admin')
   }
 
@@ -422,17 +458,18 @@ export default function AddSupplierPage() {
                 )}
               </div>
 
-              {error && (
+              {(error || scheduleError) && (
                 <div className="flex items-center gap-2 bg-red-50 text-red-800 rounded-xl px-4 py-2.5 font-bold text-sm">
                   <AlertTriangle size={16} />
-                  <span className="flex-1">{error}</span>
-                  <button onClick={clearError} className="text-red-500 touch-manipulation"><X size={16} /></button>
+                  <span className="flex-1">{error || scheduleError}</span>
+                  <button onClick={() => { clearError(); setScheduleError(null) }} className="text-red-500 touch-manipulation"><X size={16} /></button>
                 </div>
               )}
 
               <div className="flex gap-2">
                 <button
                   onClick={() => {
+                    resetSubmit()
                     setParsedProducts([])
                     setErrors([])
                     setStep(2)

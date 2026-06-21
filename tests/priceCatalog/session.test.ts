@@ -3,6 +3,7 @@ import { authenticateWithPin, getSessionToken, clearPriceSession, primeAdminPin 
 
 const future = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()
 const past = () => new Date(Date.now() - 1000).toISOString()
+const withinSkew = () => new Date(Date.now() + 30 * 1000).toISOString() // עדיין תקף-לשרת אך בתוך חלון הרענון
 
 // stub שמחזיר token שונה בכל קריאה מוצלחת ל-/api/price-auth, ומאפשר לשלוט בתוקף ובסטטוס.
 function stubAuth(opts: { status?: number; expiresAt?: () => string; throwErr?: boolean } = {}) {
@@ -55,12 +56,24 @@ describe('priceAdminSession', () => {
     expect(await getSessionToken()).toBeNull()
   })
 
-  it('re-mints with the remembered pin when the cached token is expired', async () => {
-    const fn = stubAuth({ expiresAt: past }) // הטוקן פג מיד
+  it('re-mints with the remembered pin when the cached token is within the refresh skew window', async () => {
+    const fn = stubAuth({ expiresAt: withinSkew }) // בתוך חלון הרענון אך עדיין תקף-לשרת
     await authenticateWithPin('9999')
-    const token = await getSessionToken() // מזהה פקיעה → מנפיק מחדש עם ה-pin הזכור
+    const token = await getSessionToken() // מזהה צורך-רענון → מנפיק מחדש עם ה-pin הזכור
     expect(token).toBe('tok-2')
     expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns null when the cached token is truly expired and the re-mint fails (no stale token)', async () => {
+    let n = 0
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      n += 1
+      if (n === 1) return { ok: true, status: 200, json: async () => ({ token: 'tok-1', expiresAt: past() }) } as Response
+      return { ok: false, status: 401, json: async () => ({}) } as Response
+    }))
+    await authenticateWithPin('9999') // cachedToken=tok-1 פג, ה-PIN זכור
+    // re-mint נכשל (401) ומשאיר טוקן פג-ממש → לא מוחזר (אחרת היה נשלח טוקן ידוע-כפסול לשרת)
+    expect(await getSessionToken()).toBeNull()
   })
 
   it('getSessionToken returns null when never authenticated', async () => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus, Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react'
 import { useSuppliersStore } from '../../stores/suppliersStore'
@@ -29,6 +29,9 @@ export default function PriceManagementPage() {
   const [newProductPrice, setNewProductPrice] = useState('')
   const [newProductAdminOnly, setNewProductAdminOnly] = useState(false)
   const [filterAdminOnly, setFilterAdminOnly] = useState(false)
+  // מפתח-אידמפוטנטיות + id יציבים לכל "סשן הוספה": נשמרים על-פני ניסיונות-חוזרים כדי
+  // שכשל-רשת אחרי שהשרת כבר החיל לא ייצור מוצר כפול. מתאפס בפתיחת/ביטול טופס ההוספה.
+  const addAttemptRef = useRef<{ key: string; productId: string } | null>(null)
 
   const adminOnlyCount = useMemo(() => products.filter(p => p.adminOnly).length, [products])
 
@@ -109,14 +112,22 @@ export default function PriceManagementPage() {
       await showConfirm({ title: 'הספק לא נמצא בקטלוג המרכזי', description: 'לא ניתן להוסיף מוצר לספק זה כרגע.', confirmLabel: 'הבנתי' })
       return
     }
+    // מפתח+id יציבים לכל הניסיון הזה (כולל ניסיונות-חוזרים) — מונע כפילות מוצר אם apply הצליח
+    // אך התשובה אבדה והמשתמש לחץ שוב.
+    if (!addAttemptRef.current) addAttemptRef.current = { key: newId(), productId: newId() }
+    const attempt = addAttemptRef.current
     const now = new Date().toISOString()
-    const success = await commit([
-      buildAddProduct(
-        { supplierId, name: newProductName.trim(), packagePrice: price, adminOnly: newProductAdminOnly || undefined },
-        { id: newId(), now },
-      ),
-    ])
+    const success = await commit(
+      [
+        buildAddProduct(
+          { supplierId, name: newProductName.trim(), packagePrice: price, adminOnly: newProductAdminOnly || undefined },
+          { id: attempt.productId, now },
+        ),
+      ],
+      { idempotencyKey: attempt.key },
+    )
     if (success) {
+      addAttemptRef.current = null
       setNewProductName('')
       setNewProductPrice('')
       setNewProductAdminOnly(false)
@@ -125,6 +136,7 @@ export default function PriceManagementPage() {
   }
 
   const handleCancelAdd = () => {
+    addAttemptRef.current = null
     setNewProductName('')
     setNewProductPrice('')
     setNewProductAdminOnly(false)
@@ -245,7 +257,8 @@ export default function PriceManagementPage() {
                     </button>
                     <button
                       onClick={() => { setEditingId(null); setEditPrice('') }}
-                      className="p-1.5 bg-red-500 text-white rounded-lg touch-manipulation"
+                      disabled={committing}
+                      className="p-1.5 bg-red-500 text-white rounded-lg touch-manipulation disabled:opacity-50"
                     >
                       <X size={15} />
                     </button>
@@ -312,7 +325,8 @@ export default function PriceManagementPage() {
                   </button>
                   <button
                     onClick={handleCancelAdd}
-                    className="p-2 bg-red-500 text-white rounded-lg touch-manipulation shrink-0"
+                    disabled={committing}
+                    className="p-2 bg-red-500 text-white rounded-lg touch-manipulation shrink-0 disabled:opacity-50"
                     title="ביטול"
                   >
                     <X size={16} />
@@ -331,7 +345,7 @@ export default function PriceManagementPage() {
               </div>
             ) : (
               <button
-                onClick={() => { setAddingSupplier(supplier); setEditingId(null) }}
+                onClick={() => { addAttemptRef.current = null; setAddingSupplier(supplier); setEditingId(null) }}
                 className="w-full px-4 py-2.5 flex items-center gap-2 text-primary/40 hover:text-primary/70 hover:bg-primary/5 transition-colors border-t border-primary/5 touch-manipulation"
               >
                 <Plus size={16} />

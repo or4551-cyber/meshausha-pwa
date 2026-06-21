@@ -22,7 +22,7 @@ function stub(routes: {
   apply?: { status: number; body: unknown }
 }) {
   let previewCall = 0
-  const fn = vi.fn(async (url: string) => {
+  const fn = vi.fn(async (url: string, _init?: RequestInit) => {
     const u = String(url)
     if (u.includes('/api/price-auth')) {
       return { ok: true, status: 200, json: async () => ({ token: 'sess-tok', expiresAt: future() }) } as Response
@@ -88,6 +88,19 @@ describe('commitCatalogOperations', () => {
     stub({})
     const result = await commitCatalogOperations([buildPriceUpdate('tp1', 200, NOW)])
     expect(result).toEqual({ ok: false, error: 'no_session' })
+  })
+
+  it('threads an explicit idempotencyKey to the apply call (stable across retries)', async () => {
+    const fn = stub({
+      version: { version: 1 },
+      previewSeq: [{ status: 201, body: { id: 'cs-1', warnings: [] } }],
+      apply: { status: 200, body: { version: 2, suppliers: [terra], products: [tp1(200)] } },
+    })
+    await authenticateWithPin('9999')
+    await commitCatalogOperations([buildPriceUpdate('tp1', 200, NOW)], { idempotencyKey: 'idem-stable' })
+    const applyCall = fn.mock.calls.find(c => String(c[0]).includes('/apply'))
+    const init = applyCall?.[1] as RequestInit
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-stable')
   })
 
   it('surfaces an apply failure (version_conflict)', async () => {
