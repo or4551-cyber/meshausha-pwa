@@ -39,6 +39,12 @@
 
 # Price catalog API — חייב לבוא לפני ה-SPA redirect של /*
 [[redirects]]
+  from = "/api/prices/export.xlsx"
+  to = "/.netlify/functions/price-export"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/prices/*"
   to = "/.netlify/functions/price-catalog/:splat"
   status = 200

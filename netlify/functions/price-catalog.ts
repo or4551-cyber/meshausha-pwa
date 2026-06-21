@@ -1,7 +1,7 @@
 import { Handler } from '@netlify/functions'
 import { randomUUID } from 'node:crypto'
 import { createBlobPriceCatalogRepository } from './_priceCatalogStore'
-import { authorizePriceRequest } from './_priceCatalogAuth'
+import { authorizePriceRequest, issueExportToken, EXPORT_TTL_MS } from './_priceCatalogAuth'
 import { routePriceCatalog, type PriceApiRequest } from './_priceCatalogRouter'
 import { createCatalogSeed } from '../../shared/priceCatalog/legacySeed'
 import { PRODUCTS, INITIAL_SUPPLIERS } from '../../src/data/products'
@@ -57,7 +57,16 @@ export const handler: Handler = async (event) => {
         body: event.body ?? null,
         auth,
       },
-      { repo, now: () => new Date().toISOString(), id: () => randomUUID() },
+      {
+        repo,
+        now: () => new Date().toISOString(),
+        id: () => randomUUID(),
+        issueExportToken: (version: number) => {
+          const issuedAt = Date.now()
+          const token = issueExportToken(version, issuedAt, { PRICE_SESSION_SECRET: process.env.PRICE_SESSION_SECRET })
+          return { token, expiresAt: new Date(issuedAt + EXPORT_TTL_MS).toISOString() }
+        },
+      },
     )
     return { statusCode: response.statusCode, headers: { ...CORS, ...response.headers }, body: response.body }
   } catch {

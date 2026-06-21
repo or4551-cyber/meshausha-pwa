@@ -31,6 +31,8 @@ export interface PriceRouterDependencies {
   repo: PriceCatalogRepository
   now: () => string
   id: () => string
+  // מוזרק ע"י ה-handler (זקוק לסוד) — מנפיק טוקן ייצוא חתום קצר-מועד.
+  issueExportToken?: (version: number) => { token: string; expiresAt: string }
 }
 
 const PREVIEW_TTL_MS = 10 * 60 * 1000
@@ -108,6 +110,9 @@ export async function routePriceCatalog(
       }
       if (seg[0] === 'changes' && seg[2] === 'revert-preview') {
         return await handleRevertPreview(dependencies, seg[1])
+      }
+      if (seg[0] === 'export-link') {
+        return await handleExportLink(dependencies)
       }
       return fail(404, 'not_found')
     }
@@ -216,6 +221,14 @@ export async function routePriceCatalog(
     })
     await deps.repo.saveChangeSet(revert)
     return json(201, revert)
+  }
+
+  async function handleExportLink(deps: PriceRouterDependencies): Promise<PriceApiResponse> {
+    if (!deps.issueExportToken) return fail(500, 'internal_error')
+    const active = await deps.repo.getActive()
+    if (!active) return fail(404, 'no_active_catalog')
+    const { token, expiresAt } = deps.issueExportToken(active.version)
+    return json(200, { url: '/api/prices/export.xlsx?token=' + encodeURIComponent(token), expiresAt })
   }
 
   async function productHistory(repository: PriceCatalogRepository, productId: string) {

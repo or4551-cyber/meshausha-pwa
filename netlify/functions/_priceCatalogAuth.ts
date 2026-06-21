@@ -17,6 +17,7 @@ export interface PriceAuthEvent {
 }
 
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000
+export const EXPORT_TTL_MS = 5 * 60 * 1000
 
 // השוואה בזמן-קבוע; false אם האורכים שונים (timingSafeEqual זורק על אורך לא תואם).
 function safeEqual(a: string, b: string): boolean {
@@ -78,4 +79,33 @@ export function authorizePriceRequest(
   if (access === 'read' && env.API_TOKEN && safeEqual(token, env.API_TOKEN)) return { role: 'app' }
 
   return null
+}
+
+// טוקן ייצוא חתום קצר-מועד (5 דק') לקישור הורדת ה-Excel.
+export function issueExportToken(version: number, now: number, env: PriceEnv): string {
+  if (!env.PRICE_SESSION_SECRET) throw new Error('PRICE_SESSION_SECRET is not configured')
+  const payload = JSON.stringify({ purpose: 'price-export', version, exp: now + EXPORT_TTL_MS })
+  const payloadB64 = Buffer.from(payload).toString('base64url')
+  const signature = createHmac('sha256', env.PRICE_SESSION_SECRET).update(payloadB64).digest('base64url')
+  return payloadB64 + '.' + signature
+}
+
+export function verifyExportToken(token: string, now: number, env: PriceEnv): { version: number } | null {
+  if (!env.PRICE_SESSION_SECRET) return null
+  const parts = token.split('.')
+  if (parts.length !== 2) return null
+  const [payloadB64, signature] = parts
+  const expected = createHmac('sha256', env.PRICE_SESSION_SECRET).update(payloadB64).digest('base64url')
+  if (!safeEqual(signature, expected)) return null
+  let payload: { purpose?: unknown; version?: unknown; exp?: unknown }
+  try {
+    payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString())
+  } catch {
+    return null
+  }
+  if (payload.purpose !== 'price-export' || typeof payload.version !== 'number' || typeof payload.exp !== 'number') {
+    return null
+  }
+  if (now >= payload.exp) return null
+  return { version: payload.version }
 }
