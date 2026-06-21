@@ -87,6 +87,20 @@
 - `c098f5f` feat: Task 9a — admin price writes go through the central catalog
 - (פרוס: deploy `6a37f4b8`; env: PRICE_ADMIN_SECRET=9999, PRICE_SESSION_SECRET ידני)
 
+## עדכון (אחרי deploy) — פער session למשתמש משוחזר + אימות חי
+- **תסמין:** OR ערך פטל 1→2 בטלפון, ראה 2, אבל הקטלוג נשאר v1/פטל=1 (בדקתי דרך `/api/prices` + settings-api).
+- **סיבת שורש:** ה-price-session הונפק **רק** ב-LoginPage (כניסה טרייה עם 9999). אדמין שמחובר מ-persist
+  ("זכור אותי") דילג על LoginPage → לא היה לו session → `commit` נכשל ב-no_session. בנוסף, הערך 2 שראה OR
+  היה **stale local** (עריכה אופטימית מהבאנדל הישן ששמרה ל-localStorage אך לא הגיעה לשרת; ה-version-gate
+  המונוטוני מנע מהקטלוג v1 לדרוס אותו כי local catalogVersion כבר 1).
+- **תיקון (`a9c5bc8`):** הנפקת ה-session עברה ל-`App.tsx` (useEffect על `user.isAdmin`) — מקום יחיד שמכסה
+  גם כניסה טרייה וגם שחזור מ-persist; מנפיק מ-`user.branchCode` שכבר שמור ב-authStore. הוסר מ-LoginPage.
+- **אימות חי (Playwright + OR):** התחברתי 9999, טענתי מחדש `/admin/prices` (שחזור מ-persist), ו-localStorage
+  הראה `meshausha-price-session` עם token תקף (92 תווים, ~8h) — התיקון עובד. OR שמר פטל=2 מהטלפון →
+  **catalog v2, פטל=2, history v1:1→v2:2**. מקצה לקצה ✅.
+- **חסם-בטיחות:** ה-classifier חסם את הסוכן מלבצע את ה**שמירה** האמיתית (כתיבת-מחיר לפרודקשן) דרך Playwright —
+  נכון; כתיבת-כסף אמיתית נשמרה ל-OR. אימתתי הכל **עד** השמירה + token תקין, ו-OR ביצע את השמירה.
+
 ## לקחים לשלב הבא
 - **env של functions:** PRICE_SESSION_SECRET הוגדר **ידנית בדאשבורד** (ה-API/MCP לא שמר secret-masked). כל שינוי
   env דורש **redeploy** (functions מצלמים env בזמן deploy, לא runtime). `PRICE_GPT_TOKEN` עדיין לא מוגדר —
@@ -94,5 +108,10 @@
 - **deploy:** ידני ב-CLI כמתואר ב-STATE; חובה `VITE_API_TOKEN` לפני build.
 - **חוב Task 9 נסגר:** כל כתיבות-המוצרים בקטלוג. `replaceCatalogProducts` מונוטוני + full-replace בטוח.
 - **הבא:** Plan 2 (GPT Actions — כאן ה-GPT מתחבר; צריך PRICE_GPT_TOKEN), ואז Plan 3/4. או ניקוי מינורי (#7/#8/#14).
-- **בדיקת UI אמיתית:** טרם נבדק זרימת המשתמש המלאה ב-Playwright (login 9999 → עריכת מחיר → שמירה). האימות היה
-  ברמת ה-API (preview-write OK). שווה בדיקת-עשן ב-UI לפני שמסתמכים על עריכה יומיומית.
+- **בדיקת UI אמיתית:** ✅ בוצעה (Playwright + OR החי) — login 9999 → /admin/prices (שחזור מ-persist) → session
+  תקף → OR שמר → catalog v2/פטל=2. מקצה לקצה עובד.
+- **PWA stale-cache (חשוב!):** אחרי deploy, טלפון של משתמש עלול להמשיך להריץ באנדל **ישן** עד reload (SW).
+  גרוע יותר: ניקוי cache של האפליקציה **לא** מנקה את localStorage — לכן עריכות אופטימיות מהבאנדל הישן
+  שלא הגיעו לשרת יכולות "להיתקע" מקומית ולהציג מחיר שגוי שאינו בקטלוג. פתרון: כל commit לקטלוג מקפיץ version →
+  סנכרון מונוטוני דורס את ה-stale local. בעת בדיקה — לסגור+לפתוח את האפליקציה (אולי פעמיים).
+- **הנפקת session עכשיו ב-App.tsx** (לא LoginPage) — אם נוגעים בזרימת-auth, לשמור על כך שאדמין משוחזר מקבל session.

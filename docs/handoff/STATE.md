@@ -12,9 +12,11 @@
 ## איפה עומדים עכשיו
 - **🎉 Task 9a פרוס ואומת (2026-06-21, deploy `6a37f4b8`).** מסך האדמין כותב עכשיו לקטלוג המרכזי דרך
   preview/apply (מגורסן + הפיך) במקום ל-settings-api. **חוב Task 9 נסגר.**
-  - אומת בפרודקשן: `catalog/version=1`, `total=291`, `9999`→token (len 92), `0000`→401, preview-write יצר changeSet.
+  - **אומת חי מקצה-לקצה:** OR ערך פטל בגלון 1→2 מהטלפון → `catalog/version=2`, `פטל=2`, history `v1:1→v2:2`.
+    גם בדיקת Playwright (login 9999 → /admin/prices בשחזור-persist → session token תקף).
+- **תיקון post-deploy (`a9c5bc8`):** ה-price-session הונפק רק ב-LoginPage → אדמין משוחזר מ-"זכור אותי" נשאר בלי
+  session וכתיבות נכשלו. הועבר ל-`App.tsx` (useEffect על `user.isAdmin`, מנפיק מ-`user.branchCode`).
 - **לפני זה (אותו יום):** Tasks 1–8 נפרסו (קריאה מהקטלוג); פיוס 291 מוצרים; מחירון טרה פלסט יוני 2026 חי.
-- **Task 9a לא נבדק עדיין ב-UI חי** (Playwright login→עריכה→שמירה). האימות היה ברמת ה-API. שווה בדיקת-עשן.
 - **הבא:** Plan 2 (GPT Actions — כאן ה-GPT מתחבר). דורש `PRICE_GPT_TOKEN` ב-Netlify (עדיין לא מוגדר).
 
 ## ארכיטקטורה והחלטות בתוקף
@@ -25,6 +27,8 @@
   preview/apply. לוחות-זמנים/סניפים של ספקים **נשארים ב-settings-api** (אינם חלק מהקטלוג).
 - **session-אדמין לכתיבה:** כניסה ב-9999 → `/api/price-auth` ממיר את ה-PIN ל-token חתום (HMAC, 8h). הסוד
   (`PRICE_ADMIN_SECRET=9999`) בשרת בלבד, **לא בבאנדל**. הטוקן נשמר ב-localStorage רק כש"זכור אותי" דולק.
+  **ההנפקה ב-`App.tsx`** (useEffect על `user.isAdmin`, מ-`user.branchCode`) — מכסה גם כניסה טרייה וגם שחזור
+  מ-persist. **PWA:** ניקוי cache לא מנקה localStorage; commit לקטלוג מקפיץ version → סנכרון מונוטוני דורס stale local.
 - **idempotency:** `CommitAttempt {idempotencyKey, changeSetId?}` יציב על-פני ניסיונות-חוזרים; ניסיון-חוזר עושה
   **resume** מאותו changeSet (apply ישיר) → replay/recovery בשרת. preview חדש רק אם ה-changeSet לא-ישים
   (404/410/stale_version/version_conflict), לא על not_pending/idempotency_key_conflict.
@@ -58,9 +62,8 @@
 - remote: `github.com/or4551-cyber/meshausha-pwa`. פרודקשן: `meshaushapp.netlify.app`. תוכנית PRO.
 
 ## מצב גיט
-- ענף: `main`. קומיט אחרון מקומי: `7c1de04` (docs deploy) + handoff זה. **טרם נדחף ל-origin בסוף Task 9a** —
-  לדחוף `git push origin main` בגבול השלב.
-- פרודקשן מסונכרן לקוד של Task 9a (נפרס מ-CLI; הקוד זהה ל-main המקומי).
+- ענף: `main`. קומיט אחרון: `a9c5bc8` (fix: session-priming ל-restored admin) + עדכון handoff זה.
+- פרודקשן מסונכרן לקוד Task 9a + התיקון (deploy `6a380dad`; אומת חי). לדחוף `git push origin main`.
 
 ## יומן שלבים (מהחדש לישן)
 - [2026-06-21 — Task 9a: מסך אדמין כותב לקטלוג](JOURNAL/2026-06-21-task9a-admin-catalog-writes.md) — preview/apply, session ממיחזור 9999; Codex תפס BLOCKER ב-idempotency → resume מ-changeSet; נפרס+אומת; סאגת env (PRICE_SESSION_SECRET ידני + redeploy).
