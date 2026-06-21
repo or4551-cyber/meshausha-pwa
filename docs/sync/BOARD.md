@@ -16,6 +16,7 @@
 - [ ] _(OR יוסיף משימות נוספות כאן)_
 
 ## Done (הושלם ואומת — החדש למעלה)
+- [x] 2026-06-21 — **`docs/sync/CODEX-PLAYBOOK.md`** — לקחים ל-Codex מהפרויקט (sandbox=דפוס-הכשל; review סטטי=החוזקה; דפוסי-נכונות לכסף/קטלוג) + הפנייה מ-`AGENTS.md` (שלב 5 בטעינת-הפעלה) — `claude` (לבקשת OR).
 - [x] 2026-06-21 — **Plan 2 — GPT פרטי מחובר לקטלוג (הושלם ואומת חי)** — `claude` — GPT Actions (9 פעולות, OpenAPI 3.1) + `PRICE_GPT_TOKEN` + 2 deploys (`6a38212d`, `6a382d3f`). באג חי שנתפס: `apply` החזיר snapshot מלא (~130KB) → ChatGPT "תקלה בקבלת התשובה" למרות הצלחה → תוקן (תשובה קלה לפי role, `e7e3776`). אומת מקצה-לקצה: OR ביקש מה-GPT "פטל→2" → version 4, פטל=2, history v1→v4. 73/73 tests.
 - [x] 2026-06-21 — Plan 2 backend: חבילת GPT Actions + `PRICE_GPT_TOKEN` + redeploy (`6a38212d`) — `claude` — אומת מול ה-API: version/suppliers/search OK, טוקן-שגוי→401, preview→201 (write-role).
 - [x] 2026-06-21 — מערכת מחירוני ספקים Task 9a (מסך אדמין כותב לקטלוג דרך preview/apply; session ממיחזור PIN 9999) — `claude` — review של `codex` תפס BLOCKER ב-idempotency → תוקן (resume מ-changeSet) + אישר. אומת בפרודקשן: auth 9999→token, bad→401, preview-write OK. 71/71 tests
