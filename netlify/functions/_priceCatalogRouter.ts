@@ -134,10 +134,14 @@ export async function routePriceCatalog(
         p.normalizedName.includes(needle) ||
         p.aliases.some(alias => normalizeCatalogName(alias).includes(needle)))
     }
+    const total = products.length
     let limit = query.limit ? Number.parseInt(query.limit, 10) : 50
     if (!Number.isFinite(limit) || limit < 1) limit = 50
     if (limit > 200) limit = 200
-    return { version: active.version, products: products.slice(0, limit) }
+    let offset = query.offset ? Number.parseInt(query.offset, 10) : 0
+    if (!Number.isFinite(offset) || offset < 0) offset = 0
+    // total+offset מאפשרים ל-client לעמד (paginate) על קטלוג גדול מ-limit (270 > 200).
+    return { version: active.version, total, offset, products: products.slice(offset, offset + limit) }
   }
 
   async function handlePreview(req: PriceApiRequest, deps: PriceRouterDependencies): Promise<PriceApiResponse> {

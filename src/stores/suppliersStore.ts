@@ -9,6 +9,15 @@ export interface Product {
   price: number
   category?: string
   adminOnly?: boolean
+  // שדות מקור-קטלוג (אופציונליים; מאוכלסים כשהמוצר מגיע מהקטלוג המרכזי דרך useCatalogSync)
+  supplierId?: string
+  supplierSku?: string
+  packageQuantity?: number
+  unit?: string
+  unitPrice?: number
+  effectiveFrom?: string
+  sourceId?: string
+  updatedAt?: string
 }
 
 export interface DaySchedule {
@@ -45,6 +54,7 @@ interface SuppliersState {
   deleteProduct: (id: string) => void
   loadCloudData: (suppliers: Supplier[], products: Product[]) => void
   migrateCatalog: (version: number, transform: (products: Product[]) => Product[]) => void
+  replaceCatalogProducts: (products: Product[], version: number) => void
   getSupplierById: (id: string) => Supplier | undefined
   getProductsBySupplier: (supplierName: string) => Product[]
   getAllSuppliers: () => Supplier[]
@@ -167,6 +177,13 @@ export const useSuppliersStore = create<SuppliersState>()(
         saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products })
           .then(() => set({ catalogVersion: version }))
           .catch(console.error)
+      },
+
+      // מחליף את כל המוצרים ברשימה הסמכותית מהקטלוג המרכזי וקובע את גרסת הקטלוג.
+      // נקרא ע"י useCatalogSync רק אחרי תשובה מלאה ומוצלחת מהשרת, וכשהגרסה שונה מהמקומית.
+      // אינו שומר ל-settings-api — הקטלוג המרכזי הוא מקור-האמת (ה-cloud) למוצרים.
+      replaceCatalogProducts: (products, version) => {
+        set({ products, catalogVersion: version })
       },
 
       getSupplierById: (id) => {

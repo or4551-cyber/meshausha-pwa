@@ -29,6 +29,27 @@ describe('price catalog router', () => {
     expect(JSON.parse(response.body).products.length).toBeGreaterThan(0)
   })
 
+  it('paginates products with offset+limit and reports total', async () => {
+    const page1 = await routePriceCatalog({
+      method: 'GET', path: '/api/prices/products', query: { limit: '200', offset: '0', includeInactive: 'true' },
+      headers: {}, body: null, auth: { role: 'app' },
+    }, { repo, now: () => now, id: () => 'x' })
+    const body1 = JSON.parse(page1.body)
+    expect(body1.total).toBe(270)
+    expect(body1.products.length).toBe(200)
+    expect(body1.offset).toBe(0)
+
+    const page2 = await routePriceCatalog({
+      method: 'GET', path: '/api/prices/products', query: { limit: '200', offset: '200', includeInactive: 'true' },
+      headers: {}, body: null, auth: { role: 'app' },
+    }, { repo, now: () => now, id: () => 'x' })
+    const body2 = JSON.parse(page2.body)
+    expect(body2.products.length).toBe(70)
+    // שני הדפים יחד מכסים את כל 270 הפריטים בלי כפילות id
+    const ids = new Set([...body1.products, ...body2.products].map((p: { id: string }) => p.id))
+    expect(ids.size).toBe(270)
+  })
+
   it('creates a preview without changing active version', async () => {
     const response = await routePriceCatalog({
       method: 'POST',

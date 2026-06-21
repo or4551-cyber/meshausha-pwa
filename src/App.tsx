@@ -1,9 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, lazy, Suspense } from 'react'
+import { lazy, Suspense } from 'react'
 import { useAuthStore } from './stores/authStore'
-import { useSuppliersStore } from './stores/suppliersStore'
-import { PRODUCTS, INITIAL_SUPPLIERS, CATALOG_VERSION, applyCatalogV1 } from './data/products'
-import { getAdminPhoneFromCloud, getSuppliersFromCloud } from './lib/cloudApi'
+import { useCatalogSync } from './hooks/useCatalogSync'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
@@ -52,36 +50,9 @@ function PageFallback() {
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
-  const { seedStaticSuppliers, seedStaticProducts, setAdminPhone, adminPhone, loadCloudData, migrateCatalog } = useSuppliersStore()
 
-  // זריעת ספקים ומוצרים + טעינת נתוני אדמין מהענן
-  useEffect(() => {
-    seedStaticSuppliers(INITIAL_SUPPLIERS)
-    seedStaticProducts(PRODUCTS)
-    // טעינת adminPhone מהענן
-    if (!adminPhone) {
-      getAdminPhoneFromCloud().then(phone => {
-        if (phone) setAdminPhone(phone)
-      })
-    }
-    // טעינת ספקים ומוצרים מהענן — טוען רק אם יש נתוני לוח זמנים בענן
-    getSuppliersFromCloud().then(data => {
-      const hasSchedules = data?.suppliers?.some((s: any) => s.schedules?.length > 0)
-      if (hasSchedules) {
-        // יש נתוני אדמין בענן — טען (הענן גובר על ספקים/לוח זמנים)
-        loadCloudData(data!.suppliers, data!.products ?? [])
-        // הוסף ספקים סטטיים חדשים שעדיין לא בענן (כמו קוקה קולה, סלטים משאוושה, נט פארם)
-        seedStaticSuppliers(INITIAL_SUPPLIERS)
-        // הוסף רק מוצרים סטטיים חדשים שעדיין אינם בענן (לא דורס עדכונים)
-        seedStaticProducts(PRODUCTS)
-      }
-    }).catch(() => {}).finally(() => {
-      // צעד אחרון (גם אחרי מיזוג הענן): הגירת קטלוג לפי גרסה — מחליפה את קטלוג טרה פלסט
-      // לרשימה הסמכותית + מעדכנת כפפות כפולות תחת סלטים, ומנקה פריטים ישנים שהענן עלול להחזיר.
-      // רצה פעם אחת למכשיר.
-      migrateCatalog(CATALOG_VERSION, applyCatalogV1)
-    })
-  }, [])
+  // סנכרון קטלוג המוצרים (זריעה + adminPhone + לוחות-זמנים + קטלוג מרכזי, עם fallback offline).
+  useCatalogSync()
 
   return (
     <Router>
