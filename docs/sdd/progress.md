@@ -10,7 +10,7 @@
 | 1 | Test Runner and Catalog Schemas | ✅ הושלם | codex (אומת+קובע claude) | npm test 3/3, commit 160738c (מקומי) |
 | 2 | Pure Catalog Change Engine | ✅ הושלם | claude | normalization.ts + engine.ts + engine.test.ts; 8/8 טסטים, shared typecheck נקי |
 | 3 | Deterministic Legacy Seed and Reconciliation | ✅ הושלם | claude | legacySeed.ts; פיוס 270/8 מאומת (4 טסטים) |
-| 4 | Versioned Blob Repository | ⬜ ממתין | | Netlify Blobs + memory repo |
+| 4 | Versioned Blob Repository | ✅ הושלם | claude | _priceCatalogStore.ts (blob+memory); 3 טסטים |
 | 5 | Price API Authentication and Admin Session | ⬜ ממתין | | API_TOKEN / PRICE_GPT_TOKEN / PRICE_ADMIN_SECRET |
 | 6 | Catalog HTTP Router and Netlify Handler | ⬜ ממתין | | routePriceCatalog + handler |
 | 7 | Central Excel Workbook and Signed Download Link | ⬜ ממתין | | summary tab + tab/supplier |
