@@ -25,15 +25,7 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
 
   try {
-    const repo = createBlobPriceCatalogRepository()
-
-    // seed-on-first-read: אם אין גרסה פעילה, זרע גרסה 1 מהנתונים הקיימים והפעל אותה.
-    if (!(await repo.getActive())) {
-      const seed = createCatalogSeed(INITIAL_SUPPLIERS, PRODUCTS, new Date().toISOString())
-      await repo.saveVersion(seed)
-      await repo.activateVersion(seed)
-    }
-
+    // אימות לפני כל גישה ל-repo — בקשה לא-מאומתת לעולם לא מגיעה ל-seed/כתיבה (fail-closed).
     const method = event.httpMethod as PriceApiRequest['method']
     const access = method === 'GET' ? 'read' : 'write'
     const auth = authorizePriceRequest(
@@ -47,6 +39,15 @@ export const handler: Handler = async (event) => {
       Date.now(),
     )
     if (!auth) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'unauthorized' }) }
+
+    const repo = createBlobPriceCatalogRepository()
+
+    // seed-on-first-read: רק אחרי אימות מוצלח — אם אין גרסה פעילה, זרע גרסה 1 מהנתונים הקיימים והפעל אותה.
+    if (!(await repo.getActive())) {
+      const seed = createCatalogSeed(INITIAL_SUPPLIERS, PRODUCTS, new Date().toISOString())
+      await repo.saveVersion(seed)
+      await repo.activateVersion(seed)
+    }
 
     const response = await routePriceCatalog(
       {

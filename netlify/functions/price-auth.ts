@@ -1,5 +1,5 @@
 import { Handler } from '@netlify/functions'
-import { timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { issueAdminSession, SESSION_TTL_MS } from './_priceCatalogAuth'
 import { checkLoginRateLimit, recordLoginFailure, resetLoginRateLimit } from './_priceRateLimit'
 
@@ -9,11 +9,11 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// השוואה בזמן-קבוע ללא תלות באורך: digest קבוע-אורך לכל צד ואז timingSafeEqual.
 function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a)
-  const bb = Buffer.from(b)
-  if (ab.length !== bb.length) return false
-  return timingSafeEqual(ab, bb)
+  const ah = createHash('sha256').update(a).digest()
+  const bh = createHash('sha256').update(b).digest()
+  return timingSafeEqual(ah, bh)
 }
 
 function clientIpOf(headers: Record<string, string | undefined>): string {
@@ -40,9 +40,9 @@ export const handler: Handler = async (event) => {
     let secret = ''
     try { secret = String(JSON.parse(event.body || '{}').secret ?? '') } catch { secret = '' }
 
-    const configured = process.env.PRICE_ADMIN_SECRET
-    // אורך מינימלי 8 + השוואה בזמן-קבוע. תגובות לא חושפות אם הסוד מוגדר.
-    const ok = secret.length >= 8 && !!configured && safeEqual(secret, configured)
+    const configured = process.env.PRICE_ADMIN_SECRET ?? ''
+    // השוואה בזמן-קבוע מתבצעת תמיד, בלי gate שתלוי באורך הקלט. תגובות לא חושפות אם הסוד מוגדר.
+    const ok = configured.length > 0 && safeEqual(secret, configured)
     if (!ok) {
       await recordLoginFailure(ip, now)
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'unauthorized' }) }

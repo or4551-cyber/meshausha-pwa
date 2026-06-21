@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 export type PriceAccess = 'read' | 'write'
 export type PriceRole = 'app' | 'admin' | 'gpt'
@@ -19,12 +19,11 @@ export interface PriceAuthEvent {
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000
 export const EXPORT_TTL_MS = 5 * 60 * 1000
 
-// השוואה בזמן-קבוע; false אם האורכים שונים (timingSafeEqual זורק על אורך לא תואם).
+// השוואה בזמן-קבוע ללא תלות באורך: כל צד עובר ל-digest קבוע-אורך (32B) ואז משווה — לא מדליף אורך.
 function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a)
-  const bb = Buffer.from(b)
-  if (ab.length !== bb.length) return false
-  return timingSafeEqual(ab, bb)
+  const ah = createHash('sha256').update(a).digest()
+  const bh = createHash('sha256').update(b).digest()
+  return timingSafeEqual(ah, bh)
 }
 
 function bearerToken(event: PriceAuthEvent): string | null {

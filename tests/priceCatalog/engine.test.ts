@@ -103,4 +103,12 @@ describe('catalog engine', () => {
       patch: expect.objectContaining({ packagePrice: 150 }),
     })
   })
+
+  it('throws a no-op error instead of an invalid empty change set when active already matches target', () => {
+    expect(() => createRevertChangeSet(active, active, {
+      id: 'revert-noop',
+      now: '2026-06-20T11:00:00.000Z',
+      expiresAt: '2026-06-20T11:10:00.000Z',
+    })).toThrow('nothing to revert')
+  })
 })

@@ -14,7 +14,7 @@
 | 5 | Price API Authentication and Admin Session | ✅ הושלם | claude | _priceCatalogAuth + _priceRateLimit + price-auth; 4 טסטים |
 | 6 | Catalog HTTP Router and Netlify Handler | ✅ הושלם | claude | _priceCatalogRouter + price-catalog + redirects; 4 טסטים (search/preview/apply-idempotent/403) |
 | 7 | Central Excel Workbook and Signed Download Link | ✅ הושלם | claude | _priceCatalogExcel + price-export + export tokens; 2 טסטים (9 גיליונות/270 שורות) |
-| — | **GATE: backend (1–7) הושלם — review של codex לפני frontend** | 🔄 ממתין ל-review | | 25/25 טסטים, typecheck+build נקיים |
+| — | **GATE: backend (1–7) הושלם — review של codex לפני frontend** | 🔄 ממתין ל-re-review | claude (תיקן) / codex (review) | review של codex תפס 4 blockers + race; **כולם תוקנו** (auth-before-seed, idempotency changeId→409, revert no-op→409, constant-time compare, version-conflict→409). 30/30 טסטים, typecheck+build נקיים |
 | 8 | Frontend Catalog Adapter and Foreground Sync | ⬜ ממתין | | חיבור ל-suppliersStore/App |
 | 9 | Secure Admin Preview and Apply | ⬜ ממתין | | מסך אדמין preview/apply |
 | 10 | End-to-End Reconciliation, Documentation, and Review Gate | ⬜ ממתין | | |

@@ -167,6 +167,8 @@ export async function routePriceCatalog(
 
     const replay = await deps.repo.getIdempotencyResult(idempotencyKey)
     if (replay) {
+      // המפתח חייב להיות שייך ל-change המבוקש; שימוש חוזר על change אחר = התנגשות.
+      if (replay.changeSetId !== changeId) return fail(409, 'idempotency_key_conflict')
       const snapshot = await deps.repo.getVersion(replay.version)
       return snapshot ? json(200, snapshot) : fail(500, 'internal_error')
     }
@@ -197,8 +199,15 @@ export async function routePriceCatalog(
       return fail(500, 'internal_error')
     }
 
-    await deps.repo.saveVersion(next)
-    await deps.repo.activateVersion(next)
+    try {
+      await deps.repo.saveVersion(next)
+      await deps.repo.activateVersion(next)
+    } catch (err) {
+      // התנגשות checksum על אותה גרסה (שני changes על אותו base במקביל) = 409, לא 500.
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('refusing to overwrite')) return fail(409, 'version_conflict')
+      throw err
+    }
     await deps.repo.saveChangeSet({ ...change, status: 'applied', appliedVersion: next.version })
     await deps.repo.saveIdempotencyResult(idempotencyKey, { changeSetId: change.id, version: next.version })
     return json(200, next)
@@ -214,11 +223,19 @@ export async function routePriceCatalog(
     if (!target) return fail(404, 'not_found')
     const active = await deps.repo.getActive()
     if (!active) return fail(404, 'no_active_catalog')
-    const revert = createRevertChangeSet(active, target, {
-      id: deps.id(),
-      now: deps.now(),
-      expiresAt: new Date(Date.parse(deps.now()) + PREVIEW_TTL_MS).toISOString(),
-    })
+    let revert
+    try {
+      revert = createRevertChangeSet(active, target, {
+        id: deps.id(),
+        now: deps.now(),
+        expiresAt: new Date(Date.parse(deps.now()) + PREVIEW_TTL_MS).toISOString(),
+      })
+    } catch (err) {
+      // revert ריק (אין מה לשחזר) = 409 מפורש, לא קריסת 500 מהסכמה.
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('nothing to revert')) return fail(409, 'nothing_to_revert')
+      throw err
+    }
     await deps.repo.saveChangeSet(revert)
     return json(201, revert)
   }

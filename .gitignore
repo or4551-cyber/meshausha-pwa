@@ -38,3 +38,6 @@ public-old/
 
 # Local npm cache (sandbox workaround artifact — never commit)
 .npm-cache/
+
+# local API typecheck helper (shared/netlify/tests — not covered by build tsconfig)
+tsconfig.check.json

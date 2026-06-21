@@ -33,4 +33,10 @@ describe('price catalog auth', () => {
     const event = { headers: {}, queryStringParameters: null }
     expect(authorizePriceRequest(event, 'write', {}, 1)).toBeNull()
   })
+
+  it('rejects a token of a different length without throwing (constant-time compare)', () => {
+    const event = { headers: { authorization: 'Bearer x' }, queryStringParameters: null }
+    expect(() => authorizePriceRequest(event, 'read', env, 1)).not.toThrow()
+    expect(authorizePriceRequest(event, 'read', env, 1)).toBeNull()
+  })
 })

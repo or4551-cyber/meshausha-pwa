@@ -204,6 +204,11 @@ export function createRevertChangeSet(
     }
   }
 
+  // ChangeSet דורש לפחות פעולה אחת; revert ריק (active כבר זהה ל-target) הוא no-op, לא שגיאת סכמה.
+  if (operations.length === 0) {
+    throw new Error('nothing to revert: active already matches target')
+  }
+
   return createChangeSet(active, operations, {
     id: context.id,
     source: 'revert',
