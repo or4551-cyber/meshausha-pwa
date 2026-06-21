@@ -18,7 +18,7 @@ describe('catalog Excel export', () => {
     const rows = workbook.SheetNames.slice(1).flatMap(name =>
       XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[name]),
     )
-    expect(rows).toHaveLength(270)
+    expect(rows).toHaveLength(291)
     expect(rows.every(row => typeof row['מחיר אריזה לפני מע״מ'] === 'number')).toBe(true)
   })
 })

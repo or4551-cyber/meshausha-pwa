@@ -35,7 +35,7 @@ describe('price catalog router', () => {
       headers: {}, body: null, auth: { role: 'app' },
     }, { repo, now: () => now, id: () => 'x' })
     const body1 = JSON.parse(page1.body)
-    expect(body1.total).toBe(270)
+    expect(body1.total).toBe(291)
     expect(body1.products.length).toBe(200)
     expect(body1.offset).toBe(0)
 
@@ -44,10 +44,10 @@ describe('price catalog router', () => {
       headers: {}, body: null, auth: { role: 'app' },
     }, { repo, now: () => now, id: () => 'x' })
     const body2 = JSON.parse(page2.body)
-    expect(body2.products.length).toBe(70)
-    // שני הדפים יחד מכסים את כל 270 הפריטים בלי כפילות id
+    expect(body2.products.length).toBe(91)
+    // שני הדפים יחד מכסים את כל 291 הפריטים בלי כפילות id
     const ids = new Set([...body1.products, ...body2.products].map((p: { id: string }) => p.id))
-    expect(ids.size).toBe(270)
+    expect(ids.size).toBe(291)
   })
 
   it('creates a preview without changing active version', async () => {

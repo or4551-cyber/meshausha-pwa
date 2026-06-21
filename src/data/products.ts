@@ -4,6 +4,7 @@ export interface Product {
   supplier: string
   price: number
   category?: string
+  adminOnly?: boolean
 }
 
 // גרסת קטלוג — הגדל ב-1 בכל עדכון מחירון שצריך להגיע גם למכשירים קיימים.
@@ -104,6 +105,10 @@ export const TERRA_PLAST_PRODUCTS: Product[] = [
   { id: 'tp90', name: 'קערה 680 קנה סוכר ל-1000 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 440.0 },
   { id: 'tp91', name: 'שקיות נייר דליה לופ תורכית חום 28/16/28 500 יח\' (ידית חיצונית)', supplier: TERRA_PLAST_SUPPLIER, price: 225.0 },
   { id: 'tp5', name: 'מכסה לגביע צר מודפס 239 לבן 1600 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 294.4 },
+  // פיוס מול פרודקשן (2026-06-21): tp4/tp26 היו חיים אצל הסניפים אך הוחרגו ממחירון יוני 2026.
+  // מוחזרים לפי החלטת OR ("לשמור הכל"), עם ה-id המקורי לשימור היסטוריה.
+  { id: 'tp4', name: 'גביע 250מ"ק - צר (247) (ארוז 2000 יח\')', supplier: TERRA_PLAST_SUPPLIER, price: 230 },
+  { id: 'tp26', name: 'שקיות למשלוחים נייר דליה+ידית מלבנית 32/16/38 (גיילורד) 200 יח\'', supplier: TERRA_PLAST_SUPPLIER, price: 134 },
 ]
 
 export const SALATIM_SUPPLIER = 'סלטים משאוושה'
@@ -331,6 +336,29 @@ export const PRODUCTS: Product[] = [
   { id: 'nf1', name: 'צלחת לחומוס',      supplier: 'נט פארם- מתקלות', price: 300 },
   { id: 'nf2', name: 'צלחת ציפס רגיל',   supplier: 'נט פארם- מתקלות', price: 250 },
   { id: 'nf3', name: 'צלחת ציפס קטן',    supplier: 'נט פארם- מתקלות', price: 229 },
+
+  // ===== פיוס מול פרודקשן (2026-06-21) =====
+  // מוצרים שנוספו דרך מסך האדמין לאורך זמן וקיימים חיים אצל הסניפים, אך לא היו בקוד-הזרע.
+  // מוחזרים עם ה-id המקורי שלהם כדי לשמר היסטוריית מחירים/הזמנות. (החלטת OR: לשמור הכל.)
+  { id: 'product_1776345169021_hblk7pw2s', name: 'מיקסים', supplier: 'סלטים משאוושה', price: 1, adminOnly: true },
+  { id: 'product_1776252525588_a7gjkdk6m', name: 'שום שבבי לפי קילו', supplier: 'יבולי שדה תמרה', price: 27 },
+  { id: 'product_1776252582383_k1ghzv9tj', name: 'אבקת מלבי לפי קילו', supplier: 'יבולי שדה תמרה', price: 27 },
+  { id: 'product_1776252647174_l40cmctlp', name: 'אורז יסמין 5 קג', supplier: 'יבולי שדה תמרה', price: 32.5 },
+  { id: 'product_1776253125615_wj0cuh5x7', name: 'עלי גפן ממולאים לפי יח', supplier: 'יבולי שדה תמרה', price: 37 },
+  { id: 'product_1776253193476_4z3geiqo8', name: 'נייר מגבת 900', supplier: 'יבולי שדה תמרה', price: 60 },
+  { id: 'product_1776253218536_kr8ls1x15', name: 'בורגולמדק 5 קג', supplier: 'יבולי שדה תמרה', price: 30 },
+  { id: 'product_1776253618170_fbt1em96l', name: 'עדשים ירוקים 5 קג', supplier: 'יבולי שדה תמרה', price: 57 },
+  { id: 'product_1776922660531_5171mw5ns', name: 'מסיר שומנים בגלון לפי יח', supplier: 'יבולי שדה תמרה', price: 1 },
+  { id: 'product_1777437140654_6qaf494uu', name: 'כפפות לטקס 100 יח xl', supplier: 'יבולי שדה תמרה', price: 17 },
+  { id: 'product_1777437150137_fp2ocgfn8', name: 'כפפות לטקס 100 יח L', supplier: 'יבולי שדה תמרה', price: 17 },
+  { id: 'product_1777437161880_hsn2uoh92', name: 'כפפות לטקס 100 יח M', supplier: 'יבולי שדה תמרה', price: 17 },
+  { id: 'product_1777437175969_1iny3o6b6', name: 'כפפות לטקס 100 יח s', supplier: 'יבולי שדה תמרה', price: 17 },
+  { id: 'product_1777441266020_jjb3q4umb', name: 'פטל בגלון', supplier: 'יבולי שדה תמרה', price: 1 },
+  { id: 'product_1777612251191_jx6mw4kyq', name: 'חומץ יכין 4ל\' לפי יח\'', supplier: 'יבולי שדה תמרה', price: 1 },
+  { id: 'product_1777612271673_z9wljqu3b', name: 'צ\'ילי מתוק 4ל\' לפי יח\'', supplier: 'יבולי שדה תמרה', price: 1 },
+  { id: 'product_1777788686552_wvxo2ib84', name: 'פפריקה מתוק טחון לפי קג', supplier: 'יבולי שדה תמרה', price: 1 },
+  { id: 'product_1780321750681_mvmgpmbv6', name: 'נוזל מרצפות 4ל\' לפי יח', supplier: 'יבולי שדה תמרה', price: 1 },
+  { id: 'product_1776401063501_6y4tab3ux', name: 'פטריות א.ת 5 קג בקרטון', supplier: 'תפוכן', price: 140 },
 ]
 
 export const SUPPLIERS = Array.from(new Set(PRODUCTS.map(p => p.supplier)))
