@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { useCatalogSync } from './hooks/useCatalogSync'
+import { primeAdminPin, authenticateWithPin, setSessionPersistence, hasActiveSession } from './lib/priceAdminSession'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import OrdersPage from './pages/OrdersPage'
@@ -49,10 +50,20 @@ function PageFallback() {
 }
 
 function App() {
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, user, rememberMe } = useAuthStore()
 
   // סנכרון קטלוג המוצרים (זריעה + adminPhone + לוחות-זמנים + קטלוג מרכזי, עם fallback offline).
   useCatalogSync()
+
+  // price-session לאדמין — מקום יחיד שמכסה גם כניסה טרייה וגם שחזור מ-"זכור אותי":
+  // אדמין משוחזר מ-persist דילג על LoginPage ולכן אין לו session; ה-PIN כבר שמור ב-authStore
+  // (user.branchCode), אז מנפיקים ממנו. בלי זה כתיבות-המחירון נכשלות ב-no_session.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.isAdmin || !user.branchCode) return
+    setSessionPersistence(rememberMe)
+    primeAdminPin(user.branchCode)
+    if (!hasActiveSession()) void authenticateWithPin(user.branchCode)
+  }, [isAuthenticated, user?.isAdmin, user?.branchCode, rememberMe])
 
   return (
     <Router>
