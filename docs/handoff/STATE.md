@@ -3,7 +3,7 @@
 > **כל סוכן שמצטרף: התחל כאן.** הקובץ הזה הוא תמונת המצב העדכנית; ההיסטוריה המלאה — כולל כישלונות וכיוונים שננטשו — נמצאת ב-[JOURNAL/](JOURNAL/).
 > **עובדים פה שניים:** Claude ו-Codex. לפני נגיעה בקוד קרא גם את `docs/sync/BOARD.md` ו-`docs/sync/PROTOCOL.md`.
 
-- **עודכן:** 2026-06-21 | **שלב נוכחי:** מערכת מחירוני ספקים — Task 9a **פרוס וחי** | **סטטוס:** חי בפרודקשן; הבא Plan 2 (GPT Actions)
+- **עודכן:** 2026-06-21 | **שלב נוכחי:** Plan 2 (GPT Actions) — **backend פרוס+אומת** | **סטטוס:** חי בפרודקשן; ממתין ל-OR שיבנה את ה-GPT ב-ChatGPT
 
 ## מה הפרויקט
 מערכת ניהול הזמנות רכש (PWA) לרשת מסעדות חומוס בצפון (9 סניפים). כניסה ב-PIN לכל סניף + אדמין (9999), ניהול הזמנות מספקים, חיפוש, היסטוריה ותבניות, התראות Push, ייצוא PDF/Excel, ועבודה offline.
@@ -16,8 +16,14 @@
     גם בדיקת Playwright (login 9999 → /admin/prices בשחזור-persist → session token תקף).
 - **תיקון post-deploy (`a9c5bc8`):** ה-price-session הונפק רק ב-LoginPage → אדמין משוחזר מ-"זכור אותי" נשאר בלי
   session וכתיבות נכשלו. הועבר ל-`App.tsx` (useEffect על `user.isAdmin`, מנפיק מ-`user.branchCode`).
-- **לפני זה (אותו יום):** Tasks 1–8 נפרסו (קריאה מהקטלוג); פיוס 291 מוצרים; מחירון טרה פלסט יוני 2026 חי.
-- **הבא:** Plan 2 (GPT Actions — כאן ה-GPT מתחבר). דורש `PRICE_GPT_TOKEN` ב-Netlify (עדיין לא מוגדר).
+- **🤖 Plan 2 — backend פרוס+אומת (2026-06-21, deploy `6a38212d`).** חבילת GPT Actions ב-`docs/gpt/`
+  (`openapi.yaml` 9 פעולות, `gpt-instructions.md`, `SETUP.md`). `PRICE_GPT_TOKEN` הוגדר ב-Netlify (context=all,
+  scope functions) + redeploy (functions קולטים env רק ב-deploy). **אומת חי מול ה-API עם הטוקן:**
+  `catalog/version`=2 OK, `suppliers`=8 OK, `search פטל`→price=2 OK, **טוקן-שגוי→401** (fail-closed),
+  **preview→201 status=pending** (write-role עובד; לא בוצע apply — טיוטה פגה לבד). **נשאר:** OR בונה את ה-GPT
+  ב-ChatGPT לפי `docs/gpt/SETUP.md` ומריץ בדיקת-קבלה (שאלת מחיר → שינוי מאושר → ביטול).
+- **לפני זה (אותו יום):** Tasks 1–8 נפרסו (קריאה מהקטלוג); פיוס 291 מוצרים; מחירון טרה פלסט יוני 2026 חי; Task 9a (כתיבת אדמין).
+- **הבא:** OR מסיים את בניית ה-GPT (צד ChatGPT) → בדיקת-קבלה → Plan 3 (ייבוא מחירונים).
 
 ## ארכיטקטורה והחלטות בתוקף
 - **mobile-first:** 375px, בלי overflow-x, RTL/עברית.
@@ -38,8 +44,9 @@
   review אדוורסרי (ultracode) + review של Codex ב-milestones נוגעי-כסף.
 
 ## מה נשאר לעשות / חסמים
-1. **Plan 2 — GPT Actions:** חיבור ה-GPT לכתיבה לקטלוג. **חסם:** צריך להוסיף `PRICE_GPT_TOKEN` ל-Netlify
-   (דרך הדאשבורד — ה-API לא שמר secret-masked; ראה לקח למטה).
+1. **Plan 2 — בניית ה-GPT (צד OR, ב-ChatGPT):** הוסף Action עם הסכמה מ-`docs/gpt/openapi.yaml`, הוראות מ-
+   `gpt-instructions.md`, ו-Bearer token = `PRICE_GPT_TOKEN`. ואז בדיקת-קבלה (שאלת מחיר → שינוי מאושר → ביטול).
+   **חסם הוסר:** `PRICE_GPT_TOKEN` כבר ב-Netlify + נפרס. אין משימת-קוד פתוחה לסוכנים.
 2. **בדיקת-עשן UI ל-Task 9a:** Playwright — login 9999 → עריכת מחיר → שמירה → אימות גרסה חדשה.
 3. **ניקוי מינורי (לא חוסם):** באנר warnings (#8), auto-retry apply על 429 (#7), הודעת no_session על rate-limit (#14).
 4. עתידי: Plan 3 (ייבוא מחירונים), Plan 4 (Hardening + שקילת auto-deploy).
@@ -58,12 +65,13 @@
   אימות: `GET /api/prices/catalog/version`, `/api/prices/products?limit=1&includeInactive=true` (total),
   `POST /api/price-auth {"secret":"9999"}` (token), ו-preview-write עם הטוקן.
 - **env ב-Netlify (siteId 62cbac42-...):** קיימים API_TOKEN/VITE_API_TOKEN/NETLIFY_TOKEN/GOOGLE_*,
-  `PRICE_ADMIN_SECRET=9999`, `PRICE_SESSION_SECRET`. חסר `PRICE_GPT_TOKEN` (ל-Plan 2).
+  `PRICE_ADMIN_SECRET=9999`, `PRICE_SESSION_SECRET`, **`PRICE_GPT_TOKEN`** (הוגדר 2026-06-21, context=all, scope functions).
 - remote: `github.com/or4551-cyber/meshausha-pwa`. פרודקשן: `meshaushapp.netlify.app`. תוכנית PRO.
 
 ## מצב גיט
-- ענף: `main`. קומיט אחרון: `a9c5bc8` (fix: session-priming ל-restored admin) + עדכון handoff זה.
-- פרודקשן מסונכרן לקוד Task 9a + התיקון (deploy `6a380dad`; אומת חי). לדחוף `git push origin main`.
+- ענף: `main`. קומיט אחרון: `6fff41b` ([claude] feat(plan2): GPT Actions package) + עדכון handoff/BOARD זה.
+- פרודקשן: deploy אחרון `6a38212d` (2026-06-21) — backend זהה ל-Task 9a; מטרת ה-deploy הייתה רק לקלוט את
+  `PRICE_GPT_TOKEN` (functions snapshot env ב-deploy). אומת חי. עדיין לדחוף `git push origin main`.
 
 ## יומן שלבים (מהחדש לישן)
 - [2026-06-21 — Task 9a: מסך אדמין כותב לקטלוג](JOURNAL/2026-06-21-task9a-admin-catalog-writes.md) — preview/apply, session ממיחזור 9999; Codex תפס BLOCKER ב-idempotency → resume מ-changeSet; נפרס+אומת; סאגת env (PRICE_SESSION_SECRET ידני + redeploy).
