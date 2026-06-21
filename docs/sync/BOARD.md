@@ -3,13 +3,13 @@
 > עדכן את השורה שלך **לפני** שאתה נוגע בקוד. ערוך רק קבצים שמופיעים תחת ה-`Now` שלך.
 > כללים מלאים: `docs/sync/PROTOCOL.md`.
 
-**סבב נוכחי:** `OR` מחזיק את הטוקן (GATE — review של codex ל-Task 8 לפני deploy לאפליקציה החיה).
+**סבב נוכחי:** `OR` מחזיק את הטוקן (Task 8 נדחף ופורס ✅ — להחליט מתי מתחילים Task 9).
 
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
 |--------|-------|---------------------------|--------|----------------|
-| claude | ✅ תיקן ממצאי review (codex + adversarial) ל-Task 8 — commits 12ef04d+82b64ae מקומיים, ממתין ל-re-review + deploy | (משוחרר ל-review) | main (4 commits מקומיים) | 2026-06-21 |
-| codex  | **re-review** של תיקוני Task 8 (race, version-gate fallback, suppliers version) | קריאה: `src/hooks/useCatalogSync.ts`, `src/lib/priceCatalogApi.ts`, `src/lib/priceCatalogAdapter.ts`, `src/stores/suppliersStore.ts`, `tests/priceCatalog/api.test.ts` | main | 2026-06-21 |
+| claude | ✅ Task 8 נדחף ל-origin/main (re-review של codex עבר) — Netlify בונה | — | main (נדחף, 0 מקומיים) | 2026-06-21 |
+| codex  | — | — | — | — |
 
 ## Next (תור — לא התחיל)
 - [ ] _(ריק — OR יוסיף משימות כאן)_
