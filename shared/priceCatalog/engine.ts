@@ -10,7 +10,9 @@ import {
 } from './types'
 import { calculateUnitPrice, normalizeCatalogName } from './normalization'
 
-export function snapshotChecksum(snapshot: Omit<CatalogSnapshot, 'checksum'>): string {
+export type ChecksumInput = Omit<CatalogSnapshot, 'checksum'>
+
+export function snapshotChecksum(snapshot: ChecksumInput): string {
   return createHash('sha256').update(JSON.stringify(snapshot)).digest('hex')
 }
 
