@@ -65,7 +65,11 @@ export function adaptCatalogSnapshot(
   for (const product of snapshot.products) {
     if (!product.active) continue
     const supplier = supplierById.get(product.supplierId)
-    if (!supplier) continue
+    if (!supplier) {
+      // לא אמור לקרות (אינטגריטי השרת מבטיח ספק לכל מוצר). מתעדים כדי שלא ייעלם בשקט.
+      console.warn(`[catalog] מדלג על מוצר ${product.id}: ספק ${product.supplierId} חסר ב-snapshot`)
+      continue
+    }
     out.push(catalogProductToLegacy(product, supplier))
   }
   return out

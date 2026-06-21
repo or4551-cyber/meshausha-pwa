@@ -75,6 +75,8 @@ export async function fetchActiveCatalog(): Promise<ActiveCatalog | null> {
     const supRes = await fetchWithRetry(`${PRICE_BASE}/suppliers`, { headers: authHeaders() })
     if (!supRes.ok) return null
     const supBody = (await supRes.json()) as { version: number; suppliers: CatalogSupplier[] }
+    // עקביות גרסה: אם ה-suppliers הגיעו מגרסה אחרת מ-versionInfo — בטל, אל תערבב גרסאות.
+    if (supBody.version !== versionInfo.version) return null
 
     const products: CatalogProduct[] = []
     let offset = 0

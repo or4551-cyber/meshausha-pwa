@@ -4,9 +4,12 @@
 // 1. זורע PRODUCTS/INITIAL_SUPPLIERS מיד — בטיחות first-run/offline.
 // 2. טוען adminPhone ולוחות-זמנים של ספקים מ-settings-api (כמו הקוד הקודם).
 // 3. הקטלוג המרכזי הוא הסמכותי למוצרים — *רק כשהוא נגיש וגרסתו שונה מהמקומית*.
-//    כשאינו נגיש (offline/401) — נופל חזרה ל-migrateCatalog(applyCatalogV1) הקיים,
-//    כך שאין רגרסיה: מכשירים בלי גישה לקטלוג מתנהגים בדיוק כמו לפני Task 8.
-// 4. לעולם לא מאפס מוצרים שמורים בשגיאה. מחליף רק אחרי תשובה מלאה ומוצלחת.
+//    כשההחלפה הסמכותית לא קרתה (offline/401/כשל משיכה) — נופל חזרה ל-migrateCatalog(applyCatalogV1)
+//    הקיים *בכל הפעלה ראשונית*, כך שאין רגרסיה: catalogVersion ותיקון הכפפות מובטחים תמיד,
+//    בדיוק כמו לפני Task 8 (שם migrateCatalog רץ ב-.finally ללא תנאי).
+// 4. ה-listeners ל-focus/visibility נרשמים *רק אחרי* שההפעלה הראשונית הסתיימה — כדי שלא יווצר
+//    race שבו רענון focus מחליף products בזמן ש-loadCloudData עדיין באוויר.
+// 5. לעולם לא מאפס מוצרים שמורים בשגיאה. מחליף רק אחרי תשובה מלאה ומוצלחת.
 
 import { useEffect, useRef } from 'react'
 import { useSuppliersStore } from '../stores/suppliersStore'
@@ -21,7 +24,12 @@ export function useCatalogSync(): void {
   const runningRef = useRef(false)
 
   useEffect(() => {
-    // מונע ריצות חופפות (focus יכול לירות פעמיים) ומכבד throttle לרענוני focus/visibility.
+    let cancelled = false
+    let detach: () => void = () => {}
+
+    // מנסה להחליף products מהקטלוג המרכזי כשהוא נגיש וגרסתו שונה מהמקומית.
+    // בהפעלה ראשונית (initial), אם *לא* בוצעה החלפה סמכותית — מריץ את ה-fallback הישן
+    // (migrateCatalog, אידמפוטנטי ו-version-gated) כדי להבטיח catalogVersion+תיקון הכפפות.
     async function syncCatalog(initial: boolean): Promise<void> {
       if (runningRef.current) return
       const now = Date.now()
@@ -29,46 +37,44 @@ export function useCatalogSync(): void {
       lastCheckRef.current = now
       runningRef.current = true
       try {
-        // בדיקת גרסה זולה (בקשה אחת) קודם
+        let replaced = false
         const versionInfo = await getCatalogVersion()
-        if (!versionInfo) {
-          // קטלוג מרכזי לא נגיש → fallback לזרימה הישנה (רק בהפעלה הראשונה),
-          // כדי שמכשיר offline עדיין יקבל את תיקון הכפפות.
-          if (initial) useSuppliersStore.getState().migrateCatalog(CATALOG_VERSION, applyCatalogV1)
-          return
+        if (versionInfo && versionInfo.version !== useSuppliersStore.getState().catalogVersion) {
+          const catalog = await fetchActiveCatalog()
+          if (catalog && catalog.version !== useSuppliersStore.getState().catalogVersion) {
+            useSuppliersStore.getState().replaceCatalogProducts(catalog.products, catalog.version)
+            replaced = true
+          }
         }
-        if (versionInfo.version === useSuppliersStore.getState().catalogVersion) return
-        // הגרסה שונה — משוך את הקטלוג המלא והחלף
-        const catalog = await fetchActiveCatalog()
-        if (!catalog) return
-        if (catalog.version === useSuppliersStore.getState().catalogVersion) return
-        useSuppliersStore.getState().replaceCatalogProducts(catalog.products, catalog.version)
+        // baseline: בהפעלה ראשונית, אם הקטלוג המרכזי לא החליף (לא נגיש / גרסה זהה / כשל משיכה) —
+        // מריץ את ההגירה הישנה. אידמפוטנטי (catalogVersion>=1 → no-op), ולכן בטוח להריץ תמיד.
+        if (initial && !replaced) {
+          useSuppliersStore.getState().migrateCatalog(CATALOG_VERSION, applyCatalogV1)
+        }
       } finally {
         runningRef.current = false
       }
     }
 
-    const store = useSuppliersStore.getState()
-
-    // 1. זריעה מיידית
-    store.seedStaticSuppliers(INITIAL_SUPPLIERS)
-    store.seedStaticProducts(PRODUCTS)
-
-    // 2. adminPhone מהענן
-    if (!store.adminPhone) {
-      getAdminPhoneFromCloud()
-        .then(phone => { if (phone) useSuppliersStore.getState().setAdminPhone(phone) })
-        .catch(() => {})
-    }
-
-    // 3+4: ראשית ספקים/לוחות-זמנים מ-settings-api (כמו הקוד הקודם), ורק *אחר כך* הקטלוג
-    // המרכזי — סדר זה מבטיח שההחלפה הסמכותית מהקטלוג (כשנגיש) תמיד גוברת על מיזוג ה-products
-    // הישן של loadCloudData, בלי race. כשהקטלוג לא נגיש — נשמרת בדיוק ההתנהגות הקודמת.
     async function initialLoad(): Promise<void> {
+      const store = useSuppliersStore.getState()
+
+      // 1. זריעה מיידית
+      store.seedStaticSuppliers(INITIAL_SUPPLIERS)
+      store.seedStaticProducts(PRODUCTS)
+
+      // 2. adminPhone מהענן (לא חוסם)
+      if (!store.adminPhone) {
+        getAdminPhoneFromCloud()
+          .then(phone => { if (phone && !cancelled) useSuppliersStore.getState().setAdminPhone(phone) })
+          .catch(() => {})
+      }
+
+      // 3. ספקים/לוחות-זמנים מ-settings-api (מקור-האמת ללוחות זמנים, כמו הקוד הקודם)
       try {
         const data = await getSuppliersFromCloud()
         const hasSchedules = data?.suppliers?.some((s: { schedules?: unknown[] }) => (s.schedules?.length ?? 0) > 0)
-        if (hasSchedules && data) {
+        if (hasSchedules && data && !cancelled) {
           const st = useSuppliersStore.getState()
           st.loadCloudData(data.suppliers, data.products ?? [])
           st.seedStaticSuppliers(INITIAL_SUPPLIERS)
@@ -77,18 +83,25 @@ export function useCatalogSync(): void {
       } catch {
         /* settings-api לא נגיש — נמשיך לקטלוג המרכזי / fallback */
       }
-      await syncCatalog(true)
-    }
-    void initialLoad()
 
-    const onVisibility = () => { if (document.visibilityState === 'visible') void syncCatalog(false) }
-    const onFocus = () => { void syncCatalog(false) }
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('focus', onFocus)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('focus', onFocus)
+      // 4. קטלוג מרכזי (הסמכותי למוצרים כשנגיש) — רץ *אחרי* loadCloudData, סדר דטרמיניסטי.
+      if (!cancelled) await syncCatalog(true)
     }
+
+    // רושמים את ה-listeners רק אחרי שההפעלה הראשונית הסתיימה — מונע race עם loadCloudData.
+    void initialLoad().finally(() => {
+      if (cancelled) return
+      const onVisibility = () => { if (document.visibilityState === 'visible') void syncCatalog(false) }
+      const onFocus = () => { void syncCatalog(false) }
+      document.addEventListener('visibilitychange', onVisibility)
+      window.addEventListener('focus', onFocus)
+      detach = () => {
+        document.removeEventListener('visibilitychange', onVisibility)
+        window.removeEventListener('focus', onFocus)
+      }
+    })
+
+    return () => { cancelled = true; detach() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }
