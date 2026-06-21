@@ -47,11 +47,8 @@ interface SuppliersState {
   addSupplier: (supplier: Omit<Supplier, 'id' | 'createdAt'>) => void
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void
   deleteSupplier: (id: string) => void
-  addProducts: (products: Omit<Product, 'id'>[]) => void
   seedStaticProducts: (products: Product[]) => void
   seedStaticSuppliers: (suppliers: Supplier[]) => void
-  updateProduct: (id: string, updates: Partial<Product>) => void
-  deleteProduct: (id: string) => void
   loadCloudData: (suppliers: Supplier[], products: Product[]) => void
   migrateCatalog: (version: number, transform: (products: Product[]) => Product[]) => void
   replaceCatalogProducts: (products: Product[], version: number) => void
@@ -104,16 +101,6 @@ export const useSuppliersStore = create<SuppliersState>()(
         }
       },
 
-      addProducts: (products) => {
-        const newProducts = products.map(p => ({
-          ...p,
-          id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        }))
-        set((state) => ({ products: [...state.products, ...newProducts] }))
-        const s = get()
-        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
-      },
-
       // זורע ספקים סטטיים — מוסיף רק אם עדיין לא קיימים (לפי ID)
       seedStaticSuppliers: (suppliers) => {
         set((state) => {
@@ -133,20 +120,6 @@ export const useSuppliersStore = create<SuppliersState>()(
           if (toAdd.length === 0) return state
           return { products: [...state.products, ...toAdd] }
         })
-      },
-
-      updateProduct: (id, updates) => {
-        set((state) => ({
-          products: state.products.map(p => p.id === id ? { ...p, ...updates } : p)
-        }))
-        const s = get()
-        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
-      },
-
-      deleteProduct: (id) => {
-        set((state) => ({ products: state.products.filter(p => p.id !== id) }))
-        const s = get()
-        saveSuppliersToCloud({ suppliers: s.suppliers, products: s.products }).catch(console.error)
       },
 
       // ממזג ספקים+מוצרים מהענן עם המצב המקומי:
@@ -180,14 +153,13 @@ export const useSuppliersStore = create<SuppliersState>()(
       },
 
       // מחליף את כל המוצרים ברשימה הסמכותית מהקטלוג המרכזי וקובע את גרסת הקטלוג.
-      // נקרא ע"י useCatalogSync רק אחרי תשובה מלאה ומוצלחת מהשרת, וכשהגרסה שונה מהמקומית.
+      // נקרא ע"י useCatalogSync (אחרי sync) וע"י usePriceAdminSession (אחרי commit מוצלח).
       // אינו שומר ל-settings-api — הקטלוג המרכזי הוא מקור-האמת (ה-cloud) למוצרים.
       //
-      // ⚠️ Task 9 — דרישת חובה לפני פרסום גרסה v2: כרגע זו החלפה מלאה (set). מכיוון
-      // שהקטלוג נשאר v1 עד Task 9 ומכשירים קיימים (catalogVersion=1) מדלגים על ההחלפה,
-      // אין כאן אובדן עריכות אדמין ב-deploy של Task 8 לבד. אבל ברגע שתפורסם v2 דרך מסך
-      // האדמין, החלפה מלאה *תמחק* עריכות/הוספות אדמין שקיימות רק ב-settings-api. Task 9
-      // חייב להעביר את כתיבות האדמין לקטלוג המרכזי (או להפוך זאת ל-merge לפי id) לפני v2.
+      // ✅ Task 9: כל כתיבות האדמין על מוצרים עוברות עכשיו דרך הקטלוג (preview/apply),
+      // לכן החלפה מלאה (full-replace) בטוחה — הקטלוג כולל את כל המצב הנכון. מכשירים
+      // ישנים מתכנסים לקטלוג בעדכון הגרסה הבא. (לוחות-זמנים/סניפים של ספקים עדיין
+      // ב-settings-api ואינם מושפעים — replaceCatalogProducts נוגע ב-products בלבד.)
       replaceCatalogProducts: (products, version) => {
         set({ products, catalogVersion: version })
       },

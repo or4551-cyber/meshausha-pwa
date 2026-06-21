@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BRANCH_BY_CODE, ADMIN_BRANCH } from '../data/branches'
+import { clearPriceSession } from '../lib/priceAdminSession'
 
 interface User {
   branchCode: string
@@ -45,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
       },
       
       logout: () => {
+        clearPriceSession() // שוכח את רישיון הכתיבה (token+PIN) בהתנתקות
         set({
           isAuthenticated: false,
           user: null,

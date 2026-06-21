@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { fetchActiveCatalog, getCatalogVersion } from '../../src/lib/priceCatalogApi'
-import type { CatalogProduct, CatalogSupplier } from '../../shared/priceCatalog/types'
+import { fetchActiveCatalog, getCatalogVersion, previewChanges, applyChange } from '../../src/lib/priceCatalogApi'
+import type { CatalogProduct, CatalogSupplier, ChangeOperation } from '../../shared/priceCatalog/types'
 
 const terra: CatalogSupplier = {
   id: 'terra', name: 'טרה פלסט', aliases: [], active: true, pricesExcludeVat: true, lastPriceListAt: null,
@@ -13,7 +13,7 @@ const product = (id: string, active = true): CatalogProduct => ({
 
 // מנתב לפי ה-URL ומחזיר Response מדומה. כל route: { ok?, status?, body }.
 function stubFetch(routes: Array<[string, { ok?: boolean; status?: number; body: unknown }]>) {
-  const fn = vi.fn(async (url: string) => {
+  const fn = vi.fn(async (url: string, _init?: RequestInit) => {
     for (const [pattern, resp] of routes) {
       if (url.includes(pattern)) {
         return { ok: resp.ok ?? true, status: resp.status ?? 200, json: async () => resp.body } as Response
@@ -61,5 +61,41 @@ describe('price catalog read client', () => {
       ['/products', { body: { version: 2, total: 1, offset: 0, products: [product('tp1')] } }], // גרסה השתנתה
     ])
     expect(await fetchActiveCatalog()).toBeNull()
+  })
+})
+
+const op: ChangeOperation = { type: 'updateProduct', productId: 'tp1', patch: { packagePrice: 200 } }
+
+describe('price catalog write client', () => {
+  it('previewChanges posts baseVersion+operations with the session bearer and returns the changeSet', async () => {
+    const fn = stubFetch([['/changes/preview', { status: 201, body: { id: 'cs-1', warnings: [] } }]])
+    const result = await previewChanges(1, [op], 'sess-tok')
+    expect(result).toEqual({ ok: true, changeSet: { id: 'cs-1', warnings: [] } })
+    const init = fn.mock.calls[0][1] as RequestInit
+    expect(init.method).toBe('POST')
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer sess-tok')
+    expect(JSON.parse(init.body as string)).toEqual({ baseVersion: 1, operations: [op] })
+  })
+
+  it('previewChanges surfaces a 409 stale_version as a structured error (no throw)', async () => {
+    stubFetch([['/changes/preview', { ok: false, status: 409, body: { error: 'stale_version' } }]])
+    expect(await previewChanges(1, [op], 'sess-tok')).toEqual({ ok: false, status: 409, error: 'stale_version' })
+  })
+
+  it('applyChange sends APPROVE + Idempotency-Key and returns the new snapshot', async () => {
+    const snapshot = { version: 2, suppliers: [], products: [] }
+    const fn = stubFetch([['/apply', { status: 200, body: snapshot }]])
+    const result = await applyChange('cs-1', 'sess-tok', 'idem-1')
+    expect(result).toEqual({ ok: true, snapshot })
+    const url = fn.mock.calls[0][0]
+    const init = fn.mock.calls[0][1] as RequestInit
+    expect(String(url)).toContain('/changes/cs-1/apply')
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-1')
+    expect(JSON.parse(init.body as string)).toEqual({ confirmation: 'APPROVE' })
+  })
+
+  it('applyChange surfaces a 410 expired as a structured error', async () => {
+    stubFetch([['/apply', { ok: false, status: 410, body: { error: 'expired' } }]])
+    expect(await applyChange('cs-1', 'sess-tok', 'idem-1')).toEqual({ ok: false, status: 410, error: 'expired' })
   })
 })

@@ -1,0 +1,62 @@
+// Hook לפעולות-כתיבה של האדמין על הקטלוג המרכזי (Task 9). עוטף את commitCatalogOperations:
+// מנהל מצב committing/error/warnings, ומחיל את ה-snapshot החדש על ה-store בהצלחה (full-replace
+// סמכותי — הקטלוג הוא מקור-האמת). ה-session עצמו (PIN→token) מנוהל ב-priceAdminSession.
+
+import { useCallback, useState } from 'react'
+import type { ChangeOperation } from '../../shared/priceCatalog/types'
+import { commitCatalogOperations } from '../lib/priceCatalogWrites'
+import { useSuppliersStore } from '../stores/suppliersStore'
+
+// קודי שגיאה מהשרת/הלקוח → עברית ידידותית.
+const ERROR_HE: Record<string, string> = {
+  no_session: 'פג תוקף הרשאת האדמין — היכנס מחדש עם 9999',
+  no_version: 'אין חיבור לקטלוג המרכזי — בדוק חיבור ונסה שוב',
+  stale_version: 'הקטלוג עודכן במקביל — נסה שוב',
+  version_conflict: 'עדכון מקביל התנגש — נסה שוב',
+  expired: 'תוקף הפעולה פג — נסה שוב',
+  not_found: 'המוצר לא קיים בקטלוג המרכזי',
+  not_pending: 'הפעולה כבר טופלה — רענן ונסה שוב',
+  forbidden: 'אין הרשאת כתיבה',
+  invalid_request: 'בקשה שגויה — נסה שוב',
+  network_error: 'תקלת רשת — נסה שוב',
+}
+
+function toHebrew(error: string): string {
+  return ERROR_HE[error] ?? `השמירה נכשלה (${error})`
+}
+
+export interface PriceAdminSession {
+  committing: boolean
+  error: string | null
+  warnings: string[]
+  commit: (operations: ChangeOperation[]) => Promise<boolean>
+  clearError: () => void
+}
+
+export function usePriceAdminSession(): PriceAdminSession {
+  const [committing, setCommitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
+
+  const commit = useCallback(async (operations: ChangeOperation[]): Promise<boolean> => {
+    setCommitting(true)
+    setError(null)
+    setWarnings([])
+    try {
+      const result = await commitCatalogOperations(operations)
+      if (!result.ok) {
+        setError(toHebrew(result.error))
+        return false
+      }
+      // החלה סמכותית: ה-snapshot שחזר (כולל השינוי) מחליף את ה-products המקומיים.
+      useSuppliersStore.getState().replaceCatalogProducts(result.products, result.version)
+      setWarnings(result.warnings)
+      return true
+    } finally {
+      setCommitting(false)
+    }
+  }, [])
+
+  const clearError = useCallback(() => setError(null), [])
+  return { committing, error, warnings, commit, clearError }
+}

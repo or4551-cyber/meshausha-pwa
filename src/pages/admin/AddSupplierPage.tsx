@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Upload, Download, Check, X, Plus } from 'lucide-react'
+import { ChevronRight, Upload, Download, Check, X, Plus, Loader2, AlertTriangle } from 'lucide-react'
 import { useSuppliersStore, DaySchedule } from '../../stores/suppliersStore'
 import { parseFile, validateProducts, downloadSampleCSV, ParsedProduct } from '../../lib/fileParser'
+import { usePriceAdminSession } from '../../hooks/usePriceAdminSession'
+import { buildAddSupplier, buildAddProduct, newId } from '../../lib/priceCatalogWrites'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const BRANCHES = [
@@ -19,8 +21,9 @@ const BRANCHES = [
 
 export default function AddSupplierPage() {
   const navigate = useNavigate()
-  const { addSupplier, addProducts } = useSuppliersStore()
-  
+  const addSupplier = useSuppliersStore(s => s.addSupplier)
+  const { committing, error, commit, clearError } = usePriceAdminSession()
+
   const [step, setStep] = useState(1)
   const [supplierName, setSupplierName] = useState('')
   const [description, setDescription] = useState('')
@@ -101,25 +104,31 @@ export default function AddSupplierPage() {
     }
   }
 
-  const handleSubmit = () => {
-    // הוסף את הספק
+  const handleSubmit = async () => {
+    if (committing) return
+    // 1) כותבים את הספק + מוצריו לקטלוג המרכזי (preview/apply). ספק חדש = id חדש;
+    //    כל מוצר = addProduct תחת אותו supplierId. הקטלוג הוא מקור-האמת למוצרים.
+    const supplierId = newId()
+    const now = new Date().toISOString()
+    const ops = [
+      buildAddSupplier(supplierName.trim(), { id: supplierId }),
+      ...parsedProducts.map(p =>
+        buildAddProduct(
+          { supplierId, name: p.name, packagePrice: p.price, category: p.category ?? null },
+          { id: newId(), now },
+        ),
+      ),
+    ]
+    const success = await commit(ops)
+    if (!success) return // שגיאה מוצגת דרך ה-hook; נשארים בדף, לא יוצרים ספק יתום
+
+    // 2) רק אחרי הצלחה: רושמים את הספק (לוחות-זמנים/סניפים) ל-settings-api (אינו חלק מהקטלוג).
     addSupplier({
-      name: supplierName,
+      name: supplierName.trim(),
       description,
-      schedules: daySchedules
+      schedules: daySchedules,
     })
 
-    // הוסף את המוצרים
-    const productsToAdd = parsedProducts.map(p => ({
-      name: p.name,
-      supplier: supplierName,
-      price: p.price,
-      category: p.category
-    }))
-    
-    addProducts(productsToAdd)
-
-    // חזור לדף האדמין
     navigate('/admin')
   }
 
@@ -413,6 +422,14 @@ export default function AddSupplierPage() {
                 )}
               </div>
 
+              {error && (
+                <div className="flex items-center gap-2 bg-red-50 text-red-800 rounded-xl px-4 py-2.5 font-bold text-sm">
+                  <AlertTriangle size={16} />
+                  <span className="flex-1">{error}</span>
+                  <button onClick={clearError} className="text-red-500 touch-manipulation"><X size={16} /></button>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -420,17 +437,18 @@ export default function AddSupplierPage() {
                     setErrors([])
                     setStep(2)
                   }}
-                  className="flex-1 bg-secondary/20 text-secondary font-bold py-4 rounded-2xl active:scale-[0.98] transition-transform touch-manipulation"
+                  disabled={committing}
+                  className="flex-1 bg-secondary/20 text-secondary font-bold py-4 rounded-2xl active:scale-[0.98] transition-transform touch-manipulation disabled:opacity-50"
                 >
                   חזור
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={parsedProducts.length === 0}
+                  disabled={parsedProducts.length === 0 || committing}
                   className="flex-1 bg-green-500 text-white font-black py-4 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 touch-manipulation"
                 >
-                  <Plus size={20} />
-                  <span>הוסף ספק</span>
+                  {committing ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+                  <span>{committing ? 'שומר לקטלוג…' : 'הוסף ספק'}</span>
                 </button>
               </div>
             </motion.div>

@@ -3,12 +3,12 @@
 > עדכן את השורה שלך **לפני** שאתה נוגע בקוד. ערוך רק קבצים שמופיעים תחת ה-`Now` שלך.
 > כללים מלאים: `docs/sync/PROTOCOL.md`.
 
-**סבב נוכחי:** `OR` מחזיק את הטוקן (🎉 Tasks 1–8 פרוסים וחיים בפרודקשן — להחליט מתי Task 9).
+**סבב נוכחי:** `claude` מחזיק את הטוקן (OR אישר — בונה Task 9a: כתיבות אדמין → קטלוג מרכזי).
 
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
 |--------|-------|---------------------------|--------|----------------|
-| claude | ✅ פריסה ראשונה מאז מאי בוצעה (Tasks 1–8 + פיוס 291) — אומת בפרודקשן | — | main (נדחף+נפרס) | 2026-06-21 |
+| claude | Task 9a — מסך אדמין כותב לקטלוג (preview/apply, session ממיחזור PIN 9999) | `src/lib/priceAdminSession.ts`, `src/lib/priceCatalogWrites.ts`, `src/lib/priceCatalogApi.ts`, `src/hooks/usePriceAdminSession.ts`, `src/pages/admin/PriceManagementPage.tsx`, `src/pages/admin/AddSupplierPage.tsx`, `src/pages/LoginPage.tsx`, `src/stores/suppliersStore.ts`, `src/stores/authStore.ts`, `tests/priceCatalog/*` | main | 2026-06-21 |
 | codex  | — | — | — | — |
 
 ## Next (תור — לא התחיל)

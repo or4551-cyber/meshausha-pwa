@@ -1,13 +1,24 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
+import { ChevronRight, Search, Edit2, Save, X, Trash2, Plus, Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react'
 import { useSuppliersStore } from '../../stores/suppliersStore'
 import { formatPrice } from '../../lib/utils'
 import { showConfirm } from '../../lib/confirm'
+import { usePriceAdminSession } from '../../hooks/usePriceAdminSession'
+import {
+  buildPriceUpdate,
+  buildAdminOnlyUpdate,
+  buildDeactivate,
+  buildAddProduct,
+  newId,
+} from '../../lib/priceCatalogWrites'
+import { getCatalogSuppliers } from '../../lib/priceCatalogApi'
+
+const LARGE_CHANGE_PCT = 20
 
 export default function PriceManagementPage() {
   const navigate = useNavigate()
-  const { updateProduct, deleteProduct, addProducts } = useSuppliersStore()
+  const { committing, error, warnings, commit, clearError } = usePriceAdminSession()
   const products = useSuppliersStore(s => s.products)
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -39,36 +50,78 @@ export default function PriceManagementPage() {
     return map
   }, [products, searchTerm, filterAdminOnly])
 
-  const handleSave = (id: string) => {
+  const handleSave = async (id: string, currentPrice: number) => {
+    if (committing) return
     const price = parseFloat(editPrice)
-    if (!isNaN(price) && price > 0) {
-      updateProduct(id, { price })
+    if (isNaN(price) || price <= 0) return
+    // שמירת מחיר חריגה (>20%) — אישור לפני שליחה (הגנת-כסף; השינוי הפיך אבל מכוון).
+    if (currentPrice > 0) {
+      const pct = Math.abs((price - currentPrice) / currentPrice) * 100
+      if (pct > LARGE_CHANGE_PCT) {
+        const ok = await showConfirm({
+          title: 'שינוי מחיר חריג',
+          description: `המחיר משתנה ב-${pct.toFixed(0)}% (מ-${formatPrice(currentPrice)} ל-${formatPrice(price)}). לאשר?`,
+        })
+        if (!ok) return
+      }
+    }
+    const success = await commit([buildPriceUpdate(id, price, new Date().toISOString())])
+    if (success) {
       setEditingId(null)
       setEditPrice('')
     }
   }
 
   const handleStartEdit = (id: string, currentPrice: number) => {
+    clearError()
     setEditingId(id)
     setEditPrice(currentPrice.toString())
   }
 
+  const handleToggleAdminOnly = async (id: string, current: boolean) => {
+    if (committing) return
+    await commit([buildAdminOnlyUpdate(id, !current)])
+  }
+
   const handleDelete = async (id: string, name: string) => {
+    if (committing) return
     const ok = await showConfirm({
       title: `למחוק את "${name}"?`,
       destructive: true,
     })
-    if (ok) deleteProduct(id)
+    if (ok) await commit([buildDeactivate(id)])
   }
 
-  const handleAdd = (supplier: string) => {
+  // פותר supplierId לפי שם: קודם ממוצר מקומי שכבר נושא supplierId, אחרת מהקטלוג המרכזי.
+  const resolveSupplierId = async (supplierName: string): Promise<string | null> => {
+    const local = products.find(p => p.supplier === supplierName && p.supplierId)?.supplierId
+    if (local) return local
+    const suppliers = await getCatalogSuppliers()
+    return suppliers?.find(s => s.name === supplierName)?.id ?? null
+  }
+
+  const handleAdd = async (supplier: string) => {
+    if (committing) return
     const price = parseFloat(newProductPrice)
     if (!newProductName.trim() || isNaN(price) || price <= 0) return
-    addProducts([{ name: newProductName.trim(), supplier, price, adminOnly: newProductAdminOnly || undefined }])
-    setNewProductName('')
-    setNewProductPrice('')
-    setNewProductAdminOnly(false)
-    setAddingSupplier(null)
+    const supplierId = await resolveSupplierId(supplier)
+    if (!supplierId) {
+      await showConfirm({ title: 'הספק לא נמצא בקטלוג המרכזי', description: 'לא ניתן להוסיף מוצר לספק זה כרגע.', confirmLabel: 'הבנתי' })
+      return
+    }
+    const now = new Date().toISOString()
+    const success = await commit([
+      buildAddProduct(
+        { supplierId, name: newProductName.trim(), packagePrice: price, adminOnly: newProductAdminOnly || undefined },
+        { id: newId(), now },
+      ),
+    ])
+    if (success) {
+      setNewProductName('')
+      setNewProductPrice('')
+      setNewProductAdminOnly(false)
+      setAddingSupplier(null)
+    }
   }
 
   const handleCancelAdd = () => {
@@ -122,6 +175,31 @@ export default function PriceManagementPage() {
         </div>
       </div>
 
+      {/* באנר מצב: שמירה / שגיאה / אזהרת-שינוי-חריג */}
+      {(committing || error || warnings.length > 0) && (
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 mb-3">
+          {committing && (
+            <div className="flex items-center gap-2 bg-blue-50 text-blue-800 rounded-xl px-4 py-2.5 font-bold text-sm">
+              <Loader2 size={16} className="animate-spin" />
+              <span>שומר לקטלוג המרכזי…</span>
+            </div>
+          )}
+          {error && !committing && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-800 rounded-xl px-4 py-2.5 font-bold text-sm">
+              <AlertTriangle size={16} />
+              <span className="flex-1">{error}</span>
+              <button onClick={clearError} className="text-red-500 touch-manipulation"><X size={16} /></button>
+            </div>
+          )}
+          {!committing && !error && warnings.length > 0 && (
+            <div className="flex items-start gap-2 bg-amber-50 text-amber-800 rounded-xl px-4 py-2.5 font-bold text-xs">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>נשמר. שים לב: {warnings.length} שינוי מחיר חריג נרשם.</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Content — grouped by supplier */}
       <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-4 pb-8">
         {[...grouped.entries()].map(([supplier, supplierProducts]) => (
@@ -154,15 +232,16 @@ export default function PriceManagementPage() {
                       step="0.01"
                       value={editPrice}
                       onChange={(e) => setEditPrice(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSave(product.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSave(product.id, product.price)}
                       className="w-20 bg-primary/5 text-primary text-center font-bold rounded-lg py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
                       autoFocus
                     />
                     <button
-                      onClick={() => handleSave(product.id)}
-                      className="p-1.5 bg-green-500 text-white rounded-lg touch-manipulation"
+                      onClick={() => handleSave(product.id, product.price)}
+                      disabled={committing}
+                      className="p-1.5 bg-green-500 text-white rounded-lg touch-manipulation disabled:opacity-50"
                     >
-                      <Save size={15} />
+                      {committing ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
                     </button>
                     <button
                       onClick={() => { setEditingId(null); setEditPrice('') }}
@@ -182,15 +261,17 @@ export default function PriceManagementPage() {
                       <Edit2 size={15} />
                     </button>
                     <button
-                      onClick={() => updateProduct(product.id, { adminOnly: !product.adminOnly })}
-                      className={`p-1.5 rounded-lg transition-colors touch-manipulation ${product.adminOnly ? 'bg-amber-100 text-amber-600' : 'bg-primary/10 text-primary/40 hover:bg-primary/20'}`}
+                      onClick={() => handleToggleAdminOnly(product.id, !!product.adminOnly)}
+                      disabled={committing}
+                      className={`p-1.5 rounded-lg transition-colors touch-manipulation disabled:opacity-50 ${product.adminOnly ? 'bg-amber-100 text-amber-600' : 'bg-primary/10 text-primary/40 hover:bg-primary/20'}`}
                       title={product.adminOnly ? 'מוצר אדמין בלבד — לחץ להצגה לסניפים' : 'גלוי לסניפים — לחץ להסתרה'}
                     >
                       {product.adminOnly ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                     <button
                       onClick={() => handleDelete(product.id, product.name)}
-                      className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100 transition-colors touch-manipulation"
+                      disabled={committing}
+                      className="p-1.5 bg-red-50 text-red-400 rounded-lg hover:bg-red-100 transition-colors touch-manipulation disabled:opacity-50"
                       title="מחק מוצר"
                     >
                       <Trash2 size={15} />
@@ -223,10 +304,11 @@ export default function PriceManagementPage() {
                   />
                   <button
                     onClick={() => handleAdd(supplier)}
-                    className="p-2 bg-green-500 text-white rounded-lg touch-manipulation shrink-0"
+                    disabled={committing}
+                    className="p-2 bg-green-500 text-white rounded-lg touch-manipulation shrink-0 disabled:opacity-50"
                     title="הוסף"
                   >
-                    <Save size={16} />
+                    {committing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   </button>
                   <button
                     onClick={handleCancelAdd}
