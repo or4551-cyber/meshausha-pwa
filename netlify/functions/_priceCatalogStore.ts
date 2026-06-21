@@ -21,6 +21,8 @@ export interface PriceCatalogRepository {
   saveChangeSet(changeSet: ChangeSet): Promise<void>
   getIdempotencyResult(key: string): Promise<IdempotencyResult | null>
   saveIdempotencyResult(key: string, result: IdempotencyResult): Promise<void>
+  listVersions(): Promise<CatalogSnapshot[]>
+  clear?(): void
 }
 
 const ACTIVE_KEY = 'active/catalog.json'
@@ -84,6 +86,15 @@ export function createBlobPriceCatalogRepository(): PriceCatalogRepository {
     saveIdempotencyResult: async (key, result) => {
       await store.set(idempotencyKey(key), JSON.stringify(result))
     },
+    listVersions: async () => {
+      const { blobs } = await store.list({ prefix: 'versions/' })
+      const out: CatalogSnapshot[] = []
+      for (const blob of blobs) {
+        const raw = await store.get(blob.key, { type: 'json' })
+        if (raw) out.push(CatalogSnapshotSchema.parse(raw))
+      }
+      return out.sort((a, b) => a.version - b.version)
+    },
   }
 }
 
@@ -114,5 +125,7 @@ export function createMemoryPriceCatalogRepository(): PriceCatalogRepository {
     saveChangeSet: async (changeSet) => { changes.set(changeSet.id, changeSet) },
     getIdempotencyResult: async (key) => idempotency.get(key) ?? null,
     saveIdempotencyResult: async (key, result) => { idempotency.set(key, result) },
+    listVersions: async () => [...versions.values()].sort((a, b) => a.version - b.version),
+    clear: () => { active = null; versions.clear(); changes.clear(); idempotency.clear() },
   }
 }

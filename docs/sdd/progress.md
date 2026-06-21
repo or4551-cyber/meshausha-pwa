@@ -12,7 +12,7 @@
 | 3 | Deterministic Legacy Seed and Reconciliation | ✅ הושלם | claude | legacySeed.ts; פיוס 270/8 מאומת (4 טסטים) |
 | 4 | Versioned Blob Repository | ✅ הושלם | claude | _priceCatalogStore.ts (blob+memory); 3 טסטים |
 | 5 | Price API Authentication and Admin Session | ✅ הושלם | claude | _priceCatalogAuth + _priceRateLimit + price-auth; 4 טסטים |
-| 6 | Catalog HTTP Router and Netlify Handler | ⬜ ממתין | | routePriceCatalog + handler |
+| 6 | Catalog HTTP Router and Netlify Handler | ✅ הושלם | claude | _priceCatalogRouter + price-catalog + redirects; 4 טסטים (search/preview/apply-idempotent/403) |
 | 7 | Central Excel Workbook and Signed Download Link | ⬜ ממתין | | summary tab + tab/supplier |
 | 8 | Frontend Catalog Adapter and Foreground Sync | ⬜ ממתין | | חיבור ל-suppliersStore/App |
 | 9 | Secure Admin Preview and Apply | ⬜ ממתין | | מסך אדמין preview/apply |
