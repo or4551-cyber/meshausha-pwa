@@ -8,8 +8,8 @@
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
 |--------|-------|---------------------------|--------|----------------|
-| claude | ✅ סיים Task 8 (commit 12ef04d מקומי) — ממתין ל-review + החלטת deploy | (משוחרר ל-review) | main (1 commit מקומי) | 2026-06-21 |
-| codex  | review של Task 8 (frontend sync) לפני deploy | קריאה: `src/lib/priceCatalog*`, `src/hooks/useCatalogSync.ts`, `src/stores/suppliersStore.ts`, `src/App.tsx`, `netlify/functions/_priceCatalogRouter.ts`, `tests/priceCatalog/` | main | 2026-06-21 |
+| claude | ✅ תיקן ממצאי review (codex + adversarial) ל-Task 8 — commits 12ef04d+82b64ae מקומיים, ממתין ל-re-review + deploy | (משוחרר ל-review) | main (4 commits מקומיים) | 2026-06-21 |
+| codex  | **re-review** של תיקוני Task 8 (race, version-gate fallback, suppliers version) | קריאה: `src/hooks/useCatalogSync.ts`, `src/lib/priceCatalogApi.ts`, `src/lib/priceCatalogAdapter.ts`, `src/stores/suppliersStore.ts`, `tests/priceCatalog/api.test.ts` | main | 2026-06-21 |
 
 ## Next (תור — לא התחיל)
 - [ ] _(ריק — OR יוסיף משימות כאן)_

@@ -15,7 +15,7 @@
 | 6 | Catalog HTTP Router and Netlify Handler | ✅ הושלם | claude | _priceCatalogRouter + price-catalog + redirects; 4 טסטים (search/preview/apply-idempotent/403) |
 | 7 | Central Excel Workbook and Signed Download Link | ✅ הושלם | claude | _priceCatalogExcel + price-export + export tokens; 2 טסטים (9 גיליונות/270 שורות) |
 | — | **GATE: backend (1–7) הושלם — review של codex לפני frontend** | 🔄 ממתין ל-re-review | claude (תיקן) / codex (review) | review של codex תפס 4 blockers + race; **כולם תוקנו** (auth-before-seed, idempotency changeId→409, revert no-op→409, constant-time compare, version-conflict→409). 30/30 טסטים, typecheck+build נקיים |
-| 8 | Frontend Catalog Adapter and Foreground Sync | 🔄 נבנה, ממתין ל-review | claude | adapter+api+useCatalogSync; version-gate (קיימים לא משתנים); offset pagination; 35/35, typecheck+build נקיים. commit 12ef04d (מקומי) |
+| 8 | Frontend Catalog Adapter and Foreground Sync | 🔄 נבנה+הוקשח, ממתין ל-re-review | claude | adapter+api+useCatalogSync; version-gate; offset pagination. review (codex+adversarial 6 ממדים) תפס BLOCKER race + version-gate fallback + suppliers version → **תוקנו**. 39/39, typecheck+build נקיים. commits 12ef04d+82b64ae (מקומיים). **חוב Task 9:** merge עריכות אדמין לפני v2 |
 | 9 | Secure Admin Preview and Apply | ⬜ ממתין | | מסך אדמין preview/apply |
 | 10 | End-to-End Reconciliation, Documentation, and Review Gate | ⬜ ממתין | | |
 
