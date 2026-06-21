@@ -33,9 +33,10 @@ export default function AddSupplierPage() {
   const [errors, setErrors] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
-  // מצב-ניסיון יציב להגשה: מפתח+ids נשמרים על-פני ניסיונות-חוזרים (מונע ספק/מוצרים כפולים),
-  // ו-catalogDone מבטיח שאחרי כתיבת-קטלוג מוצלחת ניסיון-חוזר יקדם רק את שמירת לוח-הזמנים.
-  const submitRef = useRef<{ key: string; supplierId: string; productIds: string[]; catalogDone: boolean } | null>(null)
+  // מצב-ניסיון יציב להגשה: idempotencyKey+ids+changeSetId נשמרים על-פני ניסיונות-חוזרים
+  // (מונע ספק/מוצרים כפולים ומאפשר resume מאותו changeSet), ו-catalogDone מבטיח שאחרי כתיבת-
+  // קטלוג מוצלחת ניסיון-חוזר יקדם רק את שמירת לוח-הזמנים.
+  const submitRef = useRef<{ idempotencyKey: string; supplierId: string; productIds: string[]; catalogDone: boolean; changeSetId?: string } | null>(null)
 
   const resetSubmit = () => { submitRef.current = null; setScheduleError(null) }
 
@@ -130,7 +131,7 @@ export default function AddSupplierPage() {
     // לא ייצור ספק/מוצרים כפולים.
     if (!submitRef.current) {
       submitRef.current = {
-        key: newId(),
+        idempotencyKey: newId(),
         supplierId: newId(),
         productIds: parsedProducts.map(() => newId()),
         catalogDone: false,
@@ -150,8 +151,8 @@ export default function AddSupplierPage() {
           ),
         ),
       ]
-      const ok = await commit(ops, { idempotencyKey: attempt.key })
-      if (!ok) return // קטלוג נכשל; שגיאה מוצגת דרך ה-hook. retry ישתמש באותם ids/key (בטוח)
+      const ok = await commit(ops, attempt) // ניסיון-חוזר ממשיך מאותו changeSet/key/ids (בטוח)
+      if (!ok) return // קטלוג נכשל; שגיאה מוצגת דרך ה-hook
       attempt.catalogDone = true
     }
 

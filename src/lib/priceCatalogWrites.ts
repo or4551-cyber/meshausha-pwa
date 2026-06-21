@@ -78,22 +78,42 @@ export type CommitResult =
   | { ok: true; version: number; products: LegacyCatalogProduct[]; snapshot: CatalogSnapshot; warnings: string[] }
   | { ok: false; error: string }
 
-export interface CommitOptions {
-  // מפתח-אידמפוטנטיות יציב לפעולה לוגית. לפעולות-הוספה (שמייצרות id אקראי) חובה לספק מפתח יציב
-  // שנשמר על-פני ניסיונות-חוזרים של המשתמש — אחרת ניסיון-חוזר אחרי כשל-רשת שבו השרת כן החיל
-  // ייצור כפילות. לעדכון/השבתה (ערך-אידמפוטנטיים) אפשר להשמיט ולקבל מפתח חדש בכל קריאה.
-  idempotencyKey?: string
+// מצב-ניסיון יציב לפעולה לוגית, שמשותף על-פני ניסיונות-חוזרים. commitCatalogOperations
+// **מעדכן** את changeSetId אחרי preview מוצלח, כדי שניסיון-חוזר ימשיך מאותו changeSet במקום
+// ליצור חדש — זה מה שמאפשר לשרת לזהות replay (idempotencyKey+changeId) או recovery
+// (active.changeSetId===change.id) ולהחזיר snapshot במקום 409 conflict / כפילות.
+// לפעולות-הוספה: חובה אובייקט יציב (נשמר ב-ref של המסך). לעדכון/השבתה אפשר להשמיט.
+export interface CommitAttempt {
+  idempotencyKey: string
+  changeSetId?: string
 }
 
-// תזמור כתיבה מלא: session → גרסה → preview → apply → snapshot מותאם.
-// אופטימי-בטוח: על 409 stale_version (גרסה התקדמה בין הקריאות) מרענן גרסה ומנסה preview שוב פעם אחת.
-// ה-Idempotency-Key מבטיח שניסיון-חוזר של apply לא יחיל פעמיים.
+function adaptResult(snapshot: CatalogSnapshot, warnings: string[]): CommitResult {
+  return { ok: true, version: snapshot.version, products: adaptCatalogSnapshot(snapshot), snapshot, warnings }
+}
+
+// סטטוסים שבהם ה-changeSet השמור כבר אינו ישים (פג/נעלם/בסיס-ישן/כבר-טופל) → נכון לבצע
+// preview חדש. network/401/500 — שומרים את ה-changeSet ומחזירים שגיאה לניסיון-חוזר עתידי.
+function changeSetUnusable(status: number): boolean {
+  return status === 404 || status === 410 || status === 409
+}
+
+// תזמור כתיבה מלא: session → (resume או preview) → apply → snapshot מותאם.
 export async function commitCatalogOperations(
   operations: ChangeOperation[],
-  opts: CommitOptions = {},
+  attempt: CommitAttempt = { idempotencyKey: newId() },
 ): Promise<CommitResult> {
   const token = await getSessionToken()
   if (!token) return { ok: false, error: 'no_session' }
+
+  // resume: אם ניסיון קודם כבר עשה preview (changeSetId שמור) — נסה apply ישירות על אותו
+  // changeId+idempotencyKey. אם החל בשרת קודם (גם אם התשובה אבדה) → replay/recovery מחזיר snapshot.
+  if (attempt.changeSetId) {
+    const resumed = await applyChange(attempt.changeSetId, token, attempt.idempotencyKey)
+    if (resumed.ok) return adaptResult(resumed.snapshot, [])
+    if (!changeSetUnusable(resumed.status)) return { ok: false, error: resumed.error }
+    attempt.changeSetId = undefined // לא-ישים → ניצור preview חדש למטה
+  }
 
   const versionInfo = await getCatalogVersion()
   if (!versionInfo) return { ok: false, error: 'no_version' }
@@ -105,15 +125,11 @@ export async function commitCatalogOperations(
     preview = await previewChanges(fresh.version, operations, token)
   }
   if (!preview.ok) return { ok: false, error: preview.error }
+  // שומרים את ה-changeSet לפני apply — כך ניסיון-חוזר אחרי apply-מוצלח+תשובה-אבודה ימשיך ממנו.
+  attempt.changeSetId = preview.changeSet.id
 
-  const applied = await applyChange(preview.changeSet.id, token, opts.idempotencyKey ?? newId())
+  const applied = await applyChange(attempt.changeSetId, token, attempt.idempotencyKey)
   if (!applied.ok) return { ok: false, error: applied.error }
 
-  return {
-    ok: true,
-    version: applied.snapshot.version,
-    products: adaptCatalogSnapshot(applied.snapshot),
-    snapshot: applied.snapshot,
-    warnings: preview.changeSet.warnings ?? [],
-  }
+  return adaptResult(applied.snapshot, preview.changeSet.warnings ?? [])
 }

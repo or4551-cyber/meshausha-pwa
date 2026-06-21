@@ -103,6 +103,50 @@ describe('commitCatalogOperations', () => {
     expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-stable')
   })
 
+  it('resumes apply with the saved changeSet on retry (lost apply response → no re-preview, no duplicate)', async () => {
+    let previewCalls = 0
+    let applyShouldFail = true
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.includes('/api/price-auth')) return { ok: true, status: 200, json: async () => ({ token: 'sess-tok', expiresAt: future() }) } as Response
+      if (u.includes('/catalog/version')) return { ok: true, status: 200, json: async () => ({ version: 1, checksum: 'c', createdAt: NOW }) } as Response
+      if (u.includes('/changes/preview')) { previewCalls += 1; return { ok: true, status: 201, json: async () => ({ id: 'cs-1', warnings: [] }) } as Response }
+      if (u.includes('/apply')) {
+        if (applyShouldFail) throw new TypeError('network') // השרת החיל אבל התשובה אבדה
+        return { ok: true, status: 200, json: async () => ({ version: 2, suppliers: [terra], products: [tp1(200)] }) } as Response
+      }
+      return { ok: false, status: 404, json: async () => ({}) } as Response
+    }))
+    await authenticateWithPin('9999')
+    const attempt: { idempotencyKey: string; changeSetId?: string } = { idempotencyKey: 'K1' }
+    const r1 = await commitCatalogOperations([buildPriceUpdate('tp1', 200, NOW)], attempt)
+    expect(r1.ok).toBe(false) // ה-apply אבד
+    expect(attempt.changeSetId).toBe('cs-1') // ה-changeSet נשמר ל-resume
+    applyShouldFail = false
+    const r2 = await commitCatalogOperations([buildPriceUpdate('tp1', 200, NOW)], attempt)
+    expect(r2.ok).toBe(true) // resume הצליח
+    expect(previewCalls).toBe(1) // לא בוצע preview נוסף — apply ישיר על אותו changeSet
+  })
+
+  it('re-previews when the saved changeSet is no longer usable (e.g. expired)', async () => {
+    let previewCalls = 0
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.includes('/api/price-auth')) return { ok: true, status: 200, json: async () => ({ token: 'sess-tok', expiresAt: future() }) } as Response
+      if (u.includes('/catalog/version')) return { ok: true, status: 200, json: async () => ({ version: 1, checksum: 'c', createdAt: NOW }) } as Response
+      if (u.includes('/changes/preview')) { previewCalls += 1; return { ok: true, status: 201, json: async () => ({ id: 'cs-new', warnings: [] }) } as Response }
+      if (u.includes('/changes/cs-old/apply')) return { ok: false, status: 410, json: async () => ({ error: 'expired' }) } as Response
+      if (u.includes('/apply')) return { ok: true, status: 200, json: async () => ({ version: 2, suppliers: [terra], products: [tp1(200)] }) } as Response
+      return { ok: false, status: 404, json: async () => ({}) } as Response
+    }))
+    await authenticateWithPin('9999')
+    const attempt: { idempotencyKey: string; changeSetId?: string } = { idempotencyKey: 'K1', changeSetId: 'cs-old' }
+    const result = await commitCatalogOperations([buildPriceUpdate('tp1', 200, NOW)], attempt)
+    expect(result.ok).toBe(true) // ה-changeSet הישן פג → preview חדש → apply הצליח
+    expect(previewCalls).toBe(1)
+    expect(attempt.changeSetId).toBe('cs-new')
+  })
+
   it('surfaces an apply failure (version_conflict)', async () => {
     stub({
       version: { version: 1 },

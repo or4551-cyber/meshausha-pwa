@@ -29,9 +29,10 @@ export default function PriceManagementPage() {
   const [newProductPrice, setNewProductPrice] = useState('')
   const [newProductAdminOnly, setNewProductAdminOnly] = useState(false)
   const [filterAdminOnly, setFilterAdminOnly] = useState(false)
-  // מפתח-אידמפוטנטיות + id יציבים לכל "סשן הוספה": נשמרים על-פני ניסיונות-חוזרים כדי
-  // שכשל-רשת אחרי שהשרת כבר החיל לא ייצור מוצר כפול. מתאפס בפתיחת/ביטול טופס ההוספה.
-  const addAttemptRef = useRef<{ key: string; productId: string } | null>(null)
+  // מצב-ניסיון יציב ל"סשן הוספה": idempotencyKey + productId + changeSetId נשמרים על-פני
+  // ניסיונות-חוזרים, כך שכשל-רשת אחרי apply-מוצלח לא ייצור מוצר כפול וניסיון-חוזר ימשיך מאותו
+  // changeSet (replay בשרת). מתאפס בפתיחת/ביטול טופס ההוספה.
+  const addAttemptRef = useRef<{ idempotencyKey: string; productId: string; changeSetId?: string } | null>(null)
 
   const adminOnlyCount = useMemo(() => products.filter(p => p.adminOnly).length, [products])
 
@@ -112,9 +113,9 @@ export default function PriceManagementPage() {
       await showConfirm({ title: 'הספק לא נמצא בקטלוג המרכזי', description: 'לא ניתן להוסיף מוצר לספק זה כרגע.', confirmLabel: 'הבנתי' })
       return
     }
-    // מפתח+id יציבים לכל הניסיון הזה (כולל ניסיונות-חוזרים) — מונע כפילות מוצר אם apply הצליח
-    // אך התשובה אבדה והמשתמש לחץ שוב.
-    if (!addAttemptRef.current) addAttemptRef.current = { key: newId(), productId: newId() }
+    // מצב-ניסיון יציב לכל הניסיון הזה (כולל ניסיונות-חוזרים) — מונע כפילות מוצר אם apply הצליח
+    // אך התשובה אבדה והמשתמש לחץ שוב, ומאפשר resume מאותו changeSet.
+    if (!addAttemptRef.current) addAttemptRef.current = { idempotencyKey: newId(), productId: newId() }
     const attempt = addAttemptRef.current
     const now = new Date().toISOString()
     const success = await commit(
@@ -124,7 +125,7 @@ export default function PriceManagementPage() {
           { id: attempt.productId, now },
         ),
       ],
-      { idempotencyKey: attempt.key },
+      attempt,
     )
     if (success) {
       addAttemptRef.current = null

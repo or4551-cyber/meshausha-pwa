@@ -4,7 +4,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import type { ChangeOperation } from '../../shared/priceCatalog/types'
-import { commitCatalogOperations, type CommitOptions } from '../lib/priceCatalogWrites'
+import { commitCatalogOperations, type CommitAttempt } from '../lib/priceCatalogWrites'
 import { useSuppliersStore } from '../stores/suppliersStore'
 
 // קודי שגיאה מהשרת/הלקוח → עברית ידידותית.
@@ -31,7 +31,9 @@ export interface PriceAdminSession {
   committing: boolean
   error: string | null
   warnings: string[]
-  commit: (operations: ChangeOperation[], opts?: CommitOptions) => Promise<boolean>
+  // attempt: אובייקט-ניסיון יציב (idempotencyKey + changeSetId שמתעדכן). לפעולות-הוספה יש להעביר
+  // אובייקט שנשמר ב-ref כדי שניסיון-חוזר ימשיך מאותו changeSet. לעדכון/השבתה אפשר להשמיט.
+  commit: (operations: ChangeOperation[], attempt?: CommitAttempt) => Promise<boolean>
   clearError: () => void
 }
 
@@ -43,14 +45,14 @@ export function usePriceAdminSession(): PriceAdminSession {
   // כפולה יכלו להריץ שני commits במקביל. ה-ref חוסם זאת מיד, ומכסה את כל הקוראים.
   const inFlight = useRef(false)
 
-  const commit = useCallback(async (operations: ChangeOperation[], opts?: CommitOptions): Promise<boolean> => {
+  const commit = useCallback(async (operations: ChangeOperation[], attempt?: CommitAttempt): Promise<boolean> => {
     if (inFlight.current) return false
     inFlight.current = true
     setCommitting(true)
     setError(null)
     setWarnings([])
     try {
-      const result = await commitCatalogOperations(operations, opts ?? {})
+      const result = await commitCatalogOperations(operations, attempt)
       if (!result.ok) {
         setError(toHebrew(result.error))
         return false
