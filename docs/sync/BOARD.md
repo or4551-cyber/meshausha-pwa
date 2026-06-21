@@ -8,7 +8,7 @@
 ## Now (בעבודה כרגע)
 | Agent  | משימה | קבצים/אזור נתבע (claimed) | Branch | עודכן (local) |
 |--------|-------|---------------------------|--------|----------------|
-| claude | Task 9a — מסך אדמין כותב לקטלוג (preview/apply, session ממיחזור PIN 9999) | `src/lib/priceAdminSession.ts`, `src/lib/priceCatalogWrites.ts`, `src/lib/priceCatalogApi.ts`, `src/hooks/usePriceAdminSession.ts`, `src/pages/admin/PriceManagementPage.tsx`, `src/pages/admin/AddSupplierPage.tsx`, `src/pages/LoginPage.tsx`, `src/stores/suppliersStore.ts`, `src/stores/authStore.ts`, `tests/priceCatalog/*` | main | 2026-06-21 |
+| claude | Task 9a בנוי + self-review אדוורסרי (14 ממצאים תוקנו) — ממתין ל-review של codex לפני deploy | (כל קבצי Task 9a — commits c098f5f+6eb8f4c) | main | 2026-06-21 |
 | codex  | — | — | — | — |
 
 ## Next (תור — לא התחיל)
