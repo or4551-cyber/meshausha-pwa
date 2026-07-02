@@ -215,4 +215,66 @@ describe('price catalog router', () => {
     expect(body.products.length).toBe(291)
     expect(Array.isArray(body.suppliers)).toBe(true)
   })
+
+  it('imports/preview builds a source:import ChangeSet that applies via the existing apply path', async () => {
+    const supRes = await routePriceCatalog({ method: 'GET', path: '/api/prices/suppliers', query: {}, headers: {}, body: null, auth: { role: 'app' } }, { repo, now: () => now, id: () => 'x' })
+    const supplier = JSON.parse(supRes.body).suppliers.find((s: { name: string }) => s.name.includes('טרה'))
+    expect(supplier).toBeTruthy()
+    const prodRes = await routePriceCatalog({ method: 'GET', path: '/api/prices/products', query: { supplierId: supplier.id, limit: '1' }, headers: {}, body: null, auth: { role: 'app' } }, { repo, now: () => now, id: () => 'x' })
+    const product = JSON.parse(prodRes.body).products[0]
+
+    const preview = await routePriceCatalog({
+      method: 'POST', path: '/api/prices/imports/preview', query: {}, headers: {},
+      body: JSON.stringify({ baseVersion: 1, supplierId: supplier.id, rows: [{ rowId: 'r1', name: product.name, packagePrice: product.packagePrice + 1 }] }),
+      auth: { role: 'gpt' },
+    }, { repo, now: () => now, id: () => 'import-change-1' })
+    const pbody = JSON.parse(preview.body)
+    expect(preview.statusCode).toBe(201)
+    expect(pbody.status).toBe('ready')
+    expect(pbody.changeSetId).toBe('import-change-1')
+    expect(pbody.counts.changed).toBe(1)
+    expect((await repo.getActive())?.version).toBe(1) // preview doesn't mutate
+
+    const apply = await routePriceCatalog({
+      method: 'POST', path: '/api/prices/changes/import-change-1/apply', query: {},
+      headers: { 'idempotency-key': 'imp-key-1' }, body: JSON.stringify({ confirmation: 'APPROVE' }), auth: { role: 'gpt' },
+    }, { repo, now: () => now, id: () => 'x' })
+    const abody = JSON.parse(apply.body)
+    expect(apply.statusCode).toBe(200)
+    expect(abody.version).toBe(2)
+    expect(abody.products).toBeUndefined() // light gpt response
+    expect((await repo.getActive())?.version).toBe(2)
+  })
+
+  it('imports/preview returns a 200 conversational status for an unknown supplier', async () => {
+    const res = await routePriceCatalog({
+      method: 'POST', path: '/api/prices/imports/preview', query: {}, headers: {},
+      body: JSON.stringify({ baseVersion: 1, supplierId: 'no_such_supplier', rows: [{ rowId: 'r1', name: 'x', packagePrice: 5 }] }),
+      auth: { role: 'gpt' },
+    }, { repo, now: () => now, id: () => 'x' })
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).status).toBe('unknown_supplier')
+  })
+
+  it('forbids app-role imports/preview (write path)', async () => {
+    const res = await routePriceCatalog({
+      method: 'POST', path: '/api/prices/imports/preview', query: {}, headers: {}, body: '{}', auth: { role: 'app' },
+    }, { repo, now: () => now, id: () => 'x' })
+    expect(res.statusCode).toBe(403)
+  })
+
+  it('keeps the imports/preview response under 100KB for a large (~90-row) list', async () => {
+    const supRes = await routePriceCatalog({ method: 'GET', path: '/api/prices/suppliers', query: {}, headers: {}, body: null, auth: { role: 'app' } }, { repo, now: () => now, id: () => 'x' })
+    const supplier = JSON.parse(supRes.body).suppliers.find((s: { name: string }) => s.name.includes('טרה'))
+    const prodRes = await routePriceCatalog({ method: 'GET', path: '/api/prices/products', query: { supplierId: supplier.id, limit: '200' }, headers: {}, body: null, auth: { role: 'app' } }, { repo, now: () => now, id: () => 'x' })
+    const products = JSON.parse(prodRes.body).products
+    const rows = products.map((p: { name: string; packagePrice: number }, i: number) => ({ rowId: 'r' + i, name: p.name, packagePrice: p.packagePrice + 1 }))
+    const res = await routePriceCatalog({
+      method: 'POST', path: '/api/prices/imports/preview', query: {}, headers: {},
+      body: JSON.stringify({ baseVersion: 1, supplierId: supplier.id, rows }),
+      auth: { role: 'gpt' },
+    }, { repo, now: () => now, id: () => 'import-big' })
+    expect(res.statusCode).toBe(201)
+    expect(res.body.length).toBeLessThan(100000)
+  })
 })

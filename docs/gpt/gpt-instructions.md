@@ -29,6 +29,23 @@
 
 > אם `previewChanges` החזיר `409 stale_version` — מישהו עדכן במקביל. קרא `getCatalogVersion` שוב ובצע `previewChanges` מחדש עם ה-baseVersion החדש (ואותו productId/מחיר).
 
+## ייבוא מחירון (זרימה מחייבת)
+כשהמשתמש מצרף מחירון ספק (Excel/CSV/PDF/צילום) ומבקש לעדכן:
+1. **קרא את הקובץ בעצמך** וחלץ את השורות. לכל שורה הקצה `rowId` ייחודי; קרא `name` + `packagePrice` (לפני מע"מ), ואם קיים גם `supplierSku`, `packageQuantity`, `unit`.
+2. **זהה את הספק.** אם המשתמש לא ציין — שאל. העבר `supplierId` (עדיף) או `supplierName`.
+3. `getCatalogVersion` → קח `version` כ-`baseVersion`.
+4. `previewImport({ baseVersion, supplierId, rows })`. בדוק `status`:
+   - `unknown_supplier` → הספק לא בקטלוג; שאל את המשתמש (הוספת ספק היא פעולה נפרדת).
+   - `ambiguous_supplier` → הצג `candidates`, בקש לבחור, ואז `previewImport` שוב עם ה-id.
+   - `no_confident_changes` → אין שינויים בטוחים; הצג `review` ובקש הכרעה.
+   - `ready` → המשך.
+5. הצג בקצרה: `counts` (שונה/חדש/נעלם/לא-ודאי/לא-תקין); את `changes` (לכל אחד: שם, מחיר קודם→חדש, אחוז); את `warnings` (שינויים חריגים); ואת `review` — **שורות לא-ודאיות שלא ייכנסו** (הצג מועמדים; אל תנחש).
+6. להחרגת שורות — `previewImport` שוב עם `excludeRowIds`/`excludeProductIds` (מחזיר changeSetId חדש).
+7. בקש אישור מפורש ("לאשר?"). רק אחרי אישור: `applyChange(id=<changeSetId>, body={confirmation:"APPROVE"}, header Idempotency-Key=<ערך אקראי חדש>)`.
+8. דווח: בוצע, מספר הגרסה החדשה, והצע ביטול ("בטל את הייבוא האחרון" → `revertPreview` על אותו changeSetId).
+
+> `review` **לעולם לא נכנס אוטומטית** — המשתמש מכריע. השבתת מוצרים שנעלמו רק אם המשתמש ביקש (`detectMissing:true`). מחיר 0/שלילי נפסל. 409 stale_version → `getCatalogVersion` שוב + `previewImport` מחדש.
+
 ## הוספת מוצר / השבתה
 - **השבתה** (מוצר שנעלם ממחירון): `updateProduct` עם `patch:{active:false}` — לא מחיקה.
 - **הוספת מוצר**: `addProduct` דורש CatalogProduct מלא (id ייחודי, supplierId קיים, name, packagePrice, active:true). העדף לבקש מהמשתמש את הפרטים החסרים במקום לנחש כמות/יחידה.

@@ -12,6 +12,7 @@ import {
   type CatalogSnapshot,
   type ChangeSet,
 } from '../../shared/priceCatalog/types'
+import { ImportPreviewRequestSchema, buildImportPlan } from '../../shared/priceCatalog/import'
 
 export interface PriceApiRequest {
   method: 'GET' | 'POST' | 'OPTIONS'
@@ -148,6 +149,9 @@ export async function routePriceCatalog(
       if (seg[0] === 'export-link') {
         return await handleExportLink(dependencies)
       }
+      if (seg[0] === 'imports' && seg[1] === 'preview') {
+        return await handleImportPreview(request, dependencies)
+      }
       return fail(404, 'not_found')
     }
 
@@ -193,6 +197,49 @@ export async function routePriceCatalog(
     })
     await deps.repo.saveChangeSet(change)
     return json(201, change)
+  }
+
+  // ייבוא מחירון: התאמת שורות מול הקטלוג → ChangeSet source:'import' → מוחל דרך ה-apply הקיים.
+  // ספק לא-מזוהה/דו-משמעי מוחזר כ-200 (סטטוס שיחתי, לא שגיאה) כדי שה-GPT ישאל. תשובה תמצתית (<100KB).
+  async function handleImportPreview(req: PriceApiRequest, deps: PriceRouterDependencies): Promise<PriceApiResponse> {
+    const parsed = ImportPreviewRequestSchema.safeParse(parseJson(req.body))
+    if (!parsed.success) return fail(400, 'invalid_request')
+    const active = await deps.repo.getActive()
+    if (!active) return fail(404, 'no_active_catalog')
+    if (parsed.data.baseVersion !== active.version) return fail(409, 'stale_version')
+
+    const plan = buildImportPlan(active, parsed.data, { now: deps.now(), newProductId: () => deps.id() })
+    if (plan.supplierResolution.status === 'unknown') {
+      return json(200, { status: 'unknown_supplier', baseVersion: active.version })
+    }
+    if (plan.supplierResolution.status === 'ambiguous') {
+      return json(200, { status: 'ambiguous_supplier', baseVersion: active.version, candidates: plan.supplierResolution.candidates })
+    }
+
+    const CAP = 60
+    const truncated: { changes?: number; review?: number } = {}
+    if (plan.changes.length > CAP) truncated.changes = plan.changes.length - CAP
+    if (plan.review.length > CAP) truncated.review = plan.review.length - CAP
+    const compact = {
+      supplier: plan.supplierResolution.supplier,
+      baseVersion: active.version,
+      counts: plan.counts,
+      changes: plan.changes.slice(0, CAP),
+      review: plan.review.slice(0, CAP),
+      ...(Object.keys(truncated).length ? { truncated } : {}),
+    }
+
+    if (plan.confidentOperations.length === 0) {
+      return json(200, { status: 'no_confident_changes', changeSetId: null, ...compact })
+    }
+    const change = createChangeSet(active, plan.confidentOperations, {
+      id: deps.id(),
+      source: 'import',
+      now: deps.now(),
+      expiresAt: new Date(Date.parse(deps.now()) + PREVIEW_TTL_MS).toISOString(),
+    })
+    await deps.repo.saveChangeSet(change)
+    return json(201, { status: 'ready', changeSetId: change.id, expiresAt: change.expiresAt, warnings: change.warnings, ...compact })
   }
 
   async function handleApply(
