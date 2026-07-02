@@ -11,6 +11,7 @@ import NotificationScheduler from './components/NotificationScheduler'
 import ErrorBoundary from './components/ErrorBoundary'
 import ToastContainer from './components/Toast'
 import ConfirmDialog from './components/ConfirmDialog'
+import PWAUpdatePrompt from './components/PWAUpdatePrompt'
 
 const SummaryPage = lazy(() => import('./pages/SummaryPage'))
 const HistoryPage = lazy(() => import('./pages/HistoryPage'))
@@ -70,6 +71,7 @@ function App() {
       <ErrorBoundary>
       <ToastContainer />
       <ConfirmDialog />
+      <PWAUpdatePrompt />
       <div className="min-h-screen bg-primary">
         {isAuthenticated && (
           <>

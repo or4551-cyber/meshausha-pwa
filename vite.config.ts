@@ -20,7 +20,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (לא autoUpdate): גרסה חדשה "ממתינה" עד שהמשתמש לוחץ "רענן" בבאנר
+      // (PWAUpdatePrompt) → updateServiceWorker(true). כך עדכונים גלויים ואמינים,
+      // ומשתמש לא נתקע בשקט על בנדל ישן (שורש באג 2).
+      registerType: 'prompt',
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'icon-maskable-512.png'],
       manifest: {
@@ -41,7 +44,9 @@ export default defineConfig({
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        skipWaiting: true,
+        // אין skipWaiting אוטומטי: ב-registerType 'prompt' המשתמש מפעיל את הדילוג דרך הבאנר
+        // (updateServiceWorker(true)). skipWaiting:true היה מבטל את הבאנר (הגרסה החדשה הייתה
+        // מתחלפת מיד בשקט). clientsClaim נשאר — כשה-SW החדש מופעל הוא תופס את החלונות הפתוחים.
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
