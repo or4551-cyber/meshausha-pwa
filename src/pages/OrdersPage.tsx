@@ -19,7 +19,11 @@ export default function OrdersPage() {
   const [cloudOrders, setCloudOrders] = useState<Order[]>([])
   // סלקטור ריאקטיבי — מתרענן אוטומטית כשהסטור משתנה (זריעה, עדכון מחיר, הוספה/מחיקה)
   const storeProducts = useSuppliersStore(s => s.products)
-  const allProducts = useMemo(() => storeProducts.filter(p => !p.adminOnly), [storeProducts])
+  // סניפים לא רואים מוצרי adminOnly; האדמין רואה הכל (כולל אותם) כדי שיוכל להזמין ולחפש.
+  const allProducts = useMemo(
+    () => storeProducts.filter(p => !p.adminOnly || user?.isAdmin),
+    [storeProducts, user?.isAdmin]
+  )
 
   // טוען הזמנות מהענן פעם אחת — לסניף רק שלו, לאדמין הכל
   useEffect(() => {

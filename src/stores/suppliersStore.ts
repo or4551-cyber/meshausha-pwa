@@ -52,6 +52,7 @@ interface SuppliersState {
   loadCloudData: (suppliers: Supplier[], products: Product[]) => void
   migrateCatalog: (version: number, transform: (products: Product[]) => Product[]) => void
   replaceCatalogProducts: (products: Product[], version: number) => void
+  reconcileCatalogProducts: (products: Product[], version: number) => void
   getSupplierById: (id: string) => Supplier | undefined
   getProductsBySupplier: (supplierName: string) => Product[]
   getAllSuppliers: () => Supplier[]
@@ -169,6 +170,15 @@ export const useSuppliersStore = create<SuppliersState>()(
       // לגיטימי לעולם לא נדחה.
       replaceCatalogProducts: (products, version) => {
         set((state) => (version > state.catalogVersion ? { products, catalogVersion: version } : state))
+      },
+
+      // reconcile בטעינה ראשונית: מחיל את הקטלוג המרכזי הטרי כמקור-אמת **תמיד** (גם אם הגרסה זהה
+      // למקומית), כי הקטלוג נמשך זה-עתה במלואו והוא לא-stale. זה מנקה מוצרים ישנים/כפולים שהצטברו
+      // מקומית (למשל שמות פרה-עדכון שהגיעו מ-settings-api דרך loadCloudData). בניגוד ל-replaceCatalogProducts
+      // המונוטוני (לרענון focus/visibility, שם עלול להיות race מול commit), כאן ההחלפה חד-משמעית.
+      // הגרסה מתקדמת מונוטונית (Math.max) כדי לא לרדת מגרסה מקומית גבוהה יותר.
+      reconcileCatalogProducts: (products, version) => {
+        set((state) => ({ products, catalogVersion: Math.max(state.catalogVersion, version) }))
       },
 
       getSupplierById: (id) => {

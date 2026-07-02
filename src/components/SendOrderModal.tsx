@@ -133,7 +133,8 @@ export default function SendOrderModal({
       supplier,
       items: supplierItems,
       notes,
-      showPrice: isAdmin,
+      // ההודעה נשלחת לספק (או לאדמין) — לעולם לא כוללת מחירים. האדמין רואה מחירים בממשק בלבד.
+      showPrice: false,
     })
     const targetRaw = isAdmin ? getSupplierPhone(supplier) : adminPhone
     const wa = toWaNumber(targetRaw)

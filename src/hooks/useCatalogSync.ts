@@ -27,9 +27,12 @@ export function useCatalogSync(): void {
     let cancelled = false
     let detach: () => void = () => {}
 
-    // מנסה להחליף products מהקטלוג המרכזי כשהוא נגיש וגרסתו שונה מהמקומית.
-    // בהפעלה ראשונית (initial), אם *לא* בוצעה החלפה סמכותית — מריץ את ה-fallback הישן
-    // (migrateCatalog, אידמפוטנטי ו-version-gated) כדי להבטיח catalogVersion+תיקון הכפפות.
+    // מסנכרן products עם הקטלוג המרכזי (מקור-האמת).
+    // - הפעלה ראשונית (initial): מושך את הקטלוג המלא ומחיל אותו **תמיד** (reconcile) אם הצליח —
+    //   כך מכשירים עם מוצרים ישנים/כפולים שהצטברו מקומית מתנקים מיד, בלי תלות בשוויון-גרסה.
+    // - רענון focus/visibility (לא-initial): החלפה מונוטונית וזולה (בקשת-גרסה קלה; משיכה מלאה רק אם
+    //   הגרסה השתנתה) — כדי לא ליצור churn/race מול commit ברקע.
+    // - אם הקטלוג המרכזי לא נגיש בהפעלה ראשונית (offline/כשל) — נופל ל-migrateCatalog הישן (fallback).
     async function syncCatalog(initial: boolean): Promise<void> {
       if (runningRef.current) return
       const now = Date.now()
@@ -38,16 +41,25 @@ export function useCatalogSync(): void {
       runningRef.current = true
       try {
         let replaced = false
-        const versionInfo = await getCatalogVersion()
-        if (versionInfo && versionInfo.version !== useSuppliersStore.getState().catalogVersion) {
+        if (initial) {
+          // reconcile סמכותי: הקטלוג נמשך זה-עתה במלואו והוא טרי (לא-stale) → מחילים תמיד.
           const catalog = await fetchActiveCatalog()
-          if (catalog && catalog.version !== useSuppliersStore.getState().catalogVersion) {
-            useSuppliersStore.getState().replaceCatalogProducts(catalog.products, catalog.version)
+          if (catalog && catalog.products.length > 0) {
+            useSuppliersStore.getState().reconcileCatalogProducts(catalog.products, catalog.version)
             replaced = true
           }
+        } else {
+          const versionInfo = await getCatalogVersion()
+          if (versionInfo && versionInfo.version !== useSuppliersStore.getState().catalogVersion) {
+            const catalog = await fetchActiveCatalog()
+            if (catalog && catalog.version !== useSuppliersStore.getState().catalogVersion) {
+              useSuppliersStore.getState().replaceCatalogProducts(catalog.products, catalog.version)
+              replaced = true
+            }
+          }
         }
-        // baseline: בהפעלה ראשונית, אם הקטלוג המרכזי לא החליף (לא נגיש / גרסה זהה / כשל משיכה) —
-        // מריץ את ההגירה הישנה. אידמפוטנטי (catalogVersion>=1 → no-op), ולכן בטוח להריץ תמיד.
+        // baseline: בהפעלה ראשונית, אם הקטלוג המרכזי לא נגיש (offline/כשל משיכה) — מריץ את ההגירה
+        // הישנה. אידמפוטנטי (catalogVersion>=1 → no-op), ולכן בטוח להריץ תמיד.
         if (initial && !replaced) {
           useSuppliersStore.getState().migrateCatalog(CATALOG_VERSION, applyCatalogV1)
         }
@@ -76,7 +88,10 @@ export function useCatalogSync(): void {
         const hasSchedules = data?.suppliers?.some((s: { schedules?: unknown[] }) => (s.schedules?.length ?? 0) > 0)
         if (hasSchedules && data && !cancelled) {
           const st = useSuppliersStore.getState()
-          st.loadCloudData(data.suppliers, data.products ?? [])
+          // ⚠️ מוצרים לא מגיעים יותר מ-settings-api — הקטלוג המרכזי הוא מקור-האמת היחיד למוצרים.
+          // settings-api עדיין מחזיק רשימת-מוצרים ישנה (שמות פרה-עדכון), ומיזוגה היה מקור הכפילויות
+          // (למשל טרה פלסט: 90 חדשים + עד-41 ישנים). מכאן ואילך מושכים ממנו ספקים/לוחות-זמנים בלבד.
+          st.loadCloudData(data.suppliers, [])
           st.seedStaticSuppliers(INITIAL_SUPPLIERS)
           st.seedStaticProducts(PRODUCTS)
         }
