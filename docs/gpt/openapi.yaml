@@ -277,6 +277,56 @@ paths:
         "409":
           description: התנגשות גרסה (stale_version) — קרא version שוב ועשה preview מחדש
 
+  /api/insights/summary:
+    get:
+      operationId: getInsightsSummary
+      summary: "סיכום הזמנות והוצאות"
+      description: 'סיכום הוצאות/כמויות הזמנות בטווח זמן, עם פילוח לפי ספק/סניף/חודש/יום (groupBy). period (this_month/last_month/last_30d/this_quarter/ytd/all וכו׳) או from+to (YYYY-MM-DD). סכומים לפני מע"מ (spendWithVat=×1.17). סינון אופציונלי: branchCode/supplier. מחזיר totals+groups ממוינים.'
+      parameters:
+        - { name: period, in: query, schema: { type: string, enum: [today, yesterday, this_week, last_week, this_month, last_month, last_30d, last_90d, this_quarter, last_quarter, ytd, all] } }
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: groupBy, in: query, schema: { type: string, enum: [none, supplier, branch, month, weekday] } }
+        - { name: branchCode, in: query, schema: { type: string } }
+        - { name: supplier, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: "סיכום"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InsightsSummary" }
+  /api/insights/top-products:
+    get:
+      operationId: getTopProducts
+      summary: "מוצרים מובילים"
+      description: 'המוצרים המובילים בהזמנות בטווח זמן, לפי כמות (by=quantity) או כסף (by=spend). period או from+to; סינון אופציונלי branchCode/supplier; limit (ברירת מחדל 10, מקס׳ 50). סכומים לפני מע"מ. מחזיר שם/ספק/כמות/סכום/מס׳ הזמנות.'
+      parameters:
+        - { name: period, in: query, schema: { type: string, enum: [today, yesterday, this_week, last_week, this_month, last_month, last_30d, last_90d, this_quarter, last_quarter, ytd, all] } }
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: by, in: query, schema: { type: string, enum: [quantity, spend] } }
+        - { name: branchCode, in: query, schema: { type: string } }
+        - { name: supplier, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: "מוצרים מובילים"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TopProducts" }
+  /api/insights/overview:
+    get:
+      operationId: getInsightsOverview
+      summary: "תמונת מצב הזמנות"
+      description: 'תמונת מצב עכשווית של ההזמנות: ממתינות, סכומי היום/השבוע/החודש, פירוט לכל סניף (הזמנה אחרונה + ממתינות + הוצאת החודש), וספקים מובילים החודש. סכומים לפני מע"מ. בלי פרמטרים.'
+      responses:
+        "200":
+          description: "תמונת מצב"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InsightsOverview" }
+
 components:
   securitySchemes:
     GptApiKey:
@@ -448,3 +498,46 @@ components:
         truncated:
           type: object
           properties: { changes: { type: integer }, review: { type: integer } }
+
+    InsightsSummary:
+      type: object
+      properties:
+        range: { type: object, properties: { from: { type: string }, to: { type: string }, label: { type: string } } }
+        groupBy: { type: string }
+        filters: { type: object, properties: { branchCode: { type: string }, supplier: { type: string } } }
+        totals: { type: object, properties: { spendExVat: { type: number }, spendWithVat: { type: number }, orders: { type: integer }, units: { type: number } } }
+        groups:
+          type: array
+          items:
+            type: object
+            properties: { key: { type: string }, label: { type: string }, spendExVat: { type: number }, spendWithVat: { type: number }, orders: { type: integer }, units: { type: number } }
+        note: { type: string }
+    TopProducts:
+      type: object
+      properties:
+        range: { type: object, properties: { from: { type: string }, to: { type: string }, label: { type: string } } }
+        by: { type: string }
+        products:
+          type: array
+          items:
+            type: object
+            properties: { productId: { type: string }, name: { type: string }, supplier: { type: string }, units: { type: number }, spendExVat: { type: number }, orders: { type: integer } }
+        note: { type: string }
+    InsightsOverview:
+      type: object
+      properties:
+        now: { type: string }
+        pending: { type: object, properties: { orders: { type: integer }, spendExVat: { type: number } } }
+        today: { type: object, properties: { orders: { type: integer }, spendExVat: { type: number } } }
+        thisWeek: { type: object, properties: { orders: { type: integer }, spendExVat: { type: number } } }
+        thisMonth: { type: object, properties: { orders: { type: integer }, spendExVat: { type: number } } }
+        branches:
+          type: array
+          items:
+            type: object
+            properties: { branchCode: { type: string }, branch: { type: string }, lastOrderAt: { type: string }, pendingOrders: { type: integer }, thisMonthSpendExVat: { type: number } }
+        topSuppliersThisMonth:
+          type: array
+          items:
+            type: object
+            properties: { supplier: { type: string }, spendExVat: { type: number } }
