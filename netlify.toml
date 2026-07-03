@@ -51,6 +51,12 @@
   force = true
 
 [[redirects]]
+  from = "/api/insights/*"
+  to = "/.netlify/functions/insights-api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/price-auth"
   to = "/.netlify/functions/price-auth"
   status = 200
