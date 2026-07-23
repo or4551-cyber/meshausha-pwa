@@ -1,4 +1,4 @@
-import type { Config } from '@netlify/functions'
+// import type { Config } from '@netlify/functions' // ⏸️ MOTHBALL — הוחזר לשימוש כשהתזמון יופעל מחדש
 import { getStore } from '@netlify/blobs'
 import { google } from 'googleapis'
 
@@ -157,7 +157,8 @@ ${branchesList}
   }
 }
 
+// ⏸️ MOTHBALL 2026-07-23: התזמון כובה — האפליקציה הוקפאה. להחזרה: בטל את ההערה ופרוס מחדש.
 // רץ כל יום ב-07:00 UTC (10:00 שעון ישראל)
-export const config: Config = {
-  schedule: '0 7 * * *',
-}
+// export const config: Config = {
+//   schedule: '0 7 * * *',
+// }
